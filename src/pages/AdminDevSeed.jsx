@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Trash2, Database, ArrowRight } from 'lucide-react';
+import { CheckCircle, Trash2, Database, ArrowRight, AlertCircle } from 'lucide-react';
 
 const STORAGE_KEY = 'dev_seed_records';
 
