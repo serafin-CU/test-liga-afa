@@ -52,6 +52,7 @@ import AdminMatchSourceLinks from './pages/AdminMatchSourceLinks';
 import AdminIngestionMonitor from './pages/AdminIngestionMonitor';
 import AdminMatchValidation from './pages/AdminMatchValidation';
 import AdminManualOverride from './pages/AdminManualOverride';
+import AdminSystemTestHarness from './pages/AdminSystemTestHarness';
 
 
 export const PAGES = {
@@ -60,6 +61,7 @@ export const PAGES = {
     "AdminIngestionMonitor": AdminIngestionMonitor,
     "AdminMatchValidation": AdminMatchValidation,
     "AdminManualOverride": AdminManualOverride,
+    "AdminSystemTestHarness": AdminSystemTestHarness,
 }
 
 export const pagesConfig = {
