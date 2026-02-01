@@ -30,6 +30,9 @@ export default function AdminSystemTestHarness() {
             // TEST 4: Fantasy Stats Builder Idempotency
             testResults.push(await runTest4(runId));
 
+            // TEST 5: Fantasy Scoring Idempotency + Re-score
+            testResults.push(await runTest5(runId));
+
         } catch (error) {
             testResults.push({
                 name: 'Test Suite',
@@ -440,6 +443,215 @@ export default function AdminSystemTestHarness() {
         return test;
     };
 
+    const runTest5 = async (runId) => {
+        const test = { name: 'TEST 5: Fantasy Scoring Idempotency + Re-score', status: 'FAIL', details: '' };
+        
+        try {
+            // Setup: Create teams, players, match, stats, and squad
+            const team1 = await base44.entities.Team.create({
+                name: `Test Team I ${runId}`,
+                fifa_code: 'TI1'
+            });
+            const team2 = await base44.entities.Team.create({
+                name: `Test Team J ${runId}`,
+                fifa_code: 'TJ1'
+            });
+
+            // Create 11 players for squad
+            const players = [];
+            const positions = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'FWD', 'FWD', 'FWD'];
+            for (let i = 0; i < 11; i++) {
+                const player = await base44.entities.Player.create({
+                    full_name: `Test Player ${i} ${runId}`,
+                    team_id: i < 6 ? team1.id : team2.id,
+                    position: positions[i],
+                    price: 8
+                });
+                players.push(player);
+            }
+
+            // Create finalized match
+            const pastDate = new Date();
+            pastDate.setHours(pastDate.getHours() - 3);
+            
+            const match = await base44.entities.Match.create({
+                phase: 'GROUP_MD1',
+                kickoff_at: pastDate.toISOString(),
+                home_team_id: team1.id,
+                away_team_id: team2.id,
+                status: 'FINAL'
+            });
+
+            // Create MatchResultFinal (team1 wins 2-0, clean sheet)
+            await base44.entities.MatchResultFinal.create({
+                match_id: match.id,
+                home_goals: 2,
+                away_goals: 0,
+                finalized_at: new Date().toISOString()
+            });
+
+            // Create FantasyMatchPlayerStats
+            for (let i = 0; i < 11; i++) {
+                await base44.entities.FantasyMatchPlayerStats.create({
+                    match_id: match.id,
+                    player_id: players[i].id,
+                    team_id: players[i].team_id,
+                    started: true,
+                    substituted_in: false,
+                    substituted_out: false,
+                    minute_in: 0,
+                    minute_out: 90,
+                    minutes_played: 90,
+                    goals: i === 8 ? 2 : 0, // FWD scores 2 goals
+                    yellow_cards: i === 2 ? 1 : 0, // 1 DEF gets yellow
+                    red_cards: 0,
+                    source: 'MANUAL'
+                });
+            }
+
+            // Create user and finalized squad
+            const currentUser = await base44.auth.me();
+            
+            const squad = await base44.entities.FantasySquad.create({
+                user_id: currentUser.id,
+                phase: 'GROUP_MD1',
+                status: 'FINAL',
+                budget_cap: 150,
+                total_cost: 88,
+                finalized_at: new Date().toISOString()
+            });
+
+            // Add all 11 players as starters
+            for (const player of players) {
+                await base44.entities.FantasySquadPlayer.create({
+                    squad_id: squad.id,
+                    player_id: player.id,
+                    slot_type: 'STARTER',
+                    starter_position: player.position
+                });
+            }
+
+            // Action 1: Run fantasy scoring twice
+            const score1 = await base44.functions.invoke('fantasyScoringService', {
+                action: 'score_fantasy_match',
+                match_id: match.id
+            });
+
+            const score2 = await base44.functions.invoke('fantasyScoringService', {
+                action: 'score_fantasy_match',
+                match_id: match.id
+            });
+
+            // Verify: Second run should NOT create new awards (idempotent via ScoringJob)
+            const ledgerAfterFirst = await base44.entities.PointsLedger.filter({
+                mode: 'FANTASY',
+                user_id: currentUser.id
+            });
+
+            const matchLedgerEntries = ledgerAfterFirst.filter(e => {
+                try {
+                    const breakdown = JSON.parse(e.breakdown_json);
+                    return breakdown.match_id === match.id && breakdown.type === 'AWARD';
+                } catch {
+                    return false;
+                }
+            });
+
+            if (matchLedgerEntries.length !== 1) {
+                test.details = `Expected 1 AWARD entry after 2 runs, got ${matchLedgerEntries.length}`;
+                return test;
+            }
+
+            const firstPoints = matchLedgerEntries[0].points;
+
+            // Action 2: Modify one stat (simulate correction)
+            const fwdPlayer = players.find(p => p.position === 'FWD');
+            const fwdStats = await base44.entities.FantasyMatchPlayerStats.filter({
+                match_id: match.id,
+                player_id: fwdPlayer.id
+            });
+
+            // Update FWD to have 3 goals instead of 2
+            await base44.entities.FantasyMatchPlayerStats.update(fwdStats[0].id, {
+                goals: 3
+            });
+
+            // Delete the ScoringJob to allow re-score
+            const scoringJobs = await base44.entities.ScoringJob.filter({
+                dedupe_key: `FANTASY:MATCH:${match.id}:v1`
+            });
+            for (const job of scoringJobs) {
+                await base44.entities.ScoringJob.delete(job.id);
+            }
+
+            // Action 3: Run fantasy scoring again (re-score)
+            const score3 = await base44.functions.invoke('fantasyScoringService', {
+                action: 'score_fantasy_match',
+                match_id: match.id
+            });
+
+            // Verify: VOID + new AWARD entries created
+            const ledgerAfterRescore = await base44.entities.PointsLedger.filter({
+                mode: 'FANTASY',
+                user_id: currentUser.id
+            });
+
+            const matchEntriesAfterRescore = ledgerAfterRescore.filter(e => {
+                try {
+                    const breakdown = JSON.parse(e.breakdown_json);
+                    return breakdown.match_id === match.id;
+                } catch {
+                    return false;
+                }
+            });
+
+            const voidEntries = matchEntriesAfterRescore.filter(e => {
+                try {
+                    const breakdown = JSON.parse(e.breakdown_json);
+                    return breakdown.type === 'VOID';
+                } catch {
+                    return false;
+                }
+            });
+
+            const awardEntries = matchEntriesAfterRescore.filter(e => {
+                try {
+                    const breakdown = JSON.parse(e.breakdown_json);
+                    return breakdown.type === 'AWARD';
+                } catch {
+                    return false;
+                }
+            });
+
+            if (voidEntries.length !== 1) {
+                test.details = `Expected 1 VOID entry, got ${voidEntries.length}`;
+                return test;
+            }
+
+            if (awardEntries.length !== 2) {
+                test.details = `Expected 2 AWARD entries (original + re-score), got ${awardEntries.length}`;
+                return test;
+            }
+
+            // Verify net total (should be higher due to extra goal)
+            const netTotal = matchEntriesAfterRescore.reduce((sum, e) => sum + e.points, 0);
+            const expectedIncrease = 5; // 1 extra goal by FWD = 5 points
+
+            if (netTotal !== firstPoints + expectedIncrease) {
+                test.details = `Expected net total ${firstPoints + expectedIncrease}, got ${netTotal}`;
+                return test;
+            }
+
+            test.status = 'PASS';
+            test.details = `✓ Idempotency: 1 award after 2 runs, ✓ Re-score: 1 VOID + 2 AWARD entries, ✓ Net increase: ${expectedIncrease} points`;
+
+        } catch (error) {
+            test.details = error.message;
+        }
+
+        return test;
+    };
+
     const resetTestData = async () => {
         if (!testRunId) {
             alert('No test run to clean up');
@@ -508,6 +720,7 @@ export default function AdminSystemTestHarness() {
                     <div><strong>TEST 2:</strong> Verifies matches with confidence &lt; 70 are NOT auto-finalized</div>
                     <div><strong>TEST 3:</strong> Verifies URL whitelist blocks non-matching URLs</div>
                     <div><strong>TEST 4:</strong> Verifies Fantasy Stats Builder is idempotent and resolves players correctly</div>
+                    <div><strong>TEST 5:</strong> Verifies Fantasy Scoring is idempotent and handles re-scoring with void entries</div>
                     <div className="text-yellow-800 bg-yellow-50 p-3 rounded mt-3 flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 mt-0.5" />
                         <span>Tests create temporary data tagged with test_run_id. Use "Reset Test Data" to clean up.</span>
