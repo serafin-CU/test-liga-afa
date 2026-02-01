@@ -27,6 +27,9 @@ export default function AdminSystemTestHarness() {
             // TEST 3: URL whitelist blocking
             testResults.push(await runTest3(runId));
 
+            // TEST 4: Fantasy Stats Builder Idempotency
+            testResults.push(await runTest4(runId));
+
         } catch (error) {
             testResults.push({
                 name: 'Test Suite',
@@ -295,6 +298,148 @@ export default function AdminSystemTestHarness() {
         return test;
     };
 
+    const runTest4 = async (runId) => {
+        const test = { name: 'TEST 4: Fantasy Stats Builder Idempotency', status: 'FAIL', details: '' };
+        
+        try {
+            // Setup: Create teams and players
+            const team1 = await base44.entities.Team.create({
+                name: `Test Team G ${runId}`,
+                fifa_code: 'TG1'
+            });
+            const team2 = await base44.entities.Team.create({
+                name: `Test Team H ${runId}`,
+                fifa_code: 'TH1'
+            });
+
+            const player1 = await base44.entities.Player.create({
+                full_name: `Test Scorer ${runId}`,
+                team_id: team1.id,
+                position: 'FWD',
+                price: 12
+            });
+            const player2 = await base44.entities.Player.create({
+                full_name: `Test Keeper ${runId}`,
+                team_id: team2.id,
+                position: 'GK',
+                price: 8
+            });
+
+            // Create past match
+            const pastDate = new Date();
+            pastDate.setHours(pastDate.getHours() - 3);
+            
+            const match = await base44.entities.Match.create({
+                phase: 'GROUP_MD1',
+                kickoff_at: pastDate.toISOString(),
+                home_team_id: team1.id,
+                away_team_id: team2.id,
+                status: 'FINAL'
+            });
+
+            // Create data source
+            const promiedosSource = await base44.entities.DataSource.filter({ name: 'PROMIEDOS' });
+            const sourceId = promiedosSource[0]?.id;
+
+            if (!sourceId) {
+                test.details = 'PROMIEDOS data source not found';
+                return test;
+            }
+
+            // Create mock ingestion event with parsed data
+            const mockParsedData = {
+                status: 'FINAL',
+                score: { home: 2, away: 1 },
+                events: [
+                    { type: 'GOAL', team: team1.name, player: player1.full_name, minute: 23 },
+                    { type: 'GOAL', team: team2.name, player: 'Unknown Player', minute: 45 },
+                    { type: 'GOAL', team: team1.name, player: player1.full_name, minute: 78 }
+                ],
+                lineups: [
+                    { team_name: team1.name, starters: [player1.full_name], bench: [] },
+                    { team_name: team2.name, starters: [player2.full_name], bench: [] }
+                ]
+            };
+
+            const ingestionRun = await base44.entities.IngestionRun.create({
+                started_at: new Date().toISOString(),
+                status: 'SUCCESS',
+                summary_json: JSON.stringify({ test: true })
+            });
+
+            await base44.entities.IngestionEvent.create({
+                run_id: ingestionRun.id,
+                match_id: match.id,
+                source_id: sourceId,
+                fetched_at: new Date().toISOString(),
+                http_status: 200,
+                parse_status: 'OK',
+                content_hash: 'test_hash_' + runId,
+                parsed_json: JSON.stringify(mockParsedData)
+            });
+
+            // Action: Run FANTASY_STATS job twice
+            const result1 = await base44.functions.invoke('fantasyStatsService', {
+                action: 'build_fantasy_stats',
+                match_id: match.id,
+                options: {}
+            });
+
+            const result2 = await base44.functions.invoke('fantasyStatsService', {
+                action: 'build_fantasy_stats',
+                match_id: match.id,
+                options: {}
+            });
+
+            // Verify: FantasyMatchPlayerStats count stable
+            const stats1 = await base44.entities.FantasyMatchPlayerStats.filter({ match_id: match.id });
+            
+            if (stats1.length === 0) {
+                test.details = `No stats created. Result 1: ${JSON.stringify(result1.data)}`;
+                return test;
+            }
+
+            // Check for duplicates (should be prevented by UNIQUE constraint)
+            const playerIds = stats1.map(s => s.player_id);
+            const uniquePlayerIds = [...new Set(playerIds)];
+            if (playerIds.length !== uniquePlayerIds.length) {
+                test.details = `Duplicate player stats found: ${playerIds.length} total, ${uniquePlayerIds.length} unique`;
+                return test;
+            }
+
+            // Verify unresolved names logged
+            if (result1.data.unresolved_names?.length === 0) {
+                test.details = 'Expected at least 1 unresolved name (Unknown Player), got 0';
+                return test;
+            }
+
+            // Verify player1 stats
+            const player1Stats = stats1.find(s => s.player_id === player1.id);
+            if (!player1Stats) {
+                test.details = 'Player 1 stats not found';
+                return test;
+            }
+
+            if (player1Stats.goals !== 2) {
+                test.details = `Expected player 1 to have 2 goals, got ${player1Stats.goals}`;
+                return test;
+            }
+
+            if (player1Stats.started !== true) {
+                test.details = `Expected player 1 to have started=true, got ${player1Stats.started}`;
+                return test;
+            }
+
+            test.status = 'PASS';
+            test.details = `✓ ${stats1.length} stats created, ✓ No duplicates, ✓ Player 1: 2 goals, started=true, ✓ ${result1.data.unresolved_names.length} unresolved names logged`;
+
+        } catch (error) {
+            test.details = error.message;
+        }
+
+        return test;
+    };
+
     const resetTestData = async () => {
         if (!testRunId) {
             alert('No test run to clean up');
@@ -362,6 +507,7 @@ export default function AdminSystemTestHarness() {
                     <div><strong>TEST 1:</strong> Verifies Finalizer and scoring are idempotent (no duplicate results/points)</div>
                     <div><strong>TEST 2:</strong> Verifies matches with confidence &lt; 70 are NOT auto-finalized</div>
                     <div><strong>TEST 3:</strong> Verifies URL whitelist blocks non-matching URLs</div>
+                    <div><strong>TEST 4:</strong> Verifies Fantasy Stats Builder is idempotent and resolves players correctly</div>
                     <div className="text-yellow-800 bg-yellow-50 p-3 rounded mt-3 flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 mt-0.5" />
                         <span>Tests create temporary data tagged with test_run_id. Use "Reset Test Data" to clean up.</span>
