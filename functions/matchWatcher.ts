@@ -420,6 +420,7 @@ function parseFIFA(content, matchId) {
 
 /**
  * Cross-check sources and update MatchValidation
+ * Source priority: PRIMARY (PROMIEDOS) > FALLBACK (WIKIPEDIA)
  */
 async function crossCheckAndValidate(base44, matchId) {
     // Get recent events for this match
@@ -445,54 +446,62 @@ async function crossCheckAndValidate(base44, matchId) {
 
     if (parsedData.length === 0) return false;
 
-    // Separate sources: PRIMARY (Promiedos) and FALLBACK (Wikipedia, FIFA)
-    const promiedosData = parsedData.find(d => d.source === 'PROMIEDOS');
-    const wikiData = parsedData.find(d => d.source === 'WIKIPEDIA');
-    const fifaData = parsedData.find(d => d.source === 'FIFA');
+    // Separate sources: PRIMARY (PROMIEDOS) and FALLBACK (WIKIPEDIA)
+    const primaryData = parsedData.find(d => d.source === 'PROMIEDOS');
+    const fallbackData = parsedData.find(d => d.source === 'WIKIPEDIA');
 
-    // PRIMARY source takes precedence, FALLBACK sources used if PRIMARY unavailable
-    const primaryData = promiedosData || fifaData;
-    const fallbackData = wikiData;
+    // If no data from either source, skip
+    if (!primaryData && !fallbackData) return false;
 
-    // Calculate confidence scores
+    // Determine status and score candidates
     let statusCandidate = primaryData?.status || fallbackData?.status || 'SCHEDULED';
     let scoreHomeCandidate = primaryData?.score?.home ?? fallbackData?.score?.home ?? null;
     let scoreAwayCandidate = primaryData?.score?.away ?? fallbackData?.score?.away ?? null;
     let confidenceScore = 0;
     const reasons = [];
 
-    // Score confidence logic
-    if (primaryData && fallbackData) {
-        if (primaryData.score.home === fallbackData.score.home && 
-            primaryData.score.away === fallbackData.score.away &&
-            primaryData.score.home !== null) {
-            confidenceScore = 100;
-            reasons.push(`${primaryData.source} and ${fallbackData.source} scores match`);
-        } else if (primaryData.score.home !== null) {
-            confidenceScore = 85;
-            reasons.push(`${primaryData.source} score available (PRIMARY)`);
-        } else if (fallbackData.score.home !== null) {
-            confidenceScore = 60;
-            reasons.push(`Only ${fallbackData.source} score available (FALLBACK)`);
-        }
-    } else if (primaryData && primaryData.score.home !== null) {
-        confidenceScore = 85;
-        reasons.push(`${primaryData.source} score available (PRIMARY)`);
-    } else if (fallbackData && fallbackData.score.home !== null) {
-        confidenceScore = 60;
-        reasons.push(`Only ${fallbackData.source} score available (FALLBACK)`);
-    }
+    // Confidence rules based on PRIMARY/FALLBACK logic
+    if (primaryData && primaryData.status === 'FINAL' && primaryData.score.home !== null) {
+        // Rule 1: PRIMARY indicates FINAL with score
+        confidenceScore = 80;
+        reasons.push('PRIMARY (PROMIEDOS) reports FINAL status with score');
 
-    // Status confidence
-    if (primaryData?.status === 'FINAL' && fallbackData?.status === 'FINAL') {
-        confidenceScore = Math.max(confidenceScore, 100);
-        reasons.push('Both PRIMARY and FALLBACK report FINAL status');
-    } else if (primaryData?.status === 'FINAL') {
-        confidenceScore = Math.max(confidenceScore, 85);
-        reasons.push(`${primaryData.source} reports FINAL status (PRIMARY)`);
-    } else if (fallbackData?.status === 'FINAL') {
-        confidenceScore = Math.max(confidenceScore, 60);
-        reasons.push(`${fallbackData.source} reports FINAL status (FALLBACK)`);
+        // Rule 2: PRIMARY FINAL + FALLBACK FINAL match
+        if (fallbackData && fallbackData.status === 'FINAL' && 
+            fallbackData.score.home === primaryData.score.home &&
+            fallbackData.score.away === primaryData.score.away) {
+            confidenceScore = 100;
+            reasons.push('PRIMARY and FALLBACK scores match');
+        }
+        // Rule 4: PRIMARY FINAL + FALLBACK conflict
+        else if (fallbackData && fallbackData.status === 'FINAL' &&
+                 fallbackData.score.home !== null &&
+                 (fallbackData.score.home !== primaryData.score.home ||
+                  fallbackData.score.away !== primaryData.score.away)) {
+            confidenceScore = 0;
+            reasons.push('CONFLICT: PRIMARY and FALLBACK final scores differ');
+            reasons.push(`PRIMARY: ${primaryData.score.home}-${primaryData.score.away}`);
+            reasons.push(`FALLBACK: ${fallbackData.score.home}-${fallbackData.score.away}`);
+        }
+        // Rule 3: PRIMARY FINAL but FALLBACK missing (already handled by default 80)
+    } 
+    // Rule 5: Only FALLBACK available and FINAL
+    else if (!primaryData && fallbackData && fallbackData.status === 'FINAL' && fallbackData.score.home !== null) {
+        confidenceScore = 70;
+        statusCandidate = fallbackData.status;
+        scoreHomeCandidate = fallbackData.score.home;
+        scoreAwayCandidate = fallbackData.score.away;
+        reasons.push('Only FALLBACK (WIKIPEDIA) available with FINAL status');
+    }
+    // Rule 6: Not FINAL - keep as LIVE/SCHEDULED
+    else {
+        if (primaryData) {
+            confidenceScore = 50;
+            reasons.push(`PRIMARY status: ${primaryData.status}`);
+        } else if (fallbackData) {
+            confidenceScore = 40;
+            reasons.push(`FALLBACK status: ${fallbackData.status}`);
+        }
     }
 
     // Check if validation already exists
@@ -510,13 +519,13 @@ async function crossCheckAndValidate(base44, matchId) {
     };
 
     if (existingValidations.length > 0 && !existingValidations[0].locked_final) {
-        // Update existing
+        // Update existing unlocked validation
         await base44.asServiceRole.entities.MatchValidation.update(
             existingValidations[0].id,
             validationData
         );
     } else if (existingValidations.length === 0) {
-        // Create new
+        // Create new validation
         await base44.asServiceRole.entities.MatchValidation.create(validationData);
     }
 
