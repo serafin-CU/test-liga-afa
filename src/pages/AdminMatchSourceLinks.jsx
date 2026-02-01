@@ -14,6 +14,8 @@ export default function AdminMatchSourceLinks() {
     const [editUrl, setEditUrl] = useState('');
     const [editRole, setEditRole] = useState('FALLBACK');
     const [alert, setAlert] = useState(null);
+    const [addingToMatch, setAddingToMatch] = useState(null);
+    const [newLinkData, setNewLinkData] = useState({ source_id: '', role: 'FALLBACK', url: '' });
     const queryClient = useQueryClient();
 
     const { data: matches = [], isLoading: matchesLoading } = useQuery({
@@ -86,18 +88,179 @@ export default function AdminMatchSourceLinks() {
 
     const deleteLinkMutation = useMutation({
         mutationFn: async ({ linkId, matchId }) => {
-            // Safety check: ensure match will still have at least 1 link
+            const user = await base44.auth.me();
             const matchLinks = links.filter(l => l.match_id === matchId);
             if (matchLinks.length <= 1) {
                 throw new Error('Cannot delete the last source link for this match. Add another link first.');
             }
             
-            return base44.entities.MatchSourceLink.delete(linkId);
+            const link = links.find(l => l.id === linkId);
+            await base44.entities.MatchSourceLink.delete(linkId);
+
+            // Log deletion
+            await base44.entities.AdminAuditLog.create({
+                admin_user_id: user.id,
+                actor_type: 'ADMIN',
+                action: 'DELETE_MATCH_SOURCE_LINK',
+                entity_type: 'MatchSourceLink',
+                entity_id: linkId,
+                reason: 'Manually deleted source link',
+                details_json: JSON.stringify({ match_id: matchId, source_id: link?.source_id, role: link?.role })
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['matchSourceLinks'] });
             setAlert({ type: 'success', message: 'Source link deleted successfully' });
             setTimeout(() => setAlert(null), 3000);
+        },
+        onError: (error) => {
+            setAlert({ type: 'error', message: error.message });
+        }
+    });
+
+    const createLinkMutation = useMutation({
+        mutationFn: async ({ match_id, source_id, role, url }) => {
+            const user = await base44.auth.me();
+            
+            // Check for duplicate source
+            const existingLink = links.find(l => l.match_id === match_id && l.source_id === source_id);
+            if (existingLink) {
+                throw new Error('This match already has a link for this source');
+            }
+
+            // Validate URL if provided
+            if (url && url.trim() !== '') {
+                const validation = await base44.functions.invoke('adminValidationService', {
+                    action: 'validate_match_source_link',
+                    url: url.trim(),
+                    source_id
+                });
+
+                if (!validation.data.valid) {
+                    throw new Error(validation.data.errors.join(', '));
+                }
+            }
+
+            const matchLinks = links.filter(l => l.match_id === match_id);
+            const existingPrimary = matchLinks.find(l => l.role === 'PRIMARY');
+
+            // Handle PRIMARY constraint
+            if (role === 'PRIMARY' && existingPrimary) {
+                const shouldReplace = window.confirm(
+                    'This match already has a PRIMARY source. Replace it with this new one? (Old PRIMARY will become FALLBACK)'
+                );
+                
+                if (!shouldReplace) {
+                    throw new Error('Cancelled: Match already has PRIMARY source');
+                }
+
+                // Demote existing PRIMARY to FALLBACK
+                await base44.entities.MatchSourceLink.update(existingPrimary.id, { role: 'FALLBACK' });
+                
+                // Log the replacement
+                await base44.entities.AdminAuditLog.create({
+                    admin_user_id: user.id,
+                    actor_type: 'ADMIN',
+                    action: 'UPDATE_MATCH_SOURCE_LINK',
+                    entity_type: 'MatchSourceLink',
+                    entity_id: existingPrimary.id,
+                    reason: 'Demoted to FALLBACK to make room for new PRIMARY',
+                    details_json: JSON.stringify({ old_role: 'PRIMARY', new_role: 'FALLBACK' })
+                });
+            }
+
+            // Check FALLBACK limit (max 2)
+            if (role === 'FALLBACK') {
+                const fallbackCount = matchLinks.filter(l => l.role === 'FALLBACK').length;
+                if (fallbackCount >= 2) {
+                    throw new Error('Match already has maximum (2) FALLBACK sources');
+                }
+            }
+
+            // Create the link
+            const newLink = await base44.entities.MatchSourceLink.create({
+                match_id,
+                source_id,
+                role,
+                url: url && url.trim() !== '' ? url.trim() : null,
+                is_primary: role === 'PRIMARY'
+            });
+
+            // Log creation
+            await base44.entities.AdminAuditLog.create({
+                admin_user_id: user.id,
+                actor_type: 'ADMIN',
+                action: 'CREATE_MATCH_SOURCE_LINK',
+                entity_type: 'MatchSourceLink',
+                entity_id: newLink.id,
+                reason: 'Added new source link',
+                details_json: JSON.stringify({ match_id, source_id, role, has_url: !!url })
+            });
+
+            return newLink;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['matchSourceLinks'] });
+            setAddingToMatch(null);
+            setNewLinkData({ source_id: '', role: 'FALLBACK', url: '' });
+            setAlert({ type: 'success', message: 'Source link created successfully' });
+            setTimeout(() => setAlert(null), 3000);
+        },
+        onError: (error) => {
+            setAlert({ type: 'error', message: error.message });
+        }
+    });
+
+    const bulkAddPromiedosMutation = useMutation({
+        mutationFn: async () => {
+            const user = await base44.auth.me();
+            const promiedosSource = allSources.find(s => s.name === 'PROMIEDOS' && s.enabled);
+            
+            if (!promiedosSource) {
+                throw new Error('PROMIEDOS data source not found or disabled');
+            }
+
+            let added = 0;
+            let skipped = 0;
+
+            for (const match of matches) {
+                const matchLinks = links.filter(l => l.match_id === match.id);
+                const hasPrimary = matchLinks.some(l => l.role === 'PRIMARY');
+                const hasPromiedos = matchLinks.some(l => l.source_id === promiedosSource.id);
+
+                if (!hasPrimary && !hasPromiedos) {
+                    await base44.entities.MatchSourceLink.create({
+                        match_id: match.id,
+                        source_id: promiedosSource.id,
+                        role: 'PRIMARY',
+                        url: null,
+                        is_primary: true
+                    });
+                    added++;
+                } else {
+                    skipped++;
+                }
+            }
+
+            // Log bulk action
+            await base44.entities.AdminAuditLog.create({
+                admin_user_id: user.id,
+                actor_type: 'ADMIN',
+                action: 'BULK_ADD_PROMIEDOS_PRIMARY',
+                entity_type: 'MatchSourceLink',
+                entity_id: 'BULK',
+                reason: 'Bulk added PROMIEDOS as PRIMARY to matches missing primary source',
+                details_json: JSON.stringify({ added, skipped })
+            });
+
+            return { added, skipped };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['matchSourceLinks'] });
+            setAlert({ 
+                type: 'success', 
+                message: `Bulk add complete: ${data.added} PROMIEDOS PRIMARY links added, ${data.skipped} skipped`
+            });
         },
         onError: (error) => {
             setAlert({ type: 'error', message: error.message });
@@ -201,20 +364,33 @@ export default function AdminMatchSourceLinks() {
                         Manage data source links for upcoming matches (next 30 days)
                     </p>
                 </div>
-                {orphanedCount > 0 && (
+                <div className="flex gap-2">
                     <Button 
-                        variant="destructive" 
+                        variant="outline"
                         onClick={() => {
-                            if (confirm(`Remove ${orphanedCount} orphaned/disabled source links?`)) {
-                                cleanupOrphanedMutation.mutate();
+                            if (confirm('Add PROMIEDOS as PRIMARY to all matches that are missing a primary source?')) {
+                                bulkAddPromiedosMutation.mutate();
                             }
                         }}
-                        disabled={cleanupOrphanedMutation.isPending}
+                        disabled={bulkAddPromiedosMutation.isPending}
                     >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Cleanup Orphaned Links ({orphanedCount})
+                        Bulk: Add PROMIEDOS Primary
                     </Button>
-                )}
+                    {orphanedCount > 0 && (
+                        <Button 
+                            variant="destructive" 
+                            onClick={() => {
+                                if (confirm(`Remove ${orphanedCount} orphaned/disabled source links?`)) {
+                                    cleanupOrphanedMutation.mutate();
+                                }
+                            }}
+                            disabled={cleanupOrphanedMutation.isPending}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Cleanup Orphaned ({orphanedCount})
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {alert && (
@@ -235,12 +411,21 @@ export default function AdminMatchSourceLinks() {
                     return (
                         <Card key={match.id}>
                             <CardHeader>
-                                <CardTitle className="text-lg">
-                                    {homeTeam?.name || 'TBD'} vs {awayTeam?.name || 'TBD'}
-                                    <span className="text-sm font-normal text-gray-500 ml-3">
-                                        {new Date(match.kickoff_at).toLocaleString()} | {match.phase}
-                                    </span>
-                                </CardTitle>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-lg">
+                                        {homeTeam?.name || 'TBD'} vs {awayTeam?.name || 'TBD'}
+                                        <span className="text-sm font-normal text-gray-500 ml-3">
+                                            {new Date(match.kickoff_at).toLocaleString()} | {match.phase}
+                                        </span>
+                                    </CardTitle>
+                                    <Button 
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setAddingToMatch(match.id)}
+                                    >
+                                        + Add Source Link
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <Table>
@@ -253,7 +438,77 @@ export default function AdminMatchSourceLinks() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {matchLinks.map(link => {
+                                       {addingToMatch === match.id && (
+                                           <TableRow className="bg-blue-50">
+                                               <TableCell>
+                                                   <Select 
+                                                       value={newLinkData.source_id} 
+                                                       onValueChange={(val) => setNewLinkData({...newLinkData, source_id: val})}
+                                                   >
+                                                       <SelectTrigger className="w-40">
+                                                           <SelectValue placeholder="Select source" />
+                                                       </SelectTrigger>
+                                                       <SelectContent>
+                                                           {sources.map(s => (
+                                                               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                                           ))}
+                                                       </SelectContent>
+                                                   </Select>
+                                               </TableCell>
+                                               <TableCell>
+                                                   <Select 
+                                                       value={newLinkData.role} 
+                                                       onValueChange={(val) => setNewLinkData({...newLinkData, role: val})}
+                                                   >
+                                                       <SelectTrigger className="w-32">
+                                                           <SelectValue />
+                                                       </SelectTrigger>
+                                                       <SelectContent>
+                                                           <SelectItem value="PRIMARY">PRIMARY</SelectItem>
+                                                           <SelectItem value="FALLBACK">FALLBACK</SelectItem>
+                                                       </SelectContent>
+                                                   </Select>
+                                               </TableCell>
+                                               <TableCell>
+                                                   <Input 
+                                                       value={newLinkData.url}
+                                                       onChange={(e) => setNewLinkData({...newLinkData, url: e.target.value})}
+                                                       placeholder="https://... (optional)"
+                                                   />
+                                               </TableCell>
+                                               <TableCell>
+                                                   <div className="flex gap-2">
+                                                       <Button 
+                                                           size="sm" 
+                                                           onClick={() => {
+                                                               if (!newLinkData.source_id) {
+                                                                   setAlert({ type: 'error', message: 'Please select a source' });
+                                                                   return;
+                                                               }
+                                                               createLinkMutation.mutate({
+                                                                   match_id: match.id,
+                                                                   ...newLinkData
+                                                               });
+                                                           }}
+                                                           disabled={createLinkMutation.isPending}
+                                                       >
+                                                           <Save className="w-4 h-4" />
+                                                       </Button>
+                                                       <Button 
+                                                           size="sm" 
+                                                           variant="outline" 
+                                                           onClick={() => {
+                                                               setAddingToMatch(null);
+                                                               setNewLinkData({ source_id: '', role: 'FALLBACK', url: '' });
+                                                           }}
+                                                       >
+                                                           <X className="w-4 h-4" />
+                                                       </Button>
+                                                   </div>
+                                               </TableCell>
+                                           </TableRow>
+                                       )}
+                                       {matchLinks.map(link => {
                                             const source = sourcesMap[link.source_id];
                                             const isEditing = editingLink === link.id;
                                             const isOrphaned = !source || !allSources.find(s => s.id === link.source_id)?.enabled;
