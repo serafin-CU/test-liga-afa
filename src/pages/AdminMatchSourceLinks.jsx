@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit, Save, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Edit, Save, X, Trash2, AlertCircle } from 'lucide-react';
 
 export default function AdminMatchSourceLinks() {
     const [editingLink, setEditingLink] = useState(null);
     const [editUrl, setEditUrl] = useState('');
     const [editRole, setEditRole] = useState('FALLBACK');
+    const [alert, setAlert] = useState(null);
     const queryClient = useQueryClient();
 
     const { data: matches = [], isLoading: matchesLoading } = useQuery({
@@ -78,7 +80,85 @@ export default function AdminMatchSourceLinks() {
             setEditRole('FALLBACK');
         },
         onError: (error) => {
-            alert('Update failed: ' + error.message);
+            setAlert({ type: 'error', message: error.message });
+        }
+    });
+
+    const deleteLinkMutation = useMutation({
+        mutationFn: async ({ linkId, matchId }) => {
+            // Safety check: ensure match will still have at least 1 link
+            const matchLinks = links.filter(l => l.match_id === matchId);
+            if (matchLinks.length <= 1) {
+                throw new Error('Cannot delete the last source link for this match. Add another link first.');
+            }
+            
+            return base44.entities.MatchSourceLink.delete(linkId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['matchSourceLinks'] });
+            setAlert({ type: 'success', message: 'Source link deleted successfully' });
+            setTimeout(() => setAlert(null), 3000);
+        },
+        onError: (error) => {
+            setAlert({ type: 'error', message: error.message });
+        }
+    });
+
+    const cleanupOrphanedMutation = useMutation({
+        mutationFn: async () => {
+            const user = await base44.auth.me();
+            const disabledSourceIds = allSources.filter(s => !s.enabled).map(s => s.id);
+            const orphanedLinks = links.filter(l => disabledSourceIds.includes(l.source_id));
+            
+            if (orphanedLinks.length === 0) {
+                throw new Error('No orphaned links found');
+            }
+
+            // Group by match to check safety
+            const linksByMatch = {};
+            links.forEach(l => {
+                if (!linksByMatch[l.match_id]) linksByMatch[l.match_id] = [];
+                linksByMatch[l.match_id].push(l);
+            });
+
+            const safeToDelete = orphanedLinks.filter(l => {
+                const matchLinks = linksByMatch[l.match_id];
+                const remainingLinks = matchLinks.filter(ml => !disabledSourceIds.includes(ml.source_id));
+                return remainingLinks.length > 0; // Safe if at least 1 link remains
+            });
+
+            // Delete safe links
+            for (const link of safeToDelete) {
+                await base44.entities.MatchSourceLink.delete(link.id);
+            }
+
+            // Log audit
+            await base44.entities.AdminAuditLog.create({
+                admin_user_id: user.id,
+                actor_type: 'ADMIN',
+                action: 'CLEANUP_ORPHANED_SOURCE_LINKS',
+                entity_type: 'MatchSourceLink',
+                entity_id: 'BULK',
+                reason: 'Removed orphaned source links from disabled data sources',
+                details_json: JSON.stringify({
+                    orphaned_count: orphanedLinks.length,
+                    deleted_count: safeToDelete.length,
+                    skipped_count: orphanedLinks.length - safeToDelete.length,
+                    disabled_sources: disabledSourceIds
+                })
+            });
+
+            return { deleted: safeToDelete.length, skipped: orphanedLinks.length - safeToDelete.length };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['matchSourceLinks'] });
+            setAlert({ 
+                type: 'success', 
+                message: `Cleanup complete: ${data.deleted} orphaned links removed${data.skipped > 0 ? `, ${data.skipped} skipped (would leave match with 0 links)` : ''}`
+            });
+        },
+        onError: (error) => {
+            setAlert({ type: 'error', message: error.message });
         }
     });
 
@@ -141,10 +221,16 @@ export default function AdminMatchSourceLinks() {
                                         {matchLinks.map(link => {
                                             const source = sourcesMap[link.source_id];
                                             const isEditing = editingLink === link.id;
+                                            const isOrphaned = !source || !allSources.find(s => s.id === link.source_id)?.enabled;
 
                                             return (
-                                                <TableRow key={link.id}>
-                                                    <TableCell className="font-medium">{source?.name || 'Unknown'}</TableCell>
+                                                <TableRow key={link.id} className={isOrphaned ? 'bg-red-50' : ''}>
+                                                    <TableCell className="font-medium">
+                                                        {source?.name || 'Unknown'}
+                                                        {isOrphaned && (
+                                                            <span className="ml-2 text-xs text-red-600">(disabled)</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell>
                                                         {isEditing ? (
                                                             <Select value={editRole} onValueChange={setEditRole}>
@@ -186,20 +272,36 @@ export default function AdminMatchSourceLinks() {
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {isEditing ? (
-                                                            <div className="flex gap-2">
-                                                                <Button size="sm" onClick={() => saveEdit(link)}>
-                                                                    <Save className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button size="sm" variant="outline" onClick={() => setEditingLink(null)}>
-                                                                    <X className="w-4 h-4" />
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <Button size="sm" variant="ghost" onClick={() => startEdit(link)}>
-                                                                <Edit className="w-4 h-4" />
-                                                            </Button>
-                                                        )}
+                                                        <div className="flex gap-2">
+                                                            {isEditing ? (
+                                                                <>
+                                                                    <Button size="sm" onClick={() => saveEdit(link)}>
+                                                                        <Save className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button size="sm" variant="outline" onClick={() => setEditingLink(null)}>
+                                                                        <X className="w-4 h-4" />
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Button size="sm" variant="ghost" onClick={() => startEdit(link)}>
+                                                                        <Edit className="w-4 h-4" />
+                                                                    </Button>
+                                                                    <Button 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        onClick={() => {
+                                                                            if (confirm('Delete this source link?')) {
+                                                                                deleteLinkMutation.mutate({ linkId: link.id, matchId: link.match_id });
+                                                                            }
+                                                                        }}
+                                                                        disabled={deleteLinkMutation.isPending}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4 text-red-600" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             );
