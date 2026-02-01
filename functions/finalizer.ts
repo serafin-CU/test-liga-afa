@@ -111,6 +111,24 @@ Deno.serve(async (req) => {
 
             // Step 4: Enqueue ScoringJob records (idempotent)
             
+            // FANTASY_STATS job (must run before FANTASY scoring)
+            const fantasyStatsDedupeKey = `FANTASY_STATS:MATCH:${validation.match_id}:v1`;
+            const existingFantasyStatsJobs = await base44.asServiceRole.entities.ScoringJob.filter({
+                dedupe_key: fantasyStatsDedupeKey
+            });
+
+            if (existingFantasyStatsJobs.length === 0) {
+                await base44.asServiceRole.entities.ScoringJob.create({
+                    mode: 'FANTASY_STATS',
+                    source_type: 'MATCH',
+                    source_id: `MATCH:${validation.match_id}`,
+                    version: 1,
+                    dedupe_key: fantasyStatsDedupeKey,
+                    status: 'PENDING'
+                });
+                scoringJobsEnqueued++;
+            }
+            
             // PRODE scoring job
             const prodeDedupeKey = `PRODE:MATCH:${validation.match_id}:v1`;
             const existingProdeJobs = await base44.asServiceRole.entities.ScoringJob.filter({
@@ -129,7 +147,7 @@ Deno.serve(async (req) => {
                 scoringJobsEnqueued++;
             }
 
-            // FANTASY scoring job
+            // FANTASY scoring job (runs after FANTASY_STATS)
             const fantasyDedupeKey = `FANTASY:MATCH:${validation.match_id}:v1`;
             const existingFantasyJobs = await base44.asServiceRole.entities.ScoringJob.filter({
                 dedupe_key: fantasyDedupeKey
