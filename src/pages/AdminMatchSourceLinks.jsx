@@ -187,9 +187,44 @@ export default function AdminMatchSourceLinks() {
 
     if (matchesLoading) return <div className="p-8">Loading...</div>;
 
+    const orphanedCount = links.filter(l => {
+        const source = allSources.find(s => s.id === l.source_id);
+        return !source || !source.enabled;
+    }).length;
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">Match Source Links (Next 30 Days)</h1>
+            <div className="flex justify-between items-start mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold">Match Source Links Management</h1>
+                    <p className="text-sm text-gray-600 mt-1">
+                        Manage data source links for upcoming matches (next 30 days)
+                    </p>
+                </div>
+                {orphanedCount > 0 && (
+                    <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                            if (confirm(`Remove ${orphanedCount} orphaned/disabled source links?`)) {
+                                cleanupOrphanedMutation.mutate();
+                            }
+                        }}
+                        disabled={cleanupOrphanedMutation.isPending}
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Cleanup Orphaned Links ({orphanedCount})
+                    </Button>
+                )}
+            </div>
+
+            {alert && (
+                <Alert className={`mb-4 ${alert.type === 'success' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                    <AlertDescription className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {alert.message}
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <div className="space-y-4">
                 {matches.map(match => {
