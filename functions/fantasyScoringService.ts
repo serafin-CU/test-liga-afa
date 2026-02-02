@@ -210,47 +210,59 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
 
         for (const squadPlayer of squadPlayers) {
             const player = playersMap[squadPlayer.player_id];
-            if (!player) continue;
+            if (!player) {
+                console.warn(`Player ${squadPlayer.player_id} not found in playersMap`);
+                continue;
+            }
 
-            const stats = statsMap[squadPlayer.player_id];
-            if (!stats) continue;
+            const stat = statsMap[squadPlayer.player_id];
+            if (!stat) {
+                console.warn(`No stats found for player ${squadPlayer.player_id} (${player.full_name}) in match ${match_id}`);
+                continue;
+            }
             
-            const minutes = stats.minutes_played || 0;
-            const goals = stats.goals || 0;
-            const yellowCards = stats.yellow_cards || 0;
-            const redCards = stats.red_cards || 0;
+            // Read exact fields from FantasyMatchPlayerStats
+            const minutes = stat.minutes_played || 0;
+            const goals = stat.goals || 0;
+            const yc = stat.yellow_cards || 0;
+            const rc = stat.red_cards || 0;
+            const pos = player.position; // Position comes from Player entity
+            
+            console.log(`Scoring ${player.full_name} (${pos}): minutes=${minutes}, goals=${goals}, yc=${yc}, rc=${rc}`);
 
-            // Calculate points
+            // Calculate points - explicit logic
             let playerPoints = 0;
 
-            // Goals
-            const goalPoints = {
-                'FWD': rules.points_goal_fwd,
-                'MID': rules.points_goal_mid,
-                'DEF': rules.points_goal_def,
-                'GK': rules.points_goal_gk
-            }[player.position] || 0;
-            playerPoints += goals * goalPoints;
+            // Base minutes points
+            if (minutes >= 60) {
+                playerPoints += 1;
+            }
+
+            // Goals by position
+            if (pos === 'FWD') {
+                playerPoints += goals * 4;
+            } else if (pos === 'MID') {
+                playerPoints += goals * 5;
+            } else if (pos === 'DEF' || pos === 'GK') {
+                playerPoints += goals * 6;
+            }
 
             // Cards
-            playerPoints += yellowCards * rules.points_yellow_card;
-            playerPoints += redCards * rules.points_red_card;
-
-            // Minutes
-            if (minutes >= 60) {
-                playerPoints += rules.points_play_60_plus;
-            }
+            playerPoints += yc * -1;
+            playerPoints += rc * -3;
+            
+            console.log(`  → Points: ${playerPoints}`);
 
             squadTotalPoints += playerPoints;
 
             const playerDetail = {
                 player_id: squadPlayer.player_id,
                 player_name: player.full_name,
-                position: player.position,
-                minutes,
-                goals,
-                yellow_cards: yellowCards,
-                red_cards: redCards,
+                pos: pos,
+                minutes: minutes,
+                goals: goals,
+                yellow_cards: yc,
+                red_cards: rc,
                 points: playerPoints
             };
             
@@ -310,17 +322,24 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         };
     }
     
-    // Validate: if any stats have goals > 0 but total points is 0, throw error
+    // Validate: if any stats have goals > 0 but total points is 0, return detailed error
     if (diagnostics.goals_sum > 0 && diagnostics.computed_total_points === 0) {
         return {
             ok: false,
-            code: 'SCORING_LOGIC_ERROR',
-            message: 'Match has goals but computed 0 points',
-            hint: 'Check that players with goals are in a finalized squad as STARTERS.',
+            code: 'SCORING_MATH_MISMATCH',
+            message: 'Goals exist but produced zero points — check field mapping',
+            hint: 'Ensure players with goals are in finalized squads as STARTERS and that FantasyMatchPlayerStats fields are correct.',
             details: {
                 diagnostics,
                 squads_count: allSquads.length,
-                squad_details: squadDiagnostics
+                squad_details: squadDiagnostics,
+                sample_stats: allStats.slice(0, 3).map(s => ({
+                    player_id: s.player_id,
+                    minutes_played: s.minutes_played,
+                    goals: s.goals,
+                    yellow_cards: s.yellow_cards,
+                    red_cards: s.red_cards
+                }))
             }
         };
     }
