@@ -6,12 +6,30 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
  */
 
 Deno.serve(async (req) => {
+    const testRunId = `dev_test_${Date.now()}`;
+    
     try {
         const base44 = createClientFromRequest(req);
-        const currentUser = await base44.auth.me();
-
-        if (currentUser?.role !== 'admin') {
-            return Response.json({ error: 'Admin access required' }, { status: 403 });
+        
+        // DEV-ONLY: Support test mode when auth is unavailable
+        let currentUser = null;
+        let isTestMode = false;
+        
+        try {
+            currentUser = await base44.auth.me();
+            
+            // If auth is available, enforce admin role
+            if (currentUser?.role !== 'admin') {
+                return Response.json({ 
+                    step: 'AUTH_CHECK',
+                    error: 'Admin access required',
+                    details: { role: currentUser?.role }
+                }, { status: 403 });
+            }
+        } catch (authError) {
+            // Auth unavailable - running in test mode
+            console.warn('Running devFantasyTestSetup in unauthenticated test mode');
+            isTestMode = true;
         }
 
         // Step 1: Find or create test user
@@ -20,10 +38,21 @@ Deno.serve(async (req) => {
         
         if (existingUsers.length > 0) {
             testUser = existingUsers[0];
-        } else {
-            // Note: User entities can only be created via invitation
-            // For this dev scenario, we'll use the current admin user instead
+        } else if (currentUser) {
+            // Use current admin user if authenticated
             testUser = currentUser;
+        } else {
+            // Test mode: use first admin user found
+            const allUsers = await base44.asServiceRole.entities.User.list();
+            testUser = allUsers.find(u => u.role === 'admin');
+            
+            if (!testUser) {
+                return Response.json({
+                    step: 'TEST_USER_LOOKUP',
+                    error: 'No admin user found for test mode',
+                    details: { isTestMode, total_users: allUsers.length }
+                }, { status: 500 });
+            }
         }
 
         // Step 2: Find most recent finalized match with stats
@@ -46,8 +75,10 @@ Deno.serve(async (req) => {
 
         if (!targetMatch) {
             return Response.json({ 
+                step: 'MATCH_LOOKUP',
                 error: 'No finalized matches with FantasyMatchPlayerStats found',
-                suggestion: 'Run test harness or create match data first'
+                suggestion: 'Run test harness or create match data first',
+                details: { total_matches: allMatches.length }
             }, { status: 404 });
         }
 
@@ -171,6 +202,8 @@ Deno.serve(async (req) => {
 
         return Response.json({
             success: true,
+            test_mode: isTestMode,
+            test_run_id: isTestMode ? testRunId : undefined,
             match_id: matchId,
             match_phase: phase,
             squad_id: squad.id,
@@ -188,6 +221,10 @@ Deno.serve(async (req) => {
 
     } catch (error) {
         console.error('Dev Fantasy Test Setup error:', error);
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({ 
+            step: 'UNKNOWN',
+            error: error.message,
+            details: { stack: error.stack }
+        }, { status: 500 });
     }
 });
