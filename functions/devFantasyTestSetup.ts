@@ -24,10 +24,12 @@ Deno.serve(async (req) => {
             // If auth is available, enforce admin role
             if (currentUser?.role !== 'admin') {
                 return Response.json({ 
-                    step: 'AUTH_CHECK',
-                    error: 'Admin access required',
+                    ok: false,
+                    code: 'UNAUTHORIZED',
+                    message: 'Admin access required',
+                    hint: 'Only admin users can run Dev Fantasy Setup.',
                     details: { role: currentUser?.role }
-                }, { status: 403 });
+                }, { status: 200 });
             }
         } catch (authError) {
             // Auth unavailable - running in test mode
@@ -51,10 +53,12 @@ Deno.serve(async (req) => {
             
             if (!testUser) {
                 return Response.json({
-                    step: 'TEST_USER_LOOKUP',
-                    error: 'No admin user found for test mode',
+                    ok: false,
+                    code: 'NO_ADMIN_USER',
+                    message: 'No admin user found for test mode',
+                    hint: 'Create at least one admin user to run Dev Fantasy Setup in test mode.',
                     details: { isTestMode, total_users: allUsers.length }
-                }, { status: 500 });
+                }, { status: 200 });
             }
         }
 
@@ -67,11 +71,12 @@ Deno.serve(async (req) => {
 
         if (!targetMatch) {
             return Response.json({ 
-                step: 'MATCH_LOOKUP',
-                error: 'No finalized matches found',
-                suggestion: 'Run test harness to create match data first',
+                ok: false,
+                code: 'NO_FINALIZED_MATCH',
+                message: 'No finalized matches found',
+                hint: 'Create at least one match with status=FINAL. Use Admin Match Validation page or run automated tests.',
                 details: { total_matches: allMatches.length }
-            }, { status: 404 });
+            }, { status: 200 });
         }
 
         const matchId = targetMatch.id;
@@ -173,10 +178,12 @@ Deno.serve(async (req) => {
 
         if (matchStats.length === 0) {
             return Response.json({ 
-                step: 'STATS_SEED',
-                error: 'No stats available and seedFullLineup was disabled or failed',
+                ok: false,
+                code: 'NO_STATS',
+                message: 'No stats available and seedFullLineup was disabled or failed',
+                hint: 'Enable seedFullLineup=true or manually create FantasyMatchPlayerStats for the target match.',
                 details: { matchId, seedFullLineup }
-            }, { status: 404 });
+            }, { status: 200 });
         }
 
         // Step 2c: Ensure MatchResultFinal exists (DEV-ONLY auto-finalization)
@@ -466,9 +473,14 @@ Deno.serve(async (req) => {
     } catch (error) {
         console.error('Dev Fantasy Test Setup error:', error);
         return Response.json({ 
-            step: 'UNKNOWN',
-            error: error.message,
-            details: { stack: error.stack }
-        }, { status: 500 });
+            ok: false,
+            code: 'INTERNAL_ERROR',
+            message: error.message || 'An unexpected error occurred',
+            hint: 'Check server logs for details. This may be a database error or missing data.',
+            details: { 
+                stack: error.stack,
+                name: error.name
+            }
+        }, { status: 200 });
     }
 });

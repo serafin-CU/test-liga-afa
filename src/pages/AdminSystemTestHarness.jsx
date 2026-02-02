@@ -947,16 +947,21 @@ export default function AdminSystemTestHarness() {
 
                     {scoringResult && (
                         <div className="mt-4 p-4 bg-gray-50 rounded border">
-                            {scoringResult.status === 'ERROR' ? (
+                            {scoringResult.ok === false ? (
                                 <div className="space-y-2">
-                                    <div className="text-red-600 font-semibold">
-                                        Error: {scoringResult.code || 'UNKNOWN'}
+                                    <div className="text-red-600 font-bold text-lg">
+                                        {scoringResult.code || 'ERROR'}
                                     </div>
-                                    <div className="text-sm">{scoringResult.message}</div>
+                                    <div className="text-sm font-medium">{scoringResult.message}</div>
+                                    {scoringResult.hint && (
+                                        <div className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
+                                            💡 {scoringResult.hint}
+                                        </div>
+                                    )}
                                     {scoringResult.details && (
                                         <details className="text-xs">
-                                            <summary className="cursor-pointer">Details</summary>
-                                            <pre className="bg-white p-2 rounded mt-1 overflow-auto">
+                                            <summary className="cursor-pointer text-gray-600">Show details</summary>
+                                            <pre className="bg-white p-2 rounded mt-1 overflow-auto max-h-64">
                                                 {JSON.stringify(scoringResult.details, null, 2)}
                                             </pre>
                                         </details>
@@ -964,9 +969,8 @@ export default function AdminSystemTestHarness() {
                                 </div>
                             ) : (
                                 <div className="space-y-2 text-sm">
-                                    <div><strong>Status:</strong> {scoringResult.status}</div>
+                                    <div className="text-green-600 font-semibold">✓ {scoringResult.status}</div>
                                     {scoringResult.message && <div><strong>Message:</strong> {scoringResult.message}</div>}
-                                    {scoringResult.reason && <div className="text-gray-600">{scoringResult.reason}</div>}
                                     {scoringResult.users_scored_count !== undefined && (
                                         <>
                                             <div><strong>Users Scored:</strong> {scoringResult.users_scored_count}</div>
@@ -974,9 +978,6 @@ export default function AdminSystemTestHarness() {
                                             <div><strong>Voids:</strong> {scoringResult.ledger_voids}</div>
                                             <div><strong>Total Points:</strong> {scoringResult.total_points_awarded}</div>
                                         </>
-                                    )}
-                                    {scoringResult.stats_count !== undefined && (
-                                        <div><strong>Stats Count:</strong> {scoringResult.stats_count}</div>
                                     )}
                                 </div>
                             )}
@@ -1022,9 +1023,25 @@ export default function AdminSystemTestHarness() {
                         <CardTitle>Dev Fantasy Setup Result</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {devSetupResult.error ? (
-                            <div className="text-red-600 font-semibold">
-                                Error: {devSetupResult.error}
+                        {devSetupResult.ok === false ? (
+                            <div className="space-y-2">
+                                <div className="text-red-600 font-bold text-lg">
+                                    {devSetupResult.code || 'ERROR'}
+                                </div>
+                                <div className="text-sm font-medium">{devSetupResult.message}</div>
+                                {devSetupResult.hint && (
+                                    <div className="text-sm text-blue-700 bg-blue-50 p-2 rounded">
+                                        💡 {devSetupResult.hint}
+                                    </div>
+                                )}
+                                {devSetupResult.details && (
+                                    <details className="text-xs">
+                                        <summary className="cursor-pointer text-gray-600">Show details</summary>
+                                        <pre className="bg-white p-2 rounded mt-1 overflow-auto max-h-64">
+                                            {JSON.stringify(devSetupResult.details, null, 2)}
+                                        </pre>
+                                    </details>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-3">

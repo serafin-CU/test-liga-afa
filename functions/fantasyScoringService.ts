@@ -34,14 +34,15 @@ Deno.serve(async (req) => {
     } catch (error) {
         console.error('Fantasy scoring service error:', error);
         return Response.json({ 
-            status: 'ERROR',
+            ok: false,
             code: 'INTERNAL_ERROR',
-            message: error.message,
+            message: error.message || 'An unexpected error occurred',
+            hint: 'Check server logs for details. This may be a database error or configuration issue.',
             details: {
                 name: error.name,
                 stack: error.stack
             }
-        }, { status: 500 });
+        }, { status: 200 });
     }
 });
 
@@ -50,21 +51,22 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     const match = await base44.asServiceRole.entities.Match.get(match_id);
     if (!match) {
         return {
-            status: 'ERROR',
+            ok: false,
             code: 'MATCH_NOT_FOUND',
-            message: 'Match not found',
-            match_id
+            message: 'Match not found in database',
+            hint: 'Verify the match_id is correct and the match exists.',
+            details: { match_id }
         };
     }
 
     const matchResults = await base44.asServiceRole.entities.MatchResultFinal.filter({ match_id });
     if (matchResults.length === 0) {
         return {
-            status: 'ERROR',
+            ok: false,
             code: 'MATCH_NOT_FINALIZED',
             message: 'MatchResultFinal not found - match not finalized',
-            match_id,
-            finalized: false
+            hint: 'Finalize the match (create MatchResultFinal) before scoring. Run Dev Fantasy Setup to auto-create it for dev/test matches.',
+            details: { match_id, finalized: false }
         };
     }
     const matchResult = matchResults[0];
@@ -73,11 +75,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     const allStats = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ match_id });
     if (allStats.length === 0) {
         return { 
-            status: 'NO_STATS', 
-            reason: 'No FantasyMatchPlayerStats found for this match',
-            match_id,
-            finalized: true,
-            stats_count: 0
+            ok: false,
+            code: 'NO_STATS',
+            message: 'No FantasyMatchPlayerStats found for this match',
+            hint: 'Run Dev Fantasy Setup first, or ensure FantasyMatchPlayerStats exist for this match.',
+            details: { match_id, finalized: true, stats_count: 0 }
         };
     }
 
@@ -120,7 +122,13 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     });
 
     if (allSquads.length === 0) {
-        return { status: 'NO_SQUADS', match_id, phase };
+        return { 
+            ok: false,
+            code: 'NO_SQUAD',
+            message: 'No finalized fantasy squads found for this phase',
+            hint: 'Create at least one finalized squad for this phase. Run Dev Fantasy Setup to auto-create a test squad.',
+            details: { match_id, phase, finalized_squads: 0 }
+        };
     }
 
     // Load all players for position lookup
@@ -145,11 +153,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     // If force=false and prior entries exist, skip scoring
     if (!force && priorEntriesForMatch.length > 0) {
         return {
-            status: 'ALREADY_SCORED',
-            match_id,
-            phase,
-            message: 'Match already scored. Use force=true to re-score.',
-            existing_awards: priorEntriesForMatch.length
+            ok: false,
+            code: 'SCORING_ALREADY_DONE',
+            message: 'Match already scored',
+            hint: 'Use force=true to re-score (will void previous entries and create new ones).',
+            details: { match_id, phase, existing_awards: priorEntriesForMatch.length }
         };
     }
 
@@ -276,6 +284,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     }
 
     return {
+        ok: true,
         status: 'SUCCESS',
         match_id,
         phase,
