@@ -100,6 +100,15 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     // Diagnostics
     const goalScorerPlayerIds = allStats.filter(s => s.goals > 0).map(s => s.player_id);
     
+    // Find all finalized squads for this phase
+    const phase = match.phase;
+    const allSquads = await base44.asServiceRole.entities.FantasySquad.filter({ 
+        phase, 
+        status: 'FINAL' 
+    });
+    
+    console.log(`Found ${allSquads.length} finalized squads for phase ${phase}`);
+    
     const diagnostics = {
         match_id,
         stats_count: allStats.length,
@@ -110,15 +119,6 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         goal_scorer_player_ids: goalScorerPlayerIds,
         per_player_breakdown: []
     };
-
-
-
-    // Find all finalized squads for this phase
-    const phase = match.phase;
-    const allSquads = await base44.asServiceRole.entities.FantasySquad.filter({ 
-        phase, 
-        status: 'FINAL' 
-    });
 
     if (allSquads.length === 0) {
         return { 
@@ -160,7 +160,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         };
     }
 
-    // If force=true and prior entries exist, create void entries
+    // If force=true and prior entries exist, create void entries (only if points > 0)
     if (force && priorEntriesForMatch.length > 0) {
         const voidsByUser = {};
         for (const entry of priorEntriesForMatch) {
@@ -168,23 +168,26 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         }
 
         for (const [user_id, totalPoints] of Object.entries(voidsByUser)) {
-            const voidEntry = await base44.asServiceRole.entities.PointsLedger.create({
-                user_id,
-                mode: 'FANTASY',
-                source_type: 'FANTASY_MATCH',
-                source_id: match_id,
-                points: -totalPoints,
-                breakdown_json: JSON.stringify({
-                    type: 'VOID',
-                    match_id,
-                    phase,
-                    scoring_version: rules.fantasy_scoring_version,
-                    reason: 'Force re-score',
-                    voided_points: totalPoints,
-                    timestamp: new Date().toISOString()
-                })
-            });
-            ledgerVoids.push(voidEntry);
+            // Only void if there were actual points
+            if (totalPoints > 0) {
+                const voidEntry = await base44.asServiceRole.entities.PointsLedger.create({
+                    user_id,
+                    mode: 'FANTASY',
+                    source_type: 'FANTASY_MATCH',
+                    source_id: match_id,
+                    points: -totalPoints,
+                    breakdown_json: JSON.stringify({
+                        type: 'VOID',
+                        match_id,
+                        phase,
+                        scoring_version: rules.fantasy_scoring_version,
+                        reason: 'Force re-score',
+                        voided_points: totalPoints,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                ledgerVoids.push(voidEntry);
+            }
         }
     }
 
@@ -278,7 +281,8 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             diagnostics.per_player_breakdown.push(playerDetail);
         }
 
-        // Write ledger entry
+        // Write ledger entry (always create AWARD, even if 0 points)
+        console.log(`Creating ledger entry for user ${squad.user_id}: ${squadTotalPoints} points`);
         const ledgerEntry = await base44.asServiceRole.entities.PointsLedger.create({
             user_id: squad.user_id,
             mode: 'FANTASY',
