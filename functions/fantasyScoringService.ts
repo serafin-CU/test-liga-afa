@@ -14,10 +14,10 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { action, match_id } = await req.json();
+        const { action, match_id, force } = await req.json();
 
         if (action === 'score_fantasy_match') {
-            const result = await scoreFantasyMatch(base44, match_id);
+            const result = await scoreFantasyMatch(base44, match_id, force || false);
             return Response.json(result);
         }
 
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     }
 });
 
-async function scoreFantasyMatch(base44, match_id) {
+async function scoreFantasyMatch(base44, match_id, force = false) {
     // Load match and result
     const match = await base44.asServiceRole.entities.Match.get(match_id);
     if (!match) {
@@ -95,42 +95,53 @@ async function scoreFantasyMatch(base44, match_id) {
     const playersMap = Object.fromEntries(allPlayers.map(p => [p.id, p]));
 
     // Check for prior scoring (re-score detection)
-    const priorLedgerEntries = await base44.asServiceRole.entities.PointsLedger.filter({
-        mode: 'FANTASY',
-        source_type: 'MATCH'
-    });
-    const priorEntriesForMatch = priorLedgerEntries.filter(e => {
-        const breakdown = JSON.parse(e.breakdown_json);
-        return breakdown.match_id === match_id && breakdown.scoring_version === rules.fantasy_scoring_version;
+    const allLedger = await base44.asServiceRole.entities.PointsLedger.list();
+    const priorEntriesForMatch = allLedger.filter(e => {
+        if (e.mode !== 'FANTASY') return false;
+        try {
+            const breakdown = JSON.parse(e.breakdown_json);
+            return breakdown.match_id === match_id && breakdown.type === 'AWARD';
+        } catch {
+            return false;
+        }
     });
 
     const ledgerVoids = [];
     const ledgerAwards = [];
 
-    // If prior entries exist, create void entries
-    if (priorEntriesForMatch.length > 0) {
+    // If force=false and prior entries exist, skip scoring
+    if (!force && priorEntriesForMatch.length > 0) {
+        return {
+            status: 'ALREADY_SCORED',
+            match_id,
+            phase,
+            message: 'Match already scored. Use force=true to re-score.',
+            existing_awards: priorEntriesForMatch.length
+        };
+    }
+
+    // If force=true and prior entries exist, create void entries
+    if (force && priorEntriesForMatch.length > 0) {
         const voidsByUser = {};
         for (const entry of priorEntriesForMatch) {
-            const breakdown = JSON.parse(entry.breakdown_json);
-            if (breakdown.type !== 'VOID') {
-                voidsByUser[entry.user_id] = (voidsByUser[entry.user_id] || 0) + entry.points;
-            }
+            voidsByUser[entry.user_id] = (voidsByUser[entry.user_id] || 0) + entry.points;
         }
 
         for (const [user_id, totalPoints] of Object.entries(voidsByUser)) {
             const voidEntry = await base44.asServiceRole.entities.PointsLedger.create({
                 user_id,
                 mode: 'FANTASY',
-                source_type: 'MATCH',
-                source_id: `MATCH:${match_id}:${rules.fantasy_scoring_version}`,
+                source_type: 'FANTASY_MATCH',
+                source_id: match_id,
                 points: -totalPoints,
                 breakdown_json: JSON.stringify({
                     type: 'VOID',
                     match_id,
                     phase,
                     scoring_version: rules.fantasy_scoring_version,
-                    reason: 'Re-score correction',
-                    voided_points: totalPoints
+                    reason: 'Force re-score',
+                    voided_points: totalPoints,
+                    timestamp: new Date().toISOString()
                 })
             });
             ledgerVoids.push(voidEntry);
@@ -210,8 +221,8 @@ async function scoreFantasyMatch(base44, match_id) {
         const ledgerEntry = await base44.asServiceRole.entities.PointsLedger.create({
             user_id: squad.user_id,
             mode: 'FANTASY',
-            source_type: 'MATCH',
-            source_id: `MATCH:${match_id}:${rules.fantasy_scoring_version}`,
+            source_type: 'FANTASY_MATCH',
+            source_id: match_id,
             points: squadTotalPoints,
             breakdown_json: JSON.stringify({
                 type: 'AWARD',
@@ -223,7 +234,8 @@ async function scoreFantasyMatch(base44, match_id) {
                 totals: {
                     squad_points: squadTotalPoints,
                     starters_count: squadPlayers.length
-                }
+                },
+                timestamp: new Date().toISOString()
             })
         });
 
@@ -234,9 +246,11 @@ async function scoreFantasyMatch(base44, match_id) {
         status: 'SUCCESS',
         match_id,
         phase,
+        forced: force,
         users_scored_count: allSquads.length,
         ledger_awards: ledgerAwards.length,
         ledger_voids: ledgerVoids.length,
+        total_points_awarded: ledgerAwards.reduce((sum, e) => sum + e.points, 0),
         scoring_version: rules.fantasy_scoring_version
     };
 }

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react';
 
 export default function AdminSystemTestHarness() {
@@ -11,6 +13,40 @@ export default function AdminSystemTestHarness() {
     const [testRunId, setTestRunId] = useState(null);
     const [devSetupRunning, setDevSetupRunning] = useState(false);
     const [devSetupResult, setDevSetupResult] = useState(null);
+    const [selectedMatchId, setSelectedMatchId] = useState(null);
+    const [scoringRunning, setScoringRunning] = useState(false);
+    const [scoringResult, setScoringResult] = useState(null);
+
+    const { data: matches = [] } = useQuery({
+        queryKey: ['matches'],
+        queryFn: () => base44.entities.Match.list()
+    });
+
+    const finalizedMatches = matches.filter(m => m.status === 'FINAL').sort((a, b) => 
+        new Date(b.kickoff_at) - new Date(a.kickoff_at)
+    );
+
+    const runSingleTest = async (testNum) => {
+        setRunning(true);
+        setResults([]);
+        const runId = `test_${Date.now()}`;
+        setTestRunId(runId);
+        const testResults = [];
+
+        try {
+            const testFunctions = [runTest1, runTest2, runTest3, runTest4, runTest5];
+            testResults.push(await testFunctions[testNum - 1](runId));
+        } catch (error) {
+            testResults.push({
+                name: `TEST ${testNum}`,
+                status: 'FAIL',
+                details: `Fatal error: ${error.message}`
+            });
+        }
+
+        setResults(testResults);
+        setRunning(false);
+    };
 
     const runTests = async () => {
         setRunning(true);
@@ -668,6 +704,29 @@ export default function AdminSystemTestHarness() {
         setDevSetupRunning(false);
     };
 
+    const runFantasyScoring = async (force = false) => {
+        if (!selectedMatchId) {
+            alert('Please select a match first');
+            return;
+        }
+
+        setScoringRunning(true);
+        setScoringResult(null);
+
+        try {
+            const response = await base44.functions.invoke('fantasyScoringService', {
+                action: 'score_fantasy_match',
+                match_id: selectedMatchId,
+                force: force
+            });
+            setScoringResult(response.data);
+        } catch (error) {
+            setScoringResult({ error: error.message });
+        }
+
+        setScoringRunning(false);
+    };
+
     const resetTestData = async () => {
         if (!testRunId) {
             alert('No test run to clean up');
@@ -719,16 +778,6 @@ export default function AdminSystemTestHarness() {
                             'Run Dev Fantasy Setup'
                         )}
                     </Button>
-                    <Button onClick={runTests} disabled={running}>
-                        {running ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Running...
-                            </>
-                        ) : (
-                            'Run All Tests'
-                        )}
-                    </Button>
                     {testRunId && (
                         <Button variant="outline" onClick={resetTestData}>
                             Reset Test Data
@@ -736,6 +785,99 @@ export default function AdminSystemTestHarness() {
                     )}
                 </div>
             </div>
+
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>Fantasy Scoring Controls</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <label className="text-sm font-medium mb-2 block">Select Match</label>
+                        <Select value={selectedMatchId || ''} onValueChange={setSelectedMatchId}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a finalized match" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {finalizedMatches.map(match => (
+                                    <SelectItem key={match.id} value={match.id}>
+                                        {match.phase} - {new Date(match.kickoff_at).toLocaleDateString()}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <Button 
+                            onClick={() => runFantasyScoring(false)} 
+                            disabled={scoringRunning || !selectedMatchId}
+                        >
+                            {scoringRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Run Fantasy Scoring
+                        </Button>
+                        <Button 
+                            onClick={() => runFantasyScoring(true)} 
+                            disabled={scoringRunning || !selectedMatchId}
+                            variant="destructive"
+                        >
+                            {scoringRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Force Re-Score
+                        </Button>
+                    </div>
+
+                    {scoringResult && (
+                        <div className="mt-4 p-4 bg-gray-50 rounded border">
+                            {scoringResult.error ? (
+                                <div className="text-red-600 font-semibold">Error: {scoringResult.error}</div>
+                            ) : (
+                                <div className="space-y-2 text-sm">
+                                    <div><strong>Status:</strong> {scoringResult.status}</div>
+                                    {scoringResult.message && <div><strong>Message:</strong> {scoringResult.message}</div>}
+                                    {scoringResult.users_scored_count !== undefined && (
+                                        <>
+                                            <div><strong>Users Scored:</strong> {scoringResult.users_scored_count}</div>
+                                            <div><strong>Awards:</strong> {scoringResult.ledger_awards}</div>
+                                            <div><strong>Voids:</strong> {scoringResult.ledger_voids}</div>
+                                            <div><strong>Total Points:</strong> {scoringResult.total_points_awarded}</div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>Individual Tests</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                        {[1, 2, 3, 4, 5].map(testNum => (
+                            <Button 
+                                key={testNum}
+                                onClick={() => runSingleTest(testNum)} 
+                                disabled={running}
+                                variant="outline"
+                                size="sm"
+                            >
+                                Run TEST {testNum}
+                            </Button>
+                        ))}
+                        <Button onClick={runTests} disabled={running}>
+                            {running ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Running...
+                                </>
+                            ) : (
+                                'Run All Tests'
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {devSetupResult && (
                 <Card className="mb-6">

@@ -67,7 +67,14 @@ export default function AdminFantasyStatsViewer() {
             {selectedMatchId && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Player Statistics</CardTitle>
+                        <CardTitle>
+                            Player Statistics
+                            {stats.length > 0 && (
+                                <span className="ml-3 text-sm font-normal text-gray-600">
+                                    ({stats.length} players)
+                                </span>
+                            )}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {statsLoading ? (

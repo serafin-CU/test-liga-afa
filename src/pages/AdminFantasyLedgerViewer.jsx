@@ -53,7 +53,17 @@ export default function AdminFantasyLedgerViewer() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">Fantasy Ledger Viewer</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold">Fantasy Ledger Viewer</h1>
+                <Button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['fantasyLedger'] })}
+                    variant="outline"
+                    size="sm"
+                >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                </Button>
+            </div>
 
             <Card className="mb-6">
                 <CardHeader>

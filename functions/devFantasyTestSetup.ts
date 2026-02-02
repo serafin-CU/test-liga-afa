@@ -9,6 +9,9 @@ Deno.serve(async (req) => {
     const testRunId = `dev_test_${Date.now()}`;
     
     try {
+        const body = await req.json().catch(() => ({}));
+        const { force = false, seedFullLineup = true } = body;
+        
         const base44 = createClientFromRequest(req);
         
         // DEV-ONLY: Support test mode when auth is unavailable
@@ -55,35 +58,77 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Step 2: Find most recent finalized match with stats
+        // Step 2: Find or create finalized match with stats
         const allMatches = await base44.asServiceRole.entities.Match.filter({ status: 'FINAL' });
         const sortedMatches = allMatches.sort((a, b) => new Date(b.kickoff_at) - new Date(a.kickoff_at));
 
-        let targetMatch = null;
+        let targetMatch = sortedMatches[0];
         let matchStats = [];
-
-        for (const match of sortedMatches) {
-            const stats = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ 
-                match_id: match.id 
-            });
-            if (stats.length > 0) {
-                targetMatch = match;
-                matchStats = stats;
-                break;
-            }
-        }
 
         if (!targetMatch) {
             return Response.json({ 
                 step: 'MATCH_LOOKUP',
-                error: 'No finalized matches with FantasyMatchPlayerStats found',
-                suggestion: 'Run test harness or create match data first',
+                error: 'No finalized matches found',
+                suggestion: 'Run test harness to create match data first',
                 details: { total_matches: allMatches.length }
             }, { status: 404 });
         }
 
         const matchId = targetMatch.id;
         const phase = targetMatch.phase;
+
+        // Load or seed stats
+        matchStats = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ 
+            match_id: matchId 
+        });
+
+        // Step 2b: Seed full lineup if requested and no stats exist
+        if (seedFullLineup && matchStats.length === 0) {
+            const allPlayers = await base44.asServiceRole.entities.Player.list();
+            const homeTeamPlayers = allPlayers.filter(p => p.team_id === targetMatch.home_team_id).slice(0, 11);
+            const awayTeamPlayers = allPlayers.filter(p => p.team_id === targetMatch.away_team_id).slice(0, 11);
+
+            const createPlayerStats = async (players, teamId, goals = 0, yellows = 0, reds = 0) => {
+                for (let i = 0; i < players.length; i++) {
+                    const player = players[i];
+                    const isSubIn = i >= 8; // Last 3 are subs
+
+                    await base44.asServiceRole.entities.FantasyMatchPlayerStats.create({
+                        match_id: matchId,
+                        player_id: player.id,
+                        team_id: teamId,
+                        started: !isSubIn,
+                        substituted_in: isSubIn,
+                        substituted_out: false,
+                        minute_in: isSubIn ? 60 : null,
+                        minute_out: null,
+                        minutes_played: isSubIn ? 30 : 90,
+                        goals: (i === 8 && goals > 0) ? goals : 0, // FWD gets goals
+                        yellow_cards: (i === 3 && yellows > 0) ? 1 : 0, // One DEF gets yellow
+                        red_cards: (i === 5 && reds > 0) ? 1 : 0, // One MID gets red
+                        source: 'MANUAL'
+                    });
+                }
+            };
+
+            // Seed home team (2 goals, 1 yellow)
+            await createPlayerStats(homeTeamPlayers, targetMatch.home_team_id, 2, 1, 0);
+            // Seed away team (1 goal)
+            await createPlayerStats(awayTeamPlayers, targetMatch.away_team_id, 1, 0, 0);
+
+            // Reload stats
+            matchStats = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ 
+                match_id: matchId 
+            });
+        }
+
+        if (matchStats.length === 0) {
+            return Response.json({ 
+                step: 'STATS_SEED',
+                error: 'No stats available and seedFullLineup was disabled or failed',
+                details: { matchId, seedFullLineup }
+            }, { status: 404 });
+        }
 
         // Step 3: Check if squad already exists
         const existingSquads = await base44.asServiceRole.entities.FantasySquad.filter({
@@ -148,32 +193,11 @@ Deno.serve(async (req) => {
             playersAdded = existingSquadPlayers.length;
         }
 
-        // Step 5: Execute fantasy scoring (always run to check ledger)
-        const dedupeKey = `FANTASY:MATCH:${matchId}:v1`;
-        const existingJobs = await base44.asServiceRole.entities.ScoringJob.filter({
-            dedupe_key: dedupeKey
-        });
-
-        let scoringResult = null;
-        let jobCreated = false;
-
-        if (existingJobs.length === 0) {
-            // Create scoring job
-            await base44.asServiceRole.entities.ScoringJob.create({
-                mode: 'FANTASY',
-                source_type: 'MATCH',
-                source_id: `MATCH:${matchId}`,
-                version: 1,
-                dedupe_key: dedupeKey,
-                status: 'PENDING'
-            });
-            jobCreated = true;
-        }
-
-        // Always execute scoring to ensure ledger is populated
+        // Step 5: Execute fantasy scoring
         scoringResult = await base44.asServiceRole.functions.invoke('fantasyScoringService', {
             action: 'score_fantasy_match',
-            match_id: matchId
+            match_id: matchId,
+            force: force
         });
 
         // Step 6: Query ALL ledger entries for this match (all modes starting with FANTASY)
@@ -225,16 +249,16 @@ Deno.serve(async (req) => {
             squad_id: squad.id,
             user_id: testUser.id,
             user_email: testUser.email,
+            stats_count: matchStats.length,
             players_added: playersAdded,
-            scoring_job_created: jobCreated,
             scoring_result: scoringResult?.data || {},
             ledger_entries_created: matchLedgerEntries.length,
             award_entries: awardEntries.length,
             total_points: totalPoints,
             sample_ledger_rows: sampleLedgerRows,
-            message: jobCreated 
-                ? 'New squad created and scored successfully' 
-                : 'Squad already exists and was previously scored (idempotent)'
+            message: force 
+                ? 'Force re-score completed'
+                : 'Squad created and scored (or already exists)'
         });
 
     } catch (error) {
