@@ -193,12 +193,134 @@ Deno.serve(async (req) => {
             playersAdded = existingSquadPlayers.length;
         }
 
-        // Step 5: Execute fantasy scoring
-        scoringResult = await base44.asServiceRole.functions.invoke('fantasyScoringService', {
-            action: 'score_fantasy_match',
-            match_id: matchId,
-            force: force
+        // Step 5: Check if scoring already done (unless force=true)
+        const allLedger = await base44.asServiceRole.entities.PointsLedger.list();
+        const priorEntriesForMatch = allLedger.filter(e => {
+            if (e.mode !== 'FANTASY') return false;
+            try {
+                const breakdown = JSON.parse(e.breakdown_json);
+                return breakdown.match_id === matchId && breakdown.type === 'AWARD';
+            } catch {
+                return false;
+            }
         });
+
+        // If already scored and not forcing, use existing results
+        if (!force && priorEntriesForMatch.length > 0) {
+            scoringResult = {
+                data: {
+                    status: 'ALREADY_SCORED',
+                    message: 'Match already scored (use force=true to re-score)',
+                    existing_awards: priorEntriesForMatch.length
+                }
+            };
+        } else {
+            // Create void entries if force re-scoring
+            if (force && priorEntriesForMatch.length > 0) {
+                const voidsByUser = {};
+                for (const entry of priorEntriesForMatch) {
+                    voidsByUser[entry.user_id] = (voidsByUser[entry.user_id] || 0) + entry.points;
+                }
+
+                for (const [user_id, totalPoints] of Object.entries(voidsByUser)) {
+                    await base44.asServiceRole.entities.PointsLedger.create({
+                        user_id,
+                        mode: 'FANTASY',
+                        source_type: 'FANTASY_MATCH',
+                        source_id: matchId,
+                        points: -totalPoints,
+                        breakdown_json: JSON.stringify({
+                            type: 'VOID',
+                            match_id: matchId,
+                            phase,
+                            reason: 'Force re-score from devFantasyTestSetup',
+                            voided_points: totalPoints,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                }
+            }
+
+            // Write new scoring entries (simplified inline scoring)
+            const squadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({
+                squad_id: squad.id,
+                slot_type: 'STARTER'
+            });
+
+            let totalPoints = 0;
+            const perPlayerDetails = [];
+
+            for (const sp of squadPlayers) {
+                const player = (await base44.asServiceRole.entities.Player.list()).find(p => p.id === sp.player_id);
+                if (!player) continue;
+
+                const stat = matchStats.find(s => s.player_id === sp.player_id);
+                const minutes = stat?.minutes_played || 0;
+                const goals = stat?.goals || 0;
+                const yellowCards = stat?.yellow_cards || 0;
+                const redCards = stat?.red_cards || 0;
+
+                let playerPoints = 0;
+
+                // Goals by position
+                if (player.position === 'FWD') playerPoints += goals * 5;
+                else if (player.position === 'MID') playerPoints += goals * 6;
+                else if (player.position === 'DEF') playerPoints += goals * 7;
+                else if (player.position === 'GK') playerPoints += goals * 7;
+
+                // Cards
+                playerPoints += yellowCards * -1;
+                playerPoints += redCards * -3;
+
+                // Minutes
+                if (minutes >= 60) playerPoints += 2;
+                else if (minutes >= 1) playerPoints += 1;
+
+                totalPoints += playerPoints;
+
+                perPlayerDetails.push({
+                    player_id: sp.player_id,
+                    player_name: player.full_name,
+                    position: player.position,
+                    minutes,
+                    goals,
+                    yellow_cards: yellowCards,
+                    red_cards: redCards,
+                    points: playerPoints
+                });
+            }
+
+            // Write ledger entry
+            await base44.asServiceRole.entities.PointsLedger.create({
+                user_id: testUser.id,
+                mode: 'FANTASY',
+                source_type: 'FANTASY_MATCH',
+                source_id: matchId,
+                points: totalPoints,
+                breakdown_json: JSON.stringify({
+                    type: 'AWARD',
+                    scoring_version: 'v1',
+                    match_id: matchId,
+                    phase,
+                    squad_id: squad.id,
+                    per_player: perPlayerDetails,
+                    totals: {
+                        squad_points: totalPoints,
+                        starters_count: squadPlayers.length
+                    },
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            scoringResult = {
+                data: {
+                    status: 'SUCCESS',
+                    users_scored: 1,
+                    total_points: totalPoints,
+                    forced: force
+                }
+            };
+        }
 
         // Step 6: Query ALL ledger entries for this match (all modes starting with FANTASY)
         const allLedgerEntries = await base44.asServiceRole.entities.PointsLedger.list();
