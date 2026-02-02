@@ -9,6 +9,8 @@ export default function AdminSystemTestHarness() {
     const [running, setRunning] = useState(false);
     const [results, setResults] = useState([]);
     const [testRunId, setTestRunId] = useState(null);
+    const [devSetupRunning, setDevSetupRunning] = useState(false);
+    const [devSetupResult, setDevSetupResult] = useState(null);
 
     const runTests = async () => {
         setRunning(true);
@@ -693,6 +695,16 @@ export default function AdminSystemTestHarness() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold">System Test Harness</h1>
                 <div className="flex gap-2">
+                    <Button onClick={runDevFantasySetup} disabled={devSetupRunning} variant="outline">
+                        {devSetupRunning ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Running...
+                            </>
+                        ) : (
+                            'Run Dev Fantasy Setup'
+                        )}
+                    </Button>
                     <Button onClick={runTests} disabled={running}>
                         {running ? (
                             <>
@@ -710,6 +722,37 @@ export default function AdminSystemTestHarness() {
                     )}
                 </div>
             </div>
+
+            {devSetupResult && (
+                <Card className="mb-6">
+                    <CardHeader>
+                        <CardTitle>Dev Fantasy Setup Result</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {devSetupResult.error ? (
+                            <div className="text-red-600 font-semibold">
+                                Error: {devSetupResult.error}
+                            </div>
+                        ) : (
+                            <div className="space-y-2 text-sm">
+                                <div><strong>Match ID:</strong> {devSetupResult.match_id}</div>
+                                <div><strong>Match Phase:</strong> {devSetupResult.match_phase}</div>
+                                <div><strong>Squad ID:</strong> {devSetupResult.squad_id}</div>
+                                <div><strong>User:</strong> {devSetupResult.user_email}</div>
+                                <div><strong>Players Added:</strong> {devSetupResult.players_added}</div>
+                                <div><strong>Ledger Entries Created:</strong> {devSetupResult.fantasy_ledger_entries_created}</div>
+                                <div><strong>Total Points:</strong> {devSetupResult.total_points}</div>
+                                <div className="pt-2 text-green-600">{devSetupResult.message}</div>
+                                {devSetupResult.scoring_result && (
+                                    <pre className="bg-gray-100 p-2 rounded text-xs mt-2 overflow-auto">
+                                        {JSON.stringify(devSetupResult.scoring_result, null, 2)}
+                                    </pre>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             <Card className="mb-6">
                 <CardHeader>

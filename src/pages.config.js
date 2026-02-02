@@ -49,25 +49,25 @@
  */
 import AdminDataSources from './pages/AdminDataSources';
 import AdminDevSeed from './pages/AdminDevSeed';
+import AdminFantasyLedgerViewer from './pages/AdminFantasyLedgerViewer';
+import AdminFantasyStatsViewer from './pages/AdminFantasyStatsViewer';
 import AdminIngestionMonitor from './pages/AdminIngestionMonitor';
 import AdminManualOverride from './pages/AdminManualOverride';
 import AdminMatchSourceLinks from './pages/AdminMatchSourceLinks';
 import AdminMatchValidation from './pages/AdminMatchValidation';
 import AdminSystemTestHarness from './pages/AdminSystemTestHarness';
-import AdminFantasyStatsViewer from './pages/AdminFantasyStatsViewer';
-import AdminFantasyLedgerViewer from './pages/AdminFantasyLedgerViewer';
 
 
 export const PAGES = {
     "AdminDataSources": AdminDataSources,
     "AdminDevSeed": AdminDevSeed,
+    "AdminFantasyLedgerViewer": AdminFantasyLedgerViewer,
+    "AdminFantasyStatsViewer": AdminFantasyStatsViewer,
     "AdminIngestionMonitor": AdminIngestionMonitor,
     "AdminManualOverride": AdminManualOverride,
     "AdminMatchSourceLinks": AdminMatchSourceLinks,
     "AdminMatchValidation": AdminMatchValidation,
     "AdminSystemTestHarness": AdminSystemTestHarness,
-    "AdminFantasyStatsViewer": AdminFantasyStatsViewer,
-    "AdminFantasyLedgerViewer": AdminFantasyLedgerViewer,
 }
 
 export const pagesConfig = {
