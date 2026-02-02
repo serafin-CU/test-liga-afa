@@ -208,14 +208,20 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         const starterPlayerIds = squadPlayers.map(sp => sp.player_id);
         allStarterPlayerIds.push(...starterPlayerIds);
         
-        // Defensive guard
-        if (!squadPlayers || squadPlayers.length === 0) {
+        // Validate exactly 11 starters
+        if (!squadPlayers || squadPlayers.length !== 11) {
             return {
                 ok: false,
-                code: 'NO_SQUAD_PLAYERS',
-                message: 'Squad has no starter players',
-                hint: 'Ensure the squad has players assigned with slot_type=STARTER.',
-                details: { match_id, squad_id: squad.id, user_id: squad.user_id }
+                code: 'INVALID_STARTERS_COUNT',
+                message: `Squad has ${squadPlayers?.length || 0} starters, must have exactly 11`,
+                hint: 'Ensure the squad has exactly 11 FantasySquadPlayer records with slot_type=STARTER. Run Dev Fantasy Setup to auto-create a valid squad.',
+                details: { 
+                    match_id, 
+                    squad_id: squad.id, 
+                    user_id: squad.user_id,
+                    starters_count: squadPlayers?.length || 0,
+                    diagnostics
+                }
             };
         }
 
@@ -326,32 +332,18 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     diagnostics.excluded_goal_scorer_player_ids = excludedGoalScorers;
     diagnostics.computed_total_points = ledgerAwards.reduce((sum, e) => sum + e.points, 0);
     
-    // Validate: if any squad has 0 starters, return clearer error
-    const zeroStartersSquad = squadDiagnostics.find(s => s.starters_count === 0);
-    if (zeroStartersSquad) {
-        return {
-            ok: false,
-            code: 'NO_STARTERS_IN_SQUAD',
-            message: 'Squad has no starter players',
-            hint: 'Ensure squad has at least 11 FantasySquadPlayer records with slot_type=STARTER. Run Dev Fantasy Setup to auto-create test squad.',
-            details: {
-                match_id,
-                squad_id: zeroStartersSquad.squad_id,
-                user_id: zeroStartersSquad.user_id,
-                starters_count: 0,
-                diagnostics
-            }
-        };
-    }
-    
     // Validate: if any stats have goals > 0 but total points is 0, return detailed error
     if (diagnostics.goals_sum > 0 && diagnostics.computed_total_points === 0) {
         return {
             ok: false,
             code: 'SCORING_MATH_MISMATCH',
-            message: 'Goals exist but produced zero points — check field mapping',
-            hint: 'Ensure players with goals are in finalized squads as STARTERS and that FantasyMatchPlayerStats fields are correct.',
+            message: 'Goals exist but produced zero points — check squad configuration',
+            hint: 'Goal scorers exist in stats but are not in any squad\'s STARTERS. Run Dev Fantasy Setup to rebuild squads with goal scorers included.',
             details: {
+                stats_count: diagnostics.stats_count,
+                starters_count: diagnostics.starters_count,
+                goal_scorers_in_starters_count: diagnostics.goal_scorers_in_starters_count,
+                excluded_goal_scorer_player_ids: diagnostics.excluded_goal_scorer_player_ids,
                 diagnostics,
                 squads_count: allSquads.length,
                 squad_details: squadDiagnostics,

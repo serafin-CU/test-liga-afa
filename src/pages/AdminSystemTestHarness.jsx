@@ -950,11 +950,14 @@ export default function AdminSystemTestHarness() {
                                     <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                                         <div><strong>Status:</strong> {matchDiagnostics.status}</div>
                                         <div><strong>Phase:</strong> {matchDiagnostics.phase}</div>
-                                        <div><strong>Stats Count:</strong> {matchDiagnostics.stats_count}</div>
+                                        <div><strong>Stats Count:</strong> {matchDiagnostics.stats_count} 
+                                            <span className="text-xs text-gray-500 ml-1">(from FantasyMatchPlayerStats)</span>
+                                        </div>
                                         <div><strong>Finalized?:</strong> {matchDiagnostics.finalized ? '✓ Yes' : '✗ No'}</div>
                                         <div><strong>Squads Count:</strong> {matchDiagnostics.squads_count}</div>
-                                        <div><strong>Starters Count (Selected Squad):</strong> {matchDiagnostics.starters_count}</div>
-                                        <div><strong>Bench Count (Selected Squad):</strong> {matchDiagnostics.bench_count}</div>
+                                        <div><strong>Starters Count:</strong> {matchDiagnostics.starters_count}
+                                            <span className="text-xs text-gray-500 ml-1">(slot_type=STARTER, must be 11)</span>
+                                        </div>
                                         <div><strong>Users Scored:</strong> {matchDiagnostics.scored_users}</div>
                                         <div className="col-span-2">
                                             <strong>Last Scored:</strong> 
@@ -1049,11 +1052,25 @@ export default function AdminSystemTestHarness() {
                                             <summary className="cursor-pointer font-semibold text-gray-700">Scoring Diagnostics</summary>
                                             <div className="mt-2 p-3 bg-white rounded border space-y-2">
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div><strong>Stats Count:</strong> {scoringResult.diagnostics.stats_count}</div>
+                                                    <div>
+                                                        <strong>Stats Count:</strong> {scoringResult.diagnostics.stats_count}
+                                                        <div className="text-gray-500">FantasyMatchPlayerStats rows</div>
+                                                    </div>
                                                     <div><strong>Squads Count:</strong> {scoringResult.diagnostics.squads_count}</div>
-                                                    <div><strong>Starters Count:</strong> {scoringResult.diagnostics.starters_count}</div>
+                                                    <div>
+                                                        <strong>Starters Count:</strong> {scoringResult.diagnostics.starters_count}
+                                                        {scoringResult.diagnostics.starters_count !== 11 && (
+                                                            <span className="text-red-600 ml-1">⚠️ Must be 11</span>
+                                                        )}
+                                                        <div className="text-gray-500">slot_type=STARTER across all squads</div>
+                                                    </div>
                                                     <div><strong>Goals Sum:</strong> {scoringResult.diagnostics.goals_sum}</div>
-                                                    <div><strong>Goal Scorers in Starters:</strong> {scoringResult.diagnostics.goal_scorers_in_starters_count}</div>
+                                                    <div>
+                                                        <strong>Goal Scorers in Starters:</strong> {scoringResult.diagnostics.goal_scorers_in_starters_count}
+                                                        {scoringResult.diagnostics.goals_sum > 0 && scoringResult.diagnostics.goal_scorers_in_starters_count === 0 && (
+                                                            <span className="text-red-600 ml-1">⚠️ Should be &gt; 0</span>
+                                                        )}
+                                                    </div>
                                                     <div><strong>Computed Total Points:</strong> {scoringResult.diagnostics.computed_total_points}</div>
                                                 </div>
                                                 {scoringResult.diagnostics.excluded_goal_scorer_player_ids?.length > 0 && (
@@ -1140,16 +1157,26 @@ export default function AdminSystemTestHarness() {
                                     <div>
                                         <strong className="text-gray-700">Match:</strong>
                                         <div className="text-xs text-gray-600 mt-1">{devSetupResult.match_label}</div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
                                         <div><strong>Match ID:</strong> <code className="text-xs">{devSetupResult.match_id?.slice(-12)}</code></div>
                                         <div><strong>Stats Count:</strong> {devSetupResult.stats_count}</div>
+                                        <div><strong>Starters Count:</strong> {devSetupResult.starters_count}
+                                            {devSetupResult.starters_count !== 11 && (
+                                                <span className="text-red-600 ml-1">⚠️ Must be 11</span>
+                                            )}
+                                        </div>
+                                        <div><strong>Goal Scorers Count:</strong> {devSetupResult.goal_scorers_count}</div>
+                                        <div><strong>Goal Scorers in Starters:</strong> {devSetupResult.goal_scorers_in_starters_count}
+                                            {devSetupResult.goal_scorers_count > 0 && devSetupResult.goal_scorers_in_starters_count === 0 && (
+                                                <span className="text-red-600 ml-1">⚠️ Should be &gt; 0</span>
+                                            )}
+                                        </div>
                                         <div><strong>Squad ID:</strong> <code className="text-xs">{devSetupResult.squad_id?.slice(-12)}</code></div>
                                         <div><strong>User:</strong> {devSetupResult.user_email}</div>
-                                        <div><strong>Players Added:</strong> {devSetupResult.players_added}</div>
                                         <div><strong>Total Points:</strong> {devSetupResult.total_points}</div>
-                                    </div>
+                                        </div>
                                 </div>
                                 
                                 <div className="flex gap-2 pt-3 border-t">

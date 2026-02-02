@@ -521,6 +521,14 @@ Deno.serve(async (req) => {
         });
         const matchLabel = `${date}  ${homeName} vs ${awayName} (${phase}) · ${matchId.slice(-8)}`;
 
+        // Count starters for this squad
+        const finalSquadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({
+            squad_id: squad.id
+        });
+        const startersCount = finalSquadPlayers.filter(sp => sp.slot_type === 'STARTER').length;
+        const goalScorersCount = goalScorers.length;
+        const goalScorersInStarters = goalScorers.filter(gId => finalStarters.includes(gId)).length;
+
         return Response.json({
             ok: true,
             test_mode: isTestMode,
@@ -533,6 +541,9 @@ Deno.serve(async (req) => {
             user_id: testUser.id,
             user_email: testUser.email,
             stats_count: matchStats.length,
+            starters_count: startersCount,
+            goal_scorers_count: goalScorersCount,
+            goal_scorers_in_starters_count: goalScorersInStarters,
             players_added: playersAdded,
             scoring_result: scoringResult?.data || {},
             ledger_entries_created: matchLedgerEntries.length,
