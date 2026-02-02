@@ -205,6 +205,8 @@ Deno.serve(async (req) => {
             }
         });
 
+        let scoringResult;
+
         // If already scored and not forcing, use existing results
         if (!force && priorEntriesForMatch.length > 0) {
             scoringResult = {
