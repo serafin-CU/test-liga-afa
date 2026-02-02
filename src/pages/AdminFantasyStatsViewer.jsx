@@ -32,6 +32,18 @@ export default function AdminFantasyStatsViewer() {
     const playersMap = Object.fromEntries(players.map(p => [p.id, p]));
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
 
+    const getMatchLabel = (match) => {
+        const homeTeam = teamsMap[match.home_team_id];
+        const awayTeam = teamsMap[match.away_team_id];
+        const homeName = homeTeam?.fifa_code || homeTeam?.name || 'TBD';
+        const awayName = awayTeam?.fifa_code || awayTeam?.name || 'TBD';
+        const date = new Date(match.kickoff_at).toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+        });
+        const shortId = match.id.slice(-8);
+        return `${date}  ${homeName} vs ${awayName} (${match.phase}) · ${shortId}`;
+    };
+
     const finalizedMatches = matches.filter(m => m.status === 'FINAL').sort((a, b) => 
         new Date(b.kickoff_at) - new Date(a.kickoff_at)
     );
@@ -50,15 +62,11 @@ export default function AdminFantasyStatsViewer() {
                             <SelectValue placeholder="Select a finalized match" />
                         </SelectTrigger>
                         <SelectContent>
-                            {finalizedMatches.map(match => {
-                                const homeTeam = teamsMap[match.home_team_id];
-                                const awayTeam = teamsMap[match.away_team_id];
-                                return (
-                                    <SelectItem key={match.id} value={match.id}>
-                                        {homeTeam?.name || 'TBD'} vs {awayTeam?.name || 'TBD'} - {new Date(match.kickoff_at).toLocaleDateString()}
-                                    </SelectItem>
-                                );
-                            })}
+                            {finalizedMatches.map(match => (
+                                <SelectItem key={match.id} value={match.id}>
+                                    {getMatchLabel(match)}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </CardContent>

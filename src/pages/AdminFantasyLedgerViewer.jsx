@@ -18,6 +18,13 @@ export default function AdminFantasyLedgerViewer() {
         queryFn: () => base44.entities.Match.list()
     });
 
+    const { data: teams = [] } = useQuery({
+        queryKey: ['teams'],
+        queryFn: () => base44.entities.Team.list()
+    });
+
+    const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
+
     const { data: allLedger = [] } = useQuery({
         queryKey: ['fantasyLedger'],
         queryFn: async () => {
@@ -34,6 +41,18 @@ export default function AdminFantasyLedgerViewer() {
 
     const usersMap = Object.fromEntries(users.map(u => [u.id, u]));
     const matchesMap = Object.fromEntries(matches.map(m => [m.id, m]));
+
+    const getMatchLabel = (match) => {
+        const homeTeam = teamsMap[match.home_team_id];
+        const awayTeam = teamsMap[match.away_team_id];
+        const homeName = homeTeam?.fifa_code || homeTeam?.name || 'TBD';
+        const awayName = awayTeam?.fifa_code || awayTeam?.name || 'TBD';
+        const date = new Date(match.kickoff_at).toLocaleString('en-US', { 
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+        });
+        const shortId = match.id.slice(-8);
+        return `${date}  ${homeName} vs ${awayName} (${match.phase}) · ${shortId}`;
+    };
 
     const filteredLedger = selectedMatchId 
         ? allLedger.filter(e => {
@@ -83,7 +102,7 @@ export default function AdminFantasyLedgerViewer() {
                                 <SelectItem value="all">All Matches</SelectItem>
                                 {finalizedMatches.map(match => (
                                     <SelectItem key={match.id} value={match.id}>
-                                        {match.phase} - {new Date(match.kickoff_at).toLocaleDateString()}
+                                        {getMatchLabel(match)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
