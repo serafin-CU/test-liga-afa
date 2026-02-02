@@ -185,6 +185,8 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     }
 
     // Score each squad
+    const squadDiagnostics = [];
+    
     for (const squad of allSquads) {
         let squadTotalPoints = 0;
         const perPlayerDetails = [];
@@ -194,6 +196,17 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             squad_id: squad.id,
             slot_type: 'STARTER'
         });
+        
+        // Defensive guard
+        if (!squadPlayers || squadPlayers.length === 0) {
+            return {
+                ok: false,
+                code: 'NO_SQUAD_PLAYERS',
+                message: 'Squad has no starter players',
+                hint: 'Ensure the squad has players assigned with slot_type=STARTER.',
+                details: { match_id, squad_id: squad.id, user_id: squad.user_id }
+            };
+        }
 
         for (const squadPlayer of squadPlayers) {
             const player = playersMap[squadPlayer.player_id];
@@ -268,6 +281,13 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         });
 
         ledgerAwards.push(ledgerEntry);
+        
+        squadDiagnostics.push({
+            squad_id: squad.id,
+            user_id: squad.user_id,
+            starters_count: squadPlayers.length,
+            squad_points: squadTotalPoints
+        });
     }
     
     diagnostics.computed_total_points = ledgerAwards.reduce((sum, e) => sum + e.points, 0);
@@ -282,11 +302,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             details: {
                 diagnostics,
                 squads_count: allSquads.length,
-                starters_per_squad: allSquads.map(sq => ({
-                    squad_id: sq.id,
-                    user_id: sq.user_id,
-                    starters_count: squadPlayers.length
-                }))
+                squad_details: squadDiagnostics
             }
         };
     }
