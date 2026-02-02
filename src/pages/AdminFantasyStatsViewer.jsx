@@ -1,15 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Pencil, AlertTriangle } from 'lucide-react';
 
 export default function AdminFantasyStatsViewer() {
     const [selectedMatchId, setSelectedMatchId] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         return params.get('match_id') || null;
     });
+    const [editingStat, setEditingStat] = useState(null);
+    const [editForm, setEditForm] = useState({
+        goals: 0,
+        yellow_cards: 0,
+        red_cards: 0,
+        minutes_played: 0
+    });
+    const queryClient = useQueryClient();
+    
+    const { data: currentUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: () => base44.auth.me()
+    });
+    
+    const isAdmin = currentUser?.role === 'admin';
 
     const { data: matches = [] } = useQuery({
         queryKey: ['matches'],
@@ -65,6 +85,71 @@ export default function AdminFantasyStatsViewer() {
             })();
         }
     }, [finalizedMatches, selectedMatchId]);
+    
+    const updateStatsMutation = useMutation({
+        mutationFn: async ({ statId, oldValues, newValues }) => {
+            // Update stats
+            await base44.entities.FantasyMatchPlayerStats.update(statId, {
+                goals: newValues.goals,
+                yellow_cards: newValues.yellow_cards,
+                red_cards: newValues.red_cards,
+                minutes_played: newValues.minutes_played,
+                source: 'MANUAL'
+            });
+            
+            // Create audit log
+            await base44.entities.AdminAuditLog.create({
+                admin_user_id: currentUser.id,
+                actor_type: 'ADMIN',
+                action: 'UPDATE_FANTASY_MATCH_PLAYER_STATS',
+                entity_type: 'FantasyMatchPlayerStats',
+                entity_id: statId,
+                reason: 'Manual correction via AdminFantasyStatsViewer',
+                details_json: JSON.stringify({
+                    old_values: oldValues,
+                    new_values: newValues,
+                    timestamp: new Date().toISOString()
+                })
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fantasyStats'] });
+            setEditingStat(null);
+        }
+    });
+    
+    const handleEditClick = (stat) => {
+        setEditingStat(stat);
+        setEditForm({
+            goals: stat.goals || 0,
+            yellow_cards: stat.yellow_cards || 0,
+            red_cards: stat.red_cards || 0,
+            minutes_played: stat.minutes_played || 0
+        });
+    };
+    
+    const handleSave = () => {
+        const oldValues = {
+            goals: editingStat.goals || 0,
+            yellow_cards: editingStat.yellow_cards || 0,
+            red_cards: editingStat.red_cards || 0,
+            minutes_played: editingStat.minutes_played || 0
+        };
+        
+        updateStatsMutation.mutate({
+            statId: editingStat.id,
+            oldValues,
+            newValues: editForm
+        });
+    };
+    
+    const isFormValid = () => {
+        return editForm.goals >= 0 
+            && editForm.yellow_cards >= 0 
+            && editForm.red_cards >= 0 
+            && editForm.minutes_played >= 0 
+            && editForm.minutes_played <= 130;
+    };
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -126,6 +211,7 @@ export default function AdminFantasyStatsViewer() {
                                         <TableHead>YC</TableHead>
                                         <TableHead>RC</TableHead>
                                         <TableHead>Source</TableHead>
+                                        {isAdmin && <TableHead>Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -157,6 +243,18 @@ export default function AdminFantasyStatsViewer() {
                                                         {stat.source}
                                                     </span>
                                                 </TableCell>
+                                                {isAdmin && (
+                                                    <TableCell>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleEditClick(stat)}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                )}
                                             </TableRow>
                                         );
                                     })}
@@ -166,6 +264,90 @@ export default function AdminFantasyStatsViewer() {
                     </CardContent>
                 </Card>
             )}
+            
+            <Dialog open={!!editingStat} onOpenChange={(open) => !open && setEditingStat(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Player Stats</DialogTitle>
+                    </DialogHeader>
+                    
+                    {editingStat && (
+                        <div className="space-y-4">
+                            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5" />
+                                <div className="text-sm text-yellow-800">
+                                    <strong>Warning:</strong> Editing stats will affect fantasy scoring. Use "Force Re-Score" in System Test Harness after saving.
+                                </div>
+                            </div>
+                            
+                            <div className="text-sm text-gray-600">
+                                <div><strong>Player:</strong> {playersMap[editingStat.player_id]?.full_name}</div>
+                                <div><strong>Team:</strong> {teamsMap[editingStat.team_id]?.name}</div>
+                                <div><strong>Position:</strong> {playersMap[editingStat.player_id]?.position}</div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <div>
+                                    <Label htmlFor="goals">Goals</Label>
+                                    <Input
+                                        id="goals"
+                                        type="number"
+                                        min="0"
+                                        value={editForm.goals}
+                                        onChange={(e) => setEditForm({...editForm, goals: parseInt(e.target.value) || 0})}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <Label htmlFor="yellow_cards">Yellow Cards</Label>
+                                    <Input
+                                        id="yellow_cards"
+                                        type="number"
+                                        min="0"
+                                        value={editForm.yellow_cards}
+                                        onChange={(e) => setEditForm({...editForm, yellow_cards: parseInt(e.target.value) || 0})}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <Label htmlFor="red_cards">Red Cards</Label>
+                                    <Input
+                                        id="red_cards"
+                                        type="number"
+                                        min="0"
+                                        value={editForm.red_cards}
+                                        onChange={(e) => setEditForm({...editForm, red_cards: parseInt(e.target.value) || 0})}
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <Label htmlFor="minutes_played">Minutes Played (0-130)</Label>
+                                    <Input
+                                        id="minutes_played"
+                                        type="number"
+                                        min="0"
+                                        max="130"
+                                        value={editForm.minutes_played}
+                                        onChange={(e) => setEditForm({...editForm, minutes_played: parseInt(e.target.value) || 0})}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingStat(null)}>
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleSave} 
+                            disabled={!isFormValid() || updateStatsMutation.isPending}
+                        >
+                            {updateStatsMutation.isPending ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
