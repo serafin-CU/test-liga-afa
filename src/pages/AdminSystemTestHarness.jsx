@@ -902,7 +902,7 @@ export default function AdminSystemTestHarness() {
                                 <>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div><strong>Status:</strong> {matchDiagnostics.status}</div>
-                                        <div><strong>Finalized:</strong> {matchDiagnostics.finalized ? '✓' : '✗'}</div>
+                                        <div><strong>Finalized (MatchResultFinal):</strong> {matchDiagnostics.finalized ? '✓' : '✗'}</div>
                                         <div><strong>Stats Count:</strong> {matchDiagnostics.stats_count}</div>
                                         <div><strong>Users Scored:</strong> {matchDiagnostics.scored_users}</div>
                                     </div>
@@ -1040,6 +1040,12 @@ export default function AdminSystemTestHarness() {
                                 </div>
                                 <div className="pt-2 text-green-600 font-semibold">{devSetupResult.message}</div>
                                 
+                                {devSetupResult.match_result_final_created && (
+                                    <div className="text-blue-600 text-sm">
+                                        ℹ️ MatchResultFinal auto-created for dev/test match
+                                    </div>
+                                )}
+
                                 {devSetupResult.sample_ledger_rows?.length > 0 && (
                                     <div className="mt-3">
                                         <div className="font-semibold text-sm mb-2">Sample Ledger Rows:</div>

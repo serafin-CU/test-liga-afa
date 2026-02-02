@@ -130,6 +130,34 @@ Deno.serve(async (req) => {
             }, { status: 404 });
         }
 
+        // Step 2c: Ensure MatchResultFinal exists (DEV-ONLY auto-finalization)
+        let matchResultFinalCreated = false;
+        const existingMatchResults = await base44.asServiceRole.entities.MatchResultFinal.filter({ match_id: matchId });
+        
+        if (existingMatchResults.length === 0) {
+            // Calculate goals from stats
+            const homeGoals = matchStats
+                .filter(s => s.team_id === targetMatch.home_team_id)
+                .reduce((sum, s) => sum + (s.goals || 0), 0);
+            
+            const awayGoals = matchStats
+                .filter(s => s.team_id === targetMatch.away_team_id)
+                .reduce((sum, s) => sum + (s.goals || 0), 0);
+
+            // Create MatchResultFinal
+            await base44.asServiceRole.entities.MatchResultFinal.create({
+                match_id: matchId,
+                home_goals: homeGoals,
+                away_goals: awayGoals,
+                finalized_at: new Date().toISOString()
+            });
+
+            // Set Match.status = FINAL
+            await base44.asServiceRole.entities.Match.update(matchId, { status: 'FINAL' });
+            
+            matchResultFinalCreated = true;
+        }
+
         // Step 3: Check if squad already exists
         const existingSquads = await base44.asServiceRole.entities.FantasySquad.filter({
             user_id: testUser.id,
@@ -370,6 +398,7 @@ Deno.serve(async (req) => {
             test_run_id: isTestMode ? testRunId : undefined,
             match_id: matchId,
             match_phase: phase,
+            match_result_final_created: matchResultFinalCreated,
             squad_id: squad.id,
             user_id: testUser.id,
             user_email: testUser.email,
