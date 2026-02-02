@@ -85,34 +85,29 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
 
     const statsMap = Object.fromEntries(allStats.map(s => [s.player_id, s]));
 
-    // Load scoring rules from AppConfig
-    const appConfigs = await base44.asServiceRole.entities.AppConfig.list();
-    const config = appConfigs[0] || {};
-    
+    // Simplified scoring rules for validation
     const rules = {
-        points_goal_fwd: config.points_goal_fwd || 5,
-        points_goal_mid: config.points_goal_mid || 6,
-        points_goal_def: config.points_goal_def || 7,
-        points_goal_gk: config.points_goal_gk || 7,
-        points_yellow_card: config.points_yellow_card || -1,
-        points_red_card: config.points_red_card || -3,
-        points_play_60_plus: config.points_play_60_plus || 2,
-        points_play_1_to_59: config.points_play_1_to_59|| 1,
-        points_play_0: config.points_play_0 || 0,
-        clean_sheet_def_gk: config.clean_sheet_def_gk || 4,
-        clean_sheet_min_minutes: config.clean_sheet_min_minutes || 60,
-        fantasy_scoring_version: config.fantasy_scoring_version || 'v1'
+        points_goal_fwd: 4,
+        points_goal_mid: 5,
+        points_goal_def: 6,
+        points_goal_gk: 6,
+        points_yellow_card: -1,
+        points_red_card: -3,
+        points_play_60_plus: 1,
+        fantasy_scoring_version: 'v1'
+    };
+    
+    // Diagnostics
+    const diagnostics = {
+        match_id,
+        stats_rows_count: allStats.length,
+        goals_sum: allStats.reduce((sum, s) => sum + (s.goals || 0), 0),
+        yc_sum: allStats.reduce((sum, s) => sum + (s.yellow_cards || 0), 0),
+        rc_sum: allStats.reduce((sum, s) => sum + (s.red_cards || 0), 0),
+        per_player_breakdown: []
     };
 
-    // Determine which teams had clean sheets
-    const homeCleanSheet = matchResult.away_goals === 0;
-    const awayCleanSheet = matchResult.home_goals === 0;
 
-    // Map team_id to clean sheet status
-    const teamCleanSheetMap = {
-        [match.home_team_id]: homeCleanSheet,
-        [match.away_team_id]: awayCleanSheet
-    };
 
     // Find all finalized squads for this phase
     const phase = match.phase;
@@ -205,11 +200,12 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             if (!player) continue;
 
             const stats = statsMap[squadPlayer.player_id];
-            const minutes = stats?.minutes_played || 0;
-            const goals = stats?.goals || 0;
-            const yellowCards = stats?.yellow_cards || 0;
-            const redCards = stats?.red_cards || 0;
-            const teamId = stats?.team_id || player.team_id;
+            if (!stats) continue;
+            
+            const minutes = stats.minutes_played || 0;
+            const goals = stats.goals || 0;
+            const yellowCards = stats.yellow_cards || 0;
+            const redCards = stats.red_cards || 0;
 
             // Calculate points
             let playerPoints = 0;
@@ -230,22 +226,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             // Minutes
             if (minutes >= 60) {
                 playerPoints += rules.points_play_60_plus;
-            } else if (minutes >= 1) {
-                playerPoints += rules.points_play_1_to_59;
-            } else {
-                playerPoints += rules.points_play_0;
-            }
-
-            // Clean sheet
-            if ((player.position === 'DEF' || player.position === 'GK') && 
-                teamCleanSheetMap[teamId] && 
-                minutes >= rules.clean_sheet_min_minutes) {
-                playerPoints += rules.clean_sheet_def_gk;
             }
 
             squadTotalPoints += playerPoints;
 
-            perPlayerDetails.push({
+            const playerDetail = {
                 player_id: squadPlayer.player_id,
                 player_name: player.full_name,
                 position: player.position,
@@ -253,9 +238,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
                 goals,
                 yellow_cards: yellowCards,
                 red_cards: redCards,
-                clean_sheet: (player.position === 'DEF' || player.position === 'GK') && teamCleanSheetMap[teamId] && minutes >= rules.clean_sheet_min_minutes,
                 points: playerPoints
-            });
+            };
+            
+            perPlayerDetails.push(playerDetail);
+            diagnostics.per_player_breakdown.push(playerDetail);
         }
 
         // Write ledger entry
@@ -282,6 +269,27 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
 
         ledgerAwards.push(ledgerEntry);
     }
+    
+    diagnostics.computed_total_points = ledgerAwards.reduce((sum, e) => sum + e.points, 0);
+    
+    // Validate: if any stats have goals > 0 but total points is 0, throw error
+    if (diagnostics.goals_sum > 0 && diagnostics.computed_total_points === 0) {
+        return {
+            ok: false,
+            code: 'SCORING_LOGIC_ERROR',
+            message: 'Match has goals but computed 0 points',
+            hint: 'Check that players with goals are in a finalized squad as STARTERS.',
+            details: {
+                diagnostics,
+                squads_count: allSquads.length,
+                starters_per_squad: allSquads.map(sq => ({
+                    squad_id: sq.id,
+                    user_id: sq.user_id,
+                    starters_count: squadPlayers.length
+                }))
+            }
+        };
+    }
 
     return {
         ok: true,
@@ -292,7 +300,8 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         users_scored_count: allSquads.length,
         ledger_awards: ledgerAwards.length,
         ledger_voids: ledgerVoids.length,
-        total_points_awarded: ledgerAwards.reduce((sum, e) => sum + e.points, 0),
-        scoring_version: rules.fantasy_scoring_version
+        total_points_awarded: diagnostics.computed_total_points,
+        scoring_version: rules.fantasy_scoring_version,
+        diagnostics
     };
 }
