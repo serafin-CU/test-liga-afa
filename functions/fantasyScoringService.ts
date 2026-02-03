@@ -331,6 +331,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         let captainMultiplierAppliedTo = null;
         let captainBasePoints = 0;
         let captainMultipliedPoints = 0;
+        let captainPlayerName = null;
 
         for (const squadPlayer of squadPlayers) {
             const player = playersMap[squadPlayer.player_id];
@@ -385,6 +386,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
                 multiplier = 2;
                 captainMultiplierAppliedTo = captain.player_id;
                 captainBasePoints = playerPoints;
+                captainPlayerName = player.full_name;
             }
 
             const finalPoints = playerPoints * multiplier;
@@ -414,6 +416,9 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
 
         // Write ledger entry (always create AWARD, even if 0 points)
         console.log(`Creating ledger entry for user ${squad.user_id}: ${squadTotalPoints} points`);
+
+        const captainDelta = captainMultipliedPoints - captainBasePoints;
+
         const ledgerEntry = await base44.asServiceRole.entities.PointsLedger.create({
             user_id: squad.user_id,
             mode: 'FANTASY',
@@ -427,6 +432,14 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
                 phase,
                 squad_id: squad.id,
                 per_player: perPlayerDetails,
+                captain: {
+                    player_id: captainMultiplierAppliedTo,
+                    player_name: captainPlayerName,
+                    multiplier_applied: !!captainMultiplierAppliedTo,
+                    points_before_multiplier: captainBasePoints,
+                    points_after_multiplier: captainMultipliedPoints,
+                    delta_from_multiplier: captainDelta
+                },
                 totals: {
                     squad_points: squadTotalPoints,
                     starters_count: squadPlayers.length
@@ -447,6 +460,8 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         }
         const formationString = `${positionCounts.DEF}-${positionCounts.MID}-${positionCounts.FWD}`;
         
+        const captainDelta = captainMultipliedPoints - captainBasePoints;
+
         squadDiagnostics.push({
             squad_id: squad.id,
             user_id: squad.user_id,
@@ -455,9 +470,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             position_counts: positionCounts,
             starter_player_ids: starterPlayerIds,
             captain_player_id: captain?.player_id || null,
-            captain_base_points: captainBasePoints,
-            captain_multiplied_points: captainMultipliedPoints,
-            captain_multiplier_applied_to: captainMultiplierAppliedTo,
+            captain_player_name: captainPlayerName,
+            captain_multiplier_applied: !!captainMultiplierAppliedTo,
+            captain_points_before_multiplier: captainBasePoints,
+            captain_points_after_multiplier: captainMultipliedPoints,
+            delta_from_captain_multiplier: captainDelta,
             squad_points: squadTotalPoints
         });
     }
