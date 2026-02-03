@@ -130,29 +130,27 @@ async function validateFantasySquad(base44, squad_id) {
         };
     }
 
-    // Validate captain/vice-captain
+    // Validate captain
     const captains = starters.filter(sp => sp.is_captain);
-    if (captains.length !== 1) {
+    if (captains.length === 0) {
         return {
             ok: false,
             error: {
-                code: 'INVALID_CAPTAIN',
-                message: `Squad has ${captains.length} captains, must have exactly 1`,
-                hint: 'Exactly one player must be captain among starters.',
-                details: { squad_id, captain_count: captains.length }
+                code: 'CAPTAIN_REQUIRED',
+                message: 'Squad has no captain',
+                hint: 'Exactly one STARTER must be designated as captain.',
+                details: { squad_id, captain_count: 0 }
             }
         };
     }
-
-    const viceCaptains = starters.filter(sp => sp.is_vice_captain);
-    if (viceCaptains.length > 1) {
+    if (captains.length > 1) {
         return {
             ok: false,
             error: {
-                code: 'INVALID_VICE_CAPTAIN',
-                message: `Squad has ${viceCaptains.length} vice-captains, must have 0 or 1`,
-                hint: 'A maximum of one player can be vice-captain among starters.',
-                details: { squad_id, vice_captain_count: viceCaptains.length }
+                code: 'MULTIPLE_CAPTAINS',
+                message: `Squad has ${captains.length} captains, must have exactly 1`,
+                hint: 'Exactly one STARTER must be designated as captain.',
+                details: { squad_id, captain_count: captains.length }
             }
         };
     }
@@ -328,10 +326,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         const starterPlayerIds = squadPlayers.map(sp => sp.player_id);
         allStarterPlayerIds.push(...starterPlayerIds);
         
-        // Identify captain and vice-captain
+        // Identify captain
         const captain = squadPlayers.find(sp => sp.is_captain);
-        const viceCaptain = squadPlayers.find(sp => sp.is_vice_captain);
         let captainMultiplierAppliedTo = null;
+        let captainBasePoints = 0;
+        let captainMultipliedPoints = 0;
 
         for (const squadPlayer of squadPlayers) {
             const player = playersMap[squadPlayer.player_id];
@@ -378,25 +377,22 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             
             console.log(`  → Points: ${playerPoints}`);
 
-            // Apply captain multiplier
+            // Apply captain multiplier (2x only to captain)
             let multiplier = 1;
             const isCaptain = captain && squadPlayer.player_id === captain.player_id;
-            const isViceCaptain = viceCaptain && squadPlayer.player_id === viceCaptain.player_id;
-            
-            // Logic to determine who gets the multiplier
-            const captainStats = captain ? statsMap[captain.player_id] : null;
-            const captainMinutes = captainStats?.minutes_played || 0;
-            
-            if (isCaptain && captainMinutes > 0) {
+
+            if (isCaptain) {
                 multiplier = 2;
                 captainMultiplierAppliedTo = captain.player_id;
-            } else if (isViceCaptain && captainMinutes === 0) {
-                multiplier = 2;
-                captainMultiplierAppliedTo = viceCaptain.player_id;
+                captainBasePoints = playerPoints;
             }
 
             const finalPoints = playerPoints * multiplier;
             squadTotalPoints += finalPoints;
+
+            if (isCaptain) {
+                captainMultipliedPoints = finalPoints;
+            }
 
             const playerDetail = {
                 player_id: squadPlayer.player_id,
@@ -409,8 +405,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
                 base_points: playerPoints,
                 multiplier,
                 points: finalPoints,
-                is_captain: !!isCaptain,
-                is_vice_captain: !!isViceCaptain,
+                is_captain: !!isCaptain
             };
             
             perPlayerDetails.push(playerDetail);
@@ -460,7 +455,8 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             position_counts: positionCounts,
             starter_player_ids: starterPlayerIds,
             captain_player_id: captain?.player_id || null,
-            vice_captain_player_id: viceCaptain?.player_id || null,
+            captain_base_points: captainBasePoints,
+            captain_multiplied_points: captainMultipliedPoints,
             captain_multiplier_applied_to: captainMultiplierAppliedTo,
             squad_points: squadTotalPoints
         });

@@ -89,29 +89,27 @@ async function validateFantasySquad(base44, squad_id) {
         };
     }
     
-    // Validate captain/vice-captain
+    // Validate captain
     const captains = starters.filter(sp => sp.is_captain);
-    if (captains.length !== 1) {
+    if (captains.length === 0) {
         return {
             ok: false,
             error: {
-                code: 'INVALID_CAPTAIN',
-                message: `Squad has ${captains.length} captains, must have exactly 1`,
-                hint: 'Exactly one player must be captain among starters.',
-                details: { squad_id, captain_count: captains.length }
+                code: 'CAPTAIN_REQUIRED',
+                message: 'Squad has no captain',
+                hint: 'Exactly one STARTER must be designated as captain.',
+                details: { squad_id, captain_count: 0 }
             }
         };
     }
-
-    const viceCaptains = starters.filter(sp => sp.is_vice_captain);
-    if (viceCaptains.length > 1) {
+    if (captains.length > 1) {
         return {
             ok: false,
             error: {
-                code: 'INVALID_VICE_CAPTAIN',
-                message: `Squad has ${viceCaptains.length} vice-captains, must have 0 or 1`,
-                hint: 'A maximum of one player can be vice-captain among starters.',
-                details: { squad_id, vice_captain_count: viceCaptains.length }
+                code: 'MULTIPLE_CAPTAINS',
+                message: `Squad has ${captains.length} captains, must have exactly 1`,
+                hint: 'Exactly one STARTER must be designated as captain.',
+                details: { squad_id, captain_count: captains.length }
             }
         };
     }
@@ -445,8 +443,18 @@ Deno.serve(async (req) => {
             finalStarters.push(...allAvailable.slice(0, 11));
         }
         
-        // Create STARTER entries (first one is captain, second is vice if exists)
+        // Create STARTER entries - assign captain to a goal scorer if available, otherwise first
         let playersAdded = 0;
+        let captainAssigned = false;
+
+        // Find a goal scorer among starters
+        const goalScorerInStarters = finalStarters.find(playerId => {
+            const stat = matchStats.find(s => s.player_id === playerId);
+            return stat && stat.goals > 0;
+        });
+
+        const captainPlayerId = goalScorerInStarters || finalStarters[0];
+
         for (let i = 0; i < finalStarters.length; i++) {
             const playerId = finalStarters[i];
             const player = playersMap[playerId];
@@ -456,10 +464,10 @@ Deno.serve(async (req) => {
                     player_id: playerId,
                     slot_type: 'STARTER',
                     starter_position: player.position,
-                    is_captain: i === 0, // First starter is captain
-                    is_vice_captain: i === 1 // Second starter is vice-captain
+                    is_captain: playerId === captainPlayerId
                 });
                 playersAdded++;
+                if (playerId === captainPlayerId) captainAssigned = true;
             }
         }
         
@@ -576,22 +584,12 @@ Deno.serve(async (req) => {
                 playerPoints += yellowCards * -1;
                 playerPoints += redCards * -3;
 
-                // Apply captain multiplier
+                // Apply captain multiplier (2x only to captain)
                 let multiplier = 1;
                 const isCaptain = sp.is_captain;
-                const isViceCaptain = sp.is_vice_captain;
                 
-                // Find captain to check DNP
-                const captain = squadPlayers.find(p => p.is_captain);
-                if (captain) {
-                    const captainStat = matchStats.find(s => s.player_id === captain.player_id);
-                    const captainMinutes = captainStat?.minutes_played || 0;
-                    
-                    if (isCaptain && captainMinutes > 0) {
-                        multiplier = 2;
-                    } else if (isViceCaptain && captainMinutes === 0) {
-                        multiplier = 2;
-                    }
+                if (isCaptain) {
+                    multiplier = 2;
                 }
 
                 const finalPoints = playerPoints * multiplier;
@@ -608,8 +606,7 @@ Deno.serve(async (req) => {
                     base_points: playerPoints,
                     multiplier,
                     points: finalPoints,
-                    is_captain: isCaptain,
-                    is_vice_captain: isViceCaptain
+                    is_captain: isCaptain
                 });
             }
 
