@@ -433,7 +433,18 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
         };
     }
 
-    const transferResult = await calculateTransfers(base44, user_id, squads[0].id, phase);
+    const currentSquad = squads[0];
+
+    const rules = TRANSFER_RULES[phase];
+    if (!rules) {
+        return {
+            status: 'ERROR',
+            code: 'INVALID_PHASE',
+            message: `No transfer rules defined for phase ${phase}`
+        };
+    }
+
+    const transferResult = await calculateTransfers(base44, user_id, currentSquad.id, phase);
 
     if (transferResult.status !== 'SUCCESS') {
         return transferResult;
@@ -446,6 +457,20 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
     // Override for testing
     if (forceTransfersCount !== null && forceTransfersCount !== undefined) {
         transfersCount = forceTransfersCount;
+        
+        // Validate against max_allowed_transfers (hard cap for QF/SF)
+        if (transfersCount > rules.max_allowed_transfers) {
+            return {
+                status: 'ERROR',
+                code: 'TOO_MANY_TRANSFERS_FOR_PHASE',
+                message: `Phase ${phase} allows maximum ${rules.max_allowed_transfers} transfers, but ${transfersCount} were attempted`,
+                phase,
+                transfers_count: transfersCount,
+                max_allowed_transfers: rules.max_allowed_transfers,
+                hint: `Reduce transfers to ${rules.max_allowed_transfers} or fewer for this phase`
+            };
+        }
+        
         const penaltyResult = calculatePenalty(phase, forceTransfersCount);
         penaltyPoints = penaltyResult.penalty;
         penaltyBreakdown = penaltyResult.breakdown;
