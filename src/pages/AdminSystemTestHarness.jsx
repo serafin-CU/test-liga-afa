@@ -778,12 +778,27 @@ export default function AdminSystemTestHarness() {
             // Get starters for first squad (for display)
             let startersCount = 0;
             let benchCount = 0;
+            let formationString = 'N/A';
+            let positionCounts = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
+            
             if (allSquads.length > 0) {
                 const squadPlayers = await base44.entities.FantasySquadPlayer.filter({ 
                     squad_id: allSquads[0].id 
                 });
-                startersCount = squadPlayers.filter(sp => sp.slot_type === 'STARTER').length;
+                const starters = squadPlayers.filter(sp => sp.slot_type === 'STARTER');
+                startersCount = starters.length;
                 benchCount = squadPlayers.filter(sp => sp.slot_type === 'BENCH').length;
+                
+                // Get position breakdown for starters
+                const allPlayers = await base44.entities.Player.list();
+                const playersMap = Object.fromEntries(allPlayers.map(p => [p.id, p]));
+                for (const sp of starters) {
+                    const player = playersMap[sp.player_id];
+                    if (player) {
+                        positionCounts[player.position] = (positionCounts[player.position] || 0) + 1;
+                    }
+                }
+                formationString = `${positionCounts.GK}-${positionCounts.DEF}-${positionCounts.MID}-${positionCounts.FWD}`;
             }
             
             const allLedger = await base44.entities.PointsLedger.list();
