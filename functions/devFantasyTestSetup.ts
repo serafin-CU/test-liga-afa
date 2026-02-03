@@ -473,20 +473,56 @@ Deno.serve(async (req) => {
             }
         }
         
-        // Remaining players go to BENCH (if any)
+        // Create EXACTLY 3 bench players (one DEF, one MID with minutes > 0 for auto-sub, one FWD)
         const starterSet = new Set(finalStarters);
-        const benchPlayerIds = matchStats
-            .map(s => s.player_id)
-            .filter(id => !starterSet.has(id));
+        const benchPositions = ['DEF', 'MID', 'FWD'];
+        const benchPlayersCreated = [];
+        
+        for (let i = 0; i < benchPositions.length; i++) {
+            const pos = benchPositions[i];
+            const availableBench = matchStats
+                .filter(s => {
+                    const player = playersMap[s.player_id];
+                    return player && player.position === pos && !starterSet.has(s.player_id) && s.minutes_played > 0;
+                })
+                .sort((a, b) => a.player_id.localeCompare(b.player_id)); // Deterministic
             
-        for (const playerId of benchPlayerIds) {
-            const player = playersMap[playerId];
-            if (player) {
+            if (availableBench.length > 0) {
+                const benchStat = availableBench[0];
+                const player = playersMap[benchStat.player_id];
+                
                 await base44.asServiceRole.entities.FantasySquadPlayer.create({
                     squad_id: squad.id,
-                    player_id: playerId,
+                    player_id: benchStat.player_id,
                     slot_type: 'BENCH',
-                    starter_position: null
+                    bench_order: i + 1,
+                    starter_position: null,
+                    is_captain: false
+                });
+                
+                benchPlayersCreated.push(benchStat.player_id);
+                starterSet.add(benchStat.player_id); // Prevent reuse
+            }
+        }
+        
+        // Force DNP scenario: Set first MID starter to have 0 minutes
+        const midStarterIds = finalStarters.filter(pid => {
+            const player = playersMap[pid];
+            return player && player.position === 'MID';
+        });
+        
+        if (midStarterIds.length > 0) {
+            const targetMidId = midStarterIds[0];
+            const targetStat = matchStats.find(s => s.player_id === targetMidId);
+            
+            if (targetStat && targetStat.minutes_played !== 0) {
+                await base44.asServiceRole.entities.FantasyMatchPlayerStats.update(targetStat.id, {
+                    minutes_played: 0,
+                    minute_in: null,
+                    minute_out: 0,
+                    substituted_in: false,
+                    substituted_out: false,
+                    started: true
                 });
             }
         }
@@ -699,8 +735,25 @@ Deno.serve(async (req) => {
             squad_id: squad.id
         });
         const startersCount = finalSquadPlayers.filter(sp => sp.slot_type === 'STARTER').length;
-        const goalScorersCount = goalScorers.length;
-        const goalScorersInStarters = goalScorers.filter(gId => finalStarters.includes(gId)).length;
+        const benchCount = finalSquadPlayers.filter(sp => sp.slot_type === 'BENCH').length;
+        
+        // Re-fetch stats to get updated DNP values
+        const allStatsAfter = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ match_id: matchId });
+        const statsMapAfter = Object.fromEntries(allStatsAfter.map(s => [s.player_id, s]));
+        
+        const dnpStarters = finalSquadPlayers.filter(sp => {
+            if (sp.slot_type !== 'STARTER') return false;
+            const stat = statsMapAfter[sp.player_id];
+            return stat && stat.minutes_played === 0;
+        });
+        
+        const dnpStarterPlayerIds = dnpStarters.map(sp => sp.player_id);
+        const benchPlayerIds = finalSquadPlayers.filter(sp => sp.slot_type === 'BENCH')
+            .sort((a, b) => (a.bench_order || 0) - (b.bench_order || 0))
+            .map(sp => sp.player_id);
+        
+        const goalScorersCount = goalScorers.size;
+        const goalScorersInStarters = Array.from(goalScorers).filter(gId => finalStarters.includes(gId)).length;
         
         // Get formation details
         const starterPositionCounts = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
@@ -725,11 +778,15 @@ Deno.serve(async (req) => {
             user_email: testUser.email,
             stats_count: matchStats.length,
             starters_count: startersCount,
+            bench_count: benchCount,
+            dnp_starters_count: dnpStarters.length,
+            dnp_starter_player_ids: dnpStarterPlayerIds,
+            bench_player_ids: benchPlayerIds,
             formation: formationString,
             position_counts: starterPositionCounts,
             goal_scorers_count: goalScorersCount,
             goal_scorers_in_starters_count: goalScorersInStarters,
-            players_added: playersAdded,
+            players_added: playersAdded + benchCount,
             scoring_result: scoringResult?.data || {},
             ledger_entries_created: matchLedgerEntries.length,
             award_entries: awardEntries.length,
