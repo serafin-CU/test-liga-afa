@@ -20,9 +20,11 @@ export default function AdminSystemTestHarness() {
     const [scoringResult, setScoringResult] = useState(null);
     const [matchDiagnostics, setMatchDiagnostics] = useState(null);
     const [buildingStats, setBuildingStats] = useState(false);
-    const [selectedPhase, setSelectedPhase] = useState('ROUND_OF_16');
+    const [selectedPhase, setSelectedPhase] = useState('ROUND_OF_32');
     const [transferTestRunning, setTransferTestRunning] = useState(false);
     const [transferTestResult, setTransferTestResult] = useState(null);
+    const [baselineRunning, setBaselineRunning] = useState(false);
+    const [baselineResult, setBaselineResult] = useState(null);
 
     const { data: matches = [] } = useQuery({
         queryKey: ['matches'],
@@ -921,15 +923,12 @@ export default function AdminSystemTestHarness() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium mb-2 block">Select Phase</label>
+                        <label className="text-sm font-medium mb-2 block">Select Phase (Knockout Only)</label>
                         <Select value={selectedPhase} onValueChange={setSelectedPhase}>
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select phase" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="GROUP_MD1">GROUP_MD1</SelectItem>
-                                <SelectItem value="GROUP_MD2">GROUP_MD2</SelectItem>
-                                <SelectItem value="GROUP_MD3">GROUP_MD3</SelectItem>
                                 <SelectItem value="ROUND_OF_32">ROUND_OF_32 (R32)</SelectItem>
                                 <SelectItem value="ROUND_OF_16">ROUND_OF_16 (R16)</SelectItem>
                                 <SelectItem value="QUARTERFINALS">QUARTERFINALS (QF)</SelectItem>
@@ -940,6 +939,33 @@ export default function AdminSystemTestHarness() {
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
+                        <Button
+                            onClick={async () => {
+                                setBaselineRunning(true);
+                                setBaselineResult(null);
+                                try {
+                                    const currentUser = await base44.auth.me();
+                                    const response = await base44.functions.invoke('fantasyTransferService', {
+                                        action: 'ensure_baseline_squad',
+                                        user_id: currentUser.id,
+                                        phase: selectedPhase
+                                    });
+                                    setBaselineResult(response.data);
+                                } catch (error) {
+                                    setBaselineResult({ 
+                                        status: 'ERROR', 
+                                        message: error.message 
+                                    });
+                                }
+                                setBaselineRunning(false);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            disabled={baselineRunning}
+                        >
+                            {baselineRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Ensure Baseline Squad
+                        </Button>
                         <Button
                             onClick={async () => {
                                 setTransferTestRunning(true);
@@ -987,6 +1013,33 @@ export default function AdminSystemTestHarness() {
                         </Button>
                     </div>
 
+                    {baselineResult && (
+                        <div className="p-4 bg-blue-50 rounded border border-blue-200 mb-4">
+                            {baselineResult.status === 'SUCCESS' ? (
+                                <div className="space-y-2 text-sm">
+                                    <div className="text-blue-700 font-semibold">✓ Baseline Squad: {baselineResult.baseline_status}</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div><strong>Phase:</strong> {baselineResult.phase}</div>
+                                        <div><strong>Squad ID:</strong> <code>{baselineResult.squad_id?.slice(-8)}</code></div>
+                                        {baselineResult.baseline_status === 'CREATED' && (
+                                            <>
+                                                <div><strong>Copied From:</strong> {baselineResult.copied_from_phase}</div>
+                                                <div><strong>Players Copied:</strong> {baselineResult.players_copied}</div>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-blue-600">{baselineResult.message}</div>
+                                </div>
+                            ) : (
+                                <div className="text-red-600">
+                                    <div className="font-semibold">Error</div>
+                                    <div className="text-sm">{baselineResult.message}</div>
+                                    {baselineResult.hint && <div className="text-xs mt-1">{baselineResult.hint}</div>}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {transferTestResult && (
                         <div className="p-4 bg-gray-50 rounded border">
                             {transferTestResult.status === 'SUCCESS' ? (
@@ -994,6 +1047,7 @@ export default function AdminSystemTestHarness() {
                                     <div className="text-green-600 font-semibold">✓ {transferTestResult.status}</div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div><strong>Phase:</strong> {selectedPhase}</div>
+                                        <div><strong>Baseline Status:</strong> {transferTestResult.baseline_status || 'N/A'}</div>
                                         <div><strong>Transfers Count:</strong> {transferTestResult.transfers_count}</div>
                                         <div><strong>Free Transfers:</strong> {transferTestResult.free_transfers}</div>
                                         <div><strong>Excess Transfers:</strong> {transferTestResult.excess_transfers}</div>
@@ -1012,6 +1066,22 @@ export default function AdminSystemTestHarness() {
                                         <div className="col-span-2">
                                             <strong>Penalty Applied:</strong> {transferTestResult.penalty_applied ? 'Yes' : 'No'}
                                         </div>
+                                        {transferTestResult.ledger_entry_id && (
+                                            <div className="col-span-2">
+                                                <strong>Ledger Entry ID:</strong> <code className="text-xs">{transferTestResult.ledger_entry_id.slice(-8)}</code>
+                                                <span className="ml-2 text-gray-600">({transferTestResult.source_type})</span>
+                                            </div>
+                                        )}
+                                        {transferTestResult.is_locked !== undefined && (
+                                            <div className="col-span-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                                                <strong>Phase Lock Status:</strong> {transferTestResult.is_locked ? '🔒 LOCKED' : '🔓 OPEN'}
+                                                {transferTestResult.lock_time && (
+                                                    <div className="text-xs text-gray-600 mt-1">
+                                                        Lock Time: {new Date(transferTestResult.lock_time).toLocaleString()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-xs text-gray-600 mt-2">
                                         {transferTestResult.message}
@@ -1019,8 +1089,11 @@ export default function AdminSystemTestHarness() {
                                 </div>
                             ) : (
                                 <div className="text-red-600">
-                                    <div className="font-semibold">Error</div>
+                                    <div className="font-semibold">Error: {transferTestResult.code || 'Unknown'}</div>
                                     <div className="text-sm">{transferTestResult.message}</div>
+                                    {transferTestResult.hint && (
+                                        <div className="text-xs mt-1 text-blue-700 bg-blue-50 p-2 rounded">{transferTestResult.hint}</div>
+                                    )}
                                 </div>
                             )}
                         </div>

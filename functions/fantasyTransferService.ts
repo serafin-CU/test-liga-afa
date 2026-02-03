@@ -5,7 +5,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
  * Handles transfer detection, validation, penalties, and phase locks
  * 
  * TRANSFER RULES (source of truth):
- * - R32: free=2; transfers 3-5 => -3 each
+ * - R32: free=2; transfers 3-5 => -3 each; 6-7 => -4 each
  * - R16: free=3; transfers 4-6 => -2 each; 7-11 => -3 each
  * - QF: free=2; transfers 3-5 => -4 each
  * - SF: free=2; transfers 3-5 => -5 each
@@ -14,11 +14,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const PHASE_ORDER = ['PRE_TOURNAMENT', 'GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
 
+const KNOCKOUT_PHASES = ['ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
+
 const TRANSFER_RULES = {
     'ROUND_OF_32': {
         free_transfers: 2,
         tiers: [
-            { max: 5, penalty: -3 }  // transfers 3-5: -3 each
+            { max: 5, penalty: -3 },  // transfers 3-5: -3 each
+            { max: 7, penalty: -4 }   // transfers 6-7: -4 each
         ]
     },
     'ROUND_OF_16': {
@@ -63,6 +66,11 @@ Deno.serve(async (req) => {
 
         const { action, squad_id, target_phase, user_id, phase, force_transfers_count } = await req.json();
 
+        if (action === 'ensure_baseline_squad') {
+            const result = await ensureBaselineSquadForPhase(base44, user_id || user.id, phase || target_phase);
+            return Response.json(result);
+        }
+
         if (action === 'calculate_transfers') {
             const result = await calculateTransfers(base44, user_id || user.id, squad_id, target_phase);
             return Response.json(result);
@@ -97,6 +105,124 @@ Deno.serve(async (req) => {
         }, { status: 500 });
     }
 });
+
+/**
+ * Ensure a baseline squad exists for a knockout phase
+ * Copies from most recent previous phase if missing
+ */
+async function ensureBaselineSquadForPhase(base44, user_id, phase) {
+    if (!KNOCKOUT_PHASES.includes(phase)) {
+        return {
+            status: 'ERROR',
+            code: 'INVALID_PHASE',
+            message: 'Phase must be a knockout phase',
+            valid_phases: KNOCKOUT_PHASES
+        };
+    }
+
+    // Check if squad already exists
+    const existingSquads = await base44.asServiceRole.entities.FantasySquad.filter({
+        user_id,
+        phase,
+        status: 'FINAL'
+    });
+
+    if (existingSquads.length > 0) {
+        return {
+            status: 'SUCCESS',
+            baseline_status: 'EXISTING',
+            squad_id: existingSquads[0].id,
+            phase,
+            message: 'Squad already exists for this phase'
+        };
+    }
+
+    // Find most recent previous phase squad
+    const phaseIndex = PHASE_ORDER.indexOf(phase);
+    let previousSquad = null;
+
+    // Try knockout phases first (descending from current)
+    for (let i = phaseIndex - 1; i >= 0; i--) {
+        const testPhase = PHASE_ORDER[i];
+        const squads = await base44.asServiceRole.entities.FantasySquad.filter({
+            user_id,
+            phase: testPhase,
+            status: 'FINAL'
+        });
+        
+        if (squads.length > 0) {
+            previousSquad = squads[0];
+            break;
+        }
+    }
+
+    if (!previousSquad) {
+        return {
+            status: 'ERROR',
+            code: 'NO_PREVIOUS_SQUAD',
+            message: 'No previous finalized squad found to copy from',
+            hint: 'Create a finalized squad for an earlier phase first (e.g., GROUP_MD3 or previous knockout phase)'
+        };
+    }
+
+    // Load previous squad players
+    const previousPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({
+        squad_id: previousSquad.id
+    });
+
+    if (previousPlayers.length !== 14) {
+        return {
+            status: 'ERROR',
+            code: 'INVALID_PREVIOUS_SQUAD',
+            message: `Previous squad has ${previousPlayers.length} players, expected 14 (11 starters + 3 bench)`
+        };
+    }
+
+    // Create new squad for current phase
+    const newSquad = await base44.asServiceRole.entities.FantasySquad.create({
+        user_id,
+        phase,
+        status: 'FINAL',
+        budget_cap: previousSquad.budget_cap || 150,
+        total_cost: previousSquad.total_cost || 0,
+        finalized_at: new Date().toISOString()
+    });
+
+    // Copy all players
+    const starters = previousPlayers.filter(sp => sp.slot_type === 'STARTER');
+    const bench = previousPlayers.filter(sp => sp.slot_type === 'BENCH');
+
+    for (const sp of starters) {
+        await base44.asServiceRole.entities.FantasySquadPlayer.create({
+            squad_id: newSquad.id,
+            player_id: sp.player_id,
+            slot_type: 'STARTER',
+            starter_position: sp.starter_position,
+            is_captain: sp.is_captain || false
+        });
+    }
+
+    for (const sp of bench) {
+        await base44.asServiceRole.entities.FantasySquadPlayer.create({
+            squad_id: newSquad.id,
+            player_id: sp.player_id,
+            slot_type: 'BENCH',
+            bench_order: sp.bench_order || 0,
+            is_captain: false
+        });
+    }
+
+    return {
+        status: 'SUCCESS',
+        baseline_status: 'CREATED',
+        squad_id: newSquad.id,
+        phase,
+        copied_from_phase: previousSquad.phase,
+        copied_from_squad_id: previousSquad.id,
+        players_copied: previousPlayers.length,
+        message: `Baseline squad created by copying from ${previousSquad.phase}`
+    };
+}
 
 async function checkPhaseLock(base44, phase) {
     const phaseMatches = await base44.asServiceRole.entities.Match.filter({ phase });
@@ -264,6 +390,12 @@ function calculatePenalty(phase, transfersCount) {
 }
 
 async function applyTransferPenalties(base44, user_id, phase, forceTransfersCount = null) {
+    // Ensure baseline squad exists first
+    const baselineResult = await ensureBaselineSquadForPhase(base44, user_id, phase);
+    if (baselineResult.status !== 'SUCCESS') {
+        return baselineResult;
+    }
+
     // Check for existing penalty for this user + phase (idempotency)
     const existingPenalties = await base44.asServiceRole.entities.PointsLedger.filter({
         user_id,
@@ -329,6 +461,7 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
     }
 
     // Idempotent: update existing or create new
+    let ledgerEntryId;
     if (existingPenaltyForPhase) {
         await base44.asServiceRole.entities.PointsLedger.update(existingPenaltyForPhase.id, {
             points: penaltyPoints,
@@ -343,8 +476,9 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
                 timestamp: new Date().toISOString()
             })
         });
+        ledgerEntryId = existingPenaltyForPhase.id;
     } else {
-        await base44.asServiceRole.entities.PointsLedger.create({
+        const newEntry = await base44.asServiceRole.entities.PointsLedger.create({
             user_id,
             mode: 'PENALTY',
             source_type: 'TRANSFER_PENALTY',
@@ -361,7 +495,11 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
                 timestamp: new Date().toISOString()
             })
         });
+        ledgerEntryId = newEntry.id;
     }
+
+    // Get lock status for this phase
+    const lockStatus = await checkPhaseLock(base44, phase);
 
     return {
         status: 'SUCCESS',
@@ -371,6 +509,12 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
         transfers_count: transfersCount,
         free_transfers: transferResult.free_transfers,
         excess_transfers: excessTransfers,
+        baseline_status: baselineResult.baseline_status,
+        ledger_entry_id: ledgerEntryId,
+        source_type: 'TRANSFER_PENALTY',
+        is_locked: lockStatus.is_locked,
+        lock_time: lockStatus.lock_time,
+        first_match_time: lockStatus.first_match_time,
         message: `Transfer penalty applied: ${penaltyPoints} points`
     };
 }
