@@ -17,6 +17,7 @@ export default function AdminFantasyStatsViewer() {
     });
     const [editingStat, setEditingStat] = useState(null);
     const [squadPlayers, setSquadPlayers] = useState([]);
+    const [squadPlayers, setSquadPlayers] = useState([]);
     const [editForm, setEditForm] = useState({
         goals: 0,
         yellow_cards: 0,
@@ -86,6 +87,25 @@ export default function AdminFantasyStatsViewer() {
             })();
         }
     }, [finalizedMatches, selectedMatchId]);
+
+    useEffect(() => {
+        if (selectedMatchId) {
+            // Find a squad to display captaincy info. This is just for display, so picking one is fine.
+            const fetchSquadPlayers = async () => {
+                const match = matches.find(m => m.id === selectedMatchId);
+                if (!match) return;
+
+                const squads = await base44.entities.FantasySquad.filter({ phase: match.phase, status: 'FINAL' });
+                if (squads.length > 0) {
+                    const squadPlayersData = await base44.entities.FantasySquadPlayer.filter({ squad_id: squads[0].id });
+                    setSquadPlayers(squadPlayersData);
+                } else {
+                    setSquadPlayers([]);
+                }
+            };
+            fetchSquadPlayers();
+        }
+    }, [selectedMatchId, matches]);
 
     useEffect(() => {
         if (selectedMatchId) {

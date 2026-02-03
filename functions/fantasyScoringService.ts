@@ -477,6 +477,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     diagnostics.excluded_goal_scorer_player_ids = excludedGoalScorers;
     diagnostics.computed_total_points = ledgerAwards.reduce((sum, e) => sum + e.points, 0);
     diagnostics.squad_details = squadDiagnostics;
+    diagnostics.squad_details = squadDiagnostics;
     
     // Validate: if any stats have goals > 0 but total points is 0, return detailed error
     if (diagnostics.goals_sum > 0 && diagnostics.computed_total_points === 0) {
