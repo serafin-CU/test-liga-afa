@@ -930,6 +930,7 @@ export default function AdminSystemTestHarness() {
                                 <SelectItem value="GROUP_MD1">GROUP_MD1</SelectItem>
                                 <SelectItem value="GROUP_MD2">GROUP_MD2</SelectItem>
                                 <SelectItem value="GROUP_MD3">GROUP_MD3</SelectItem>
+                                <SelectItem value="ROUND_OF_32">ROUND_OF_32 (R32)</SelectItem>
                                 <SelectItem value="ROUND_OF_16">ROUND_OF_16 (R16)</SelectItem>
                                 <SelectItem value="QUARTERFINALS">QUARTERFINALS (QF)</SelectItem>
                                 <SelectItem value="SEMIFINALS">SEMIFINALS (SF)</SelectItem>
@@ -938,7 +939,7 @@ export default function AdminSystemTestHarness() {
                         </Select>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <Button
                             onClick={async () => {
                                 setTransferTestRunning(true);
@@ -1002,6 +1003,12 @@ export default function AdminSystemTestHarness() {
                                                 {transferTestResult.penalty_points}
                                             </span>
                                         </div>
+                                        {transferTestResult.penalty_breakdown && (
+                                            <div className="col-span-2 p-2 bg-orange-100 rounded border border-orange-300">
+                                                <strong>Breakdown:</strong> 
+                                                <div className="font-mono text-xs mt-1">{transferTestResult.penalty_breakdown}</div>
+                                            </div>
+                                        )}
                                         <div className="col-span-2">
                                             <strong>Penalty Applied:</strong> {transferTestResult.penalty_applied ? 'Yes' : 'No'}
                                         </div>

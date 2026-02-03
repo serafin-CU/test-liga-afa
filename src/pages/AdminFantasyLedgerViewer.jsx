@@ -15,6 +15,7 @@ export default function AdminFantasyLedgerViewer() {
     });
     const [selectedPhase, setSelectedPhase] = useState('all');
     const [selectedSourceType, setSelectedSourceType] = useState('all');
+    const [selectedUserId, setSelectedUserId] = useState('all');
     const [showAllModes, setShowAllModes] = useState(true);
     const [showVoids, setShowVoids] = useState(true);
     const queryClient = useQueryClient();
@@ -65,6 +66,11 @@ export default function AdminFantasyLedgerViewer() {
     const filteredLedger = (() => {
         let filtered = allLedger;
         
+        // Filter by user
+        if (selectedUserId !== 'all') {
+            filtered = filtered.filter(e => e.user_id === selectedUserId);
+        }
+
         // Filter by match
         if (selectedMatchId) {
             filtered = filtered.filter(e => {
@@ -136,7 +142,24 @@ export default function AdminFantasyLedgerViewer() {
                     <CardTitle>Filters</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label className="text-sm font-medium mb-2 block">User Filter</label>
+                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All users" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Users</SelectItem>
+                                    {users.map(user => (
+                                        <SelectItem key={user.id} value={user.id}>
+                                            {user.email}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div>
                             <label className="text-sm font-medium mb-2 block">Phase Filter</label>
                             <Select value={selectedPhase} onValueChange={setSelectedPhase}>
@@ -148,6 +171,7 @@ export default function AdminFantasyLedgerViewer() {
                                     <SelectItem value="GROUP_MD1">GROUP_MD1</SelectItem>
                                     <SelectItem value="GROUP_MD2">GROUP_MD2</SelectItem>
                                     <SelectItem value="GROUP_MD3">GROUP_MD3</SelectItem>
+                                    <SelectItem value="ROUND_OF_32">ROUND_OF_32</SelectItem>
                                     <SelectItem value="ROUND_OF_16">ROUND_OF_16</SelectItem>
                                     <SelectItem value="QUARTERFINALS">QUARTERFINALS</SelectItem>
                                     <SelectItem value="SEMIFINALS">SEMIFINALS</SelectItem>
@@ -298,6 +322,11 @@ export default function AdminFantasyLedgerViewer() {
                                                         <div><strong>Transfers:</strong> {breakdown.transfers_count}</div>
                                                         <div><strong>Free:</strong> {breakdown.free_transfers}</div>
                                                         <div><strong>Excess:</strong> {breakdown.excess_transfers}</div>
+                                                        {breakdown.penalty_breakdown && (
+                                                            <div className="text-xs font-mono text-orange-800 mt-1">
+                                                                {breakdown.penalty_breakdown}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : breakdown.captain ? (
                                                     <div className="space-y-0.5">
