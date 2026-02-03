@@ -19,6 +19,7 @@ const KNOCKOUT_PHASES = ['ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFIN
 const TRANSFER_RULES = {
     'ROUND_OF_32': {
         free_transfers: 2,
+        max_allowed_transfers: 11,
         tiers: [
             { max: 5, penalty: -3 },  // transfers 3-5: -3 each
             { max: 7, penalty: -4 }   // transfers 6-7: -4 each
@@ -26,6 +27,7 @@ const TRANSFER_RULES = {
     },
     'ROUND_OF_16': {
         free_transfers: 3,
+        max_allowed_transfers: 11,
         tiers: [
             { max: 6, penalty: -2 },  // transfers 4-6: -2 each
             { max: 11, penalty: -3 }  // transfers 7-11: -3 each
@@ -33,18 +35,21 @@ const TRANSFER_RULES = {
     },
     'QUARTERFINALS': {
         free_transfers: 2,
+        max_allowed_transfers: 5,
         tiers: [
-            { max: 5, penalty: -4 }  // transfers 3-5: -4 each
+            { max: 5, penalty: -4 }  // transfers 3-5: -4 each (HARD CAP at 5)
         ]
     },
     'SEMIFINALS': {
         free_transfers: 2,
+        max_allowed_transfers: 5,
         tiers: [
-            { max: 5, penalty: -5 }  // transfers 3-5: -5 each
+            { max: 5, penalty: -5 }  // transfers 3-5: -5 each (HARD CAP at 5)
         ]
     },
     'FINAL': {
         free_transfers: 5,
+        max_allowed_transfers: Infinity,
         tiers: [
             { max: Infinity, penalty: -7 }  // transfers 6+: -7 each
         ]
@@ -507,8 +512,9 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
         penalty_points: penaltyPoints,
         penalty_breakdown: penaltyBreakdown,
         transfers_count: transfersCount,
-        free_transfers: transferResult.free_transfers,
+        free_transfers: rules.free_transfers,
         excess_transfers: excessTransfers,
+        max_allowed_transfers: rules.max_allowed_transfers,
         baseline_status: baselineResult.baseline_status,
         ledger_entry_id: ledgerEntryId,
         source_type: 'TRANSFER_PENALTY',

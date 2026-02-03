@@ -972,11 +972,13 @@ export default function AdminSystemTestHarness() {
                                 setTransferTestResult(null);
                                 try {
                                     const currentUser = await base44.auth.me();
+                                    // Phase-aware max transfers: QF/SF cap at 5, others at 11
+                                    const maxTransfers = (selectedPhase === 'QUARTERFINALS' || selectedPhase === 'SEMIFINALS') ? 5 : 11;
                                     const response = await base44.functions.invoke('fantasyTransferService', {
                                         action: 'apply_transfer_penalties',
                                         user_id: currentUser.id,
                                         phase: selectedPhase,
-                                        force_transfers_count: 11
+                                        force_transfers_count: maxTransfers
                                     });
                                     setTransferTestResult(response.data);
                                 } catch (error) {
@@ -992,7 +994,7 @@ export default function AdminSystemTestHarness() {
                             disabled={transferTestRunning}
                         >
                             {transferTestRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                            Simulate Max Transfers (11)
+                            Simulate Max Transfers ({(selectedPhase === 'QUARTERFINALS' || selectedPhase === 'SEMIFINALS') ? '5' : '11'})
                         </Button>
                         <Button
                             onClick={async () => {
@@ -1049,6 +1051,7 @@ export default function AdminSystemTestHarness() {
                                         <div><strong>Phase:</strong> {selectedPhase}</div>
                                         <div><strong>Baseline Status:</strong> {transferTestResult.baseline_status || 'N/A'}</div>
                                         <div><strong>Transfers Count:</strong> {transferTestResult.transfers_count}</div>
+                                        <div><strong>Max Allowed:</strong> {transferTestResult.max_allowed_transfers === Infinity ? '∞' : transferTestResult.max_allowed_transfers}</div>
                                         <div><strong>Free Transfers:</strong> {transferTestResult.free_transfers}</div>
                                         <div><strong>Excess Transfers:</strong> {transferTestResult.excess_transfers}</div>
                                         <div className="col-span-2">
