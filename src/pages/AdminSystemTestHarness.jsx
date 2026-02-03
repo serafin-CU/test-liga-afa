@@ -585,13 +585,15 @@ export default function AdminSystemTestHarness() {
                 finalized_at: new Date().toISOString()
             });
 
-            // Add all 11 players as starters
-            for (const player of players) {
+            // Add all 11 players as starters with captain
+            for (let i = 0; i < players.length; i++) {
+                const player = players[i];
                 await base44.entities.FantasySquadPlayer.create({
                     squad_id: squad.id,
                     player_id: player.id,
                     slot_type: 'STARTER',
-                    starter_position: player.position
+                    starter_position: player.position,
+                    is_captain: i === 0 // First player is captain
                 });
             }
 
