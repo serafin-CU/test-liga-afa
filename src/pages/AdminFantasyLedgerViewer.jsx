@@ -13,6 +13,8 @@ export default function AdminFantasyLedgerViewer() {
         const params = new URLSearchParams(window.location.search);
         return params.get('match') || null;
     });
+    const [selectedPhase, setSelectedPhase] = useState('all');
+    const [selectedSourceType, setSelectedSourceType] = useState('all');
     const [showAllModes, setShowAllModes] = useState(true);
     const [showVoids, setShowVoids] = useState(true);
     const queryClient = useQueryClient();
@@ -33,8 +35,10 @@ export default function AdminFantasyLedgerViewer() {
         queryKey: ['fantasyLedger'],
         queryFn: async () => {
             const allEntries = await base44.entities.PointsLedger.list();
-            // Show any mode starting with FANTASY
-            return allEntries.filter(e => e.mode?.startsWith('FANTASY'));
+            // Show FANTASY and PENALTY modes
+            return allEntries.filter(e => 
+                e.mode?.startsWith('FANTASY') || e.mode === 'PENALTY'
+            );
         }
     });
 
@@ -72,6 +76,23 @@ export default function AdminFantasyLedgerViewer() {
                     return false;
                 }
             });
+        }
+
+        // Filter by phase
+        if (selectedPhase !== 'all') {
+            filtered = filtered.filter(e => {
+                try {
+                    const breakdown = JSON.parse(e.breakdown_json);
+                    return breakdown.phase === selectedPhase;
+                } catch {
+                    return false;
+                }
+            });
+        }
+
+        // Filter by source type
+        if (selectedSourceType !== 'all') {
+            filtered = filtered.filter(e => e.source_type === selectedSourceType);
         }
         
         // Filter voids
@@ -115,21 +136,56 @@ export default function AdminFantasyLedgerViewer() {
                     <CardTitle>Filters</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium mb-2 block">Match Filter</label>
-                        <Select value={selectedMatchId || 'all'} onValueChange={(val) => setSelectedMatchId(val === 'all' ? null : val)}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="All matches" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Matches</SelectItem>
-                                {finalizedMatches.map(match => (
-                                    <SelectItem key={match.id} value={match.id}>
-                                        {getMatchLabel(match)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-sm font-medium mb-2 block">Phase Filter</label>
+                            <Select value={selectedPhase} onValueChange={setSelectedPhase}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All phases" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Phases</SelectItem>
+                                    <SelectItem value="GROUP_MD1">GROUP_MD1</SelectItem>
+                                    <SelectItem value="GROUP_MD2">GROUP_MD2</SelectItem>
+                                    <SelectItem value="GROUP_MD3">GROUP_MD3</SelectItem>
+                                    <SelectItem value="ROUND_OF_16">ROUND_OF_16</SelectItem>
+                                    <SelectItem value="QUARTERFINALS">QUARTERFINALS</SelectItem>
+                                    <SelectItem value="SEMIFINALS">SEMIFINALS</SelectItem>
+                                    <SelectItem value="FINAL">FINAL</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium mb-2 block">Source Type Filter</label>
+                            <Select value={selectedSourceType} onValueChange={setSelectedSourceType}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All types" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Types</SelectItem>
+                                    <SelectItem value="FANTASY_MATCH">FANTASY_MATCH</SelectItem>
+                                    <SelectItem value="TRANSFER_PENALTY">TRANSFER_PENALTY</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium mb-2 block">Match Filter</label>
+                            <Select value={selectedMatchId || 'all'} onValueChange={(val) => setSelectedMatchId(val === 'all' ? null : val)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All matches" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Matches</SelectItem>
+                                    {finalizedMatches.map(match => (
+                                        <SelectItem key={match.id} value={match.id}>
+                                            {getMatchLabel(match)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -189,6 +245,7 @@ export default function AdminFantasyLedgerViewer() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead>Mode</TableHead>
+                                    <TableHead>Phase</TableHead>
                                     <TableHead>Source Type</TableHead>
                                     <TableHead>Source ID</TableHead>
                                     <TableHead>Points</TableHead>
@@ -206,13 +263,17 @@ export default function AdminFantasyLedgerViewer() {
                                     } catch {}
 
                                     const isVoid = breakdown.type === 'VOID';
+                                    const isPenalty = entry.source_type === 'TRANSFER_PENALTY';
 
                                     return (
-                                        <TableRow key={entry.id} className={isVoid ? 'bg-red-50' : ''}>
+                                        <TableRow key={entry.id} className={isVoid ? 'bg-red-50' : isPenalty ? 'bg-orange-50' : ''}>
                                             <TableCell className="font-medium text-xs">
                                                 {user?.email || entry.user_id}
                                             </TableCell>
                                             <TableCell className="font-mono text-xs">{entry.mode}</TableCell>
+                                            <TableCell className="text-xs font-semibold">
+                                                {breakdown.phase || '-'}
+                                            </TableCell>
                                             <TableCell className="text-xs">{entry.source_type}</TableCell>
                                             <TableCell className="text-xs font-mono truncate max-w-[120px]" title={entry.source_id}>
                                                 {entry.source_id}
@@ -223,6 +284,8 @@ export default function AdminFantasyLedgerViewer() {
                                             <TableCell>
                                                 {isVoid ? (
                                                     <Badge variant="destructive">VOID</Badge>
+                                                ) : isPenalty ? (
+                                                    <Badge className="bg-orange-600">PENALTY</Badge>
                                                 ) : (
                                                     <Badge className="bg-green-600">AWARD</Badge>
                                                 )}
@@ -230,6 +293,12 @@ export default function AdminFantasyLedgerViewer() {
                                             <TableCell className="text-xs">
                                                 {isVoid ? (
                                                     `Voided ${breakdown.voided_points} pts`
+                                                ) : isPenalty ? (
+                                                    <div className="space-y-0.5">
+                                                        <div><strong>Transfers:</strong> {breakdown.transfers_count}</div>
+                                                        <div><strong>Free:</strong> {breakdown.free_transfers}</div>
+                                                        <div><strong>Excess:</strong> {breakdown.excess_transfers}</div>
+                                                    </div>
                                                 ) : breakdown.captain ? (
                                                     <div className="space-y-0.5">
                                                         <div>{breakdown.per_player?.length || 0} players</div>

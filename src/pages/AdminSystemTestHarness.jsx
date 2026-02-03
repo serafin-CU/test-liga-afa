@@ -20,6 +20,9 @@ export default function AdminSystemTestHarness() {
     const [scoringResult, setScoringResult] = useState(null);
     const [matchDiagnostics, setMatchDiagnostics] = useState(null);
     const [buildingStats, setBuildingStats] = useState(false);
+    const [selectedPhase, setSelectedPhase] = useState('ROUND_OF_16');
+    const [transferTestRunning, setTransferTestRunning] = useState(false);
+    const [transferTestResult, setTransferTestResult] = useState(null);
 
     const { data: matches = [] } = useQuery({
         queryKey: ['matches'],
@@ -917,42 +920,59 @@ export default function AdminSystemTestHarness() {
                     <CardTitle>Fantasy Transfer Testing</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div>
+                        <label className="text-sm font-medium mb-2 block">Select Phase</label>
+                        <Select value={selectedPhase} onValueChange={setSelectedPhase}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select phase" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="GROUP_MD1">GROUP_MD1</SelectItem>
+                                <SelectItem value="GROUP_MD2">GROUP_MD2</SelectItem>
+                                <SelectItem value="GROUP_MD3">GROUP_MD3</SelectItem>
+                                <SelectItem value="ROUND_OF_16">ROUND_OF_16 (R16)</SelectItem>
+                                <SelectItem value="QUARTERFINALS">QUARTERFINALS (QF)</SelectItem>
+                                <SelectItem value="SEMIFINALS">SEMIFINALS (SF)</SelectItem>
+                                <SelectItem value="FINAL">FINAL</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="flex gap-2">
                         <Button
                             onClick={async () => {
-                                if (!selectedMatchId) {
-                                    alert('Please select a match first');
-                                    return;
-                                }
+                                setTransferTestRunning(true);
+                                setTransferTestResult(null);
                                 try {
-                                    const match = matches.find(m => m.id === selectedMatchId);
+                                    const currentUser = await base44.auth.me();
                                     const response = await base44.functions.invoke('fantasyTransferService', {
                                         action: 'apply_transfer_penalties',
-                                        user_id: (await base44.auth.me()).id,
-                                        phase: match?.phase || 'ROUND_OF_16',
+                                        user_id: currentUser.id,
+                                        phase: selectedPhase,
                                         force_transfers_count: 11
                                     });
-                                    alert(`Simulate Max Transfers Result:\n${JSON.stringify(response.data, null, 2)}`);
+                                    setTransferTestResult(response.data);
                                 } catch (error) {
-                                    alert(`Error: ${error.message}`);
+                                    setTransferTestResult({ 
+                                        status: 'ERROR', 
+                                        message: error.message 
+                                    });
                                 }
+                                setTransferTestRunning(false);
                             }}
                             variant="outline"
                             size="sm"
+                            disabled={transferTestRunning}
                         >
+                            {transferTestRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                             Simulate Max Transfers (11)
                         </Button>
                         <Button
                             onClick={async () => {
-                                if (!selectedMatchId) {
-                                    alert('Please select a match first');
-                                    return;
-                                }
                                 try {
-                                    const match = matches.find(m => m.id === selectedMatchId);
                                     const response = await base44.functions.invoke('fantasyTransferService', {
                                         action: 'check_phase_lock',
-                                        target_phase: match?.phase || 'ROUND_OF_16'
+                                        target_phase: selectedPhase
                                     });
                                     alert(`Phase Lock Check:\n${JSON.stringify(response.data, null, 2)}`);
                                 } catch (error) {
@@ -965,6 +985,39 @@ export default function AdminSystemTestHarness() {
                             Check Phase Lock
                         </Button>
                     </div>
+
+                    {transferTestResult && (
+                        <div className="p-4 bg-gray-50 rounded border">
+                            {transferTestResult.status === 'SUCCESS' ? (
+                                <div className="space-y-2 text-sm">
+                                    <div className="text-green-600 font-semibold">✓ {transferTestResult.status}</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div><strong>Phase:</strong> {selectedPhase}</div>
+                                        <div><strong>Transfers Count:</strong> {transferTestResult.transfers_count}</div>
+                                        <div><strong>Free Transfers:</strong> {transferTestResult.free_transfers}</div>
+                                        <div><strong>Excess Transfers:</strong> {transferTestResult.excess_transfers}</div>
+                                        <div className="col-span-2">
+                                            <strong>Penalty Points:</strong> 
+                                            <span className={`ml-2 font-bold ${transferTestResult.penalty_points < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                                {transferTestResult.penalty_points}
+                                            </span>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <strong>Penalty Applied:</strong> {transferTestResult.penalty_applied ? 'Yes' : 'No'}
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-2">
+                                        {transferTestResult.message}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-red-600">
+                                    <div className="font-semibold">Error</div>
+                                    <div className="text-sm">{transferTestResult.message}</div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
