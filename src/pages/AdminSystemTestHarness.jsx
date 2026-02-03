@@ -981,6 +981,7 @@ export default function AdminSystemTestHarness() {
                                             )}
                                             <span className="text-xs text-gray-500 ml-1">(slot_type=STARTER)</span>
                                         </div>
+                                        <div><strong>Bench Count:</strong> {matchDiagnostics.bench_count || 0}</div>
                                         <div>
                                             <strong>Formation:</strong> {matchDiagnostics.formation || 'N/A'}
                                             <div className="text-xs text-gray-500">
@@ -1090,15 +1091,16 @@ export default function AdminSystemTestHarness() {
                                                    </div>
                                                    <div><strong>Squads Count:</strong> {scoringResult.diagnostics.squads_count}</div>
                                                    <div>
-                                                       <strong>Starters Count:</strong> {scoringResult.diagnostics.starters_count}
-                                                       {scoringResult.diagnostics.starters_count !== 11 && (
-                                                           <span className="text-red-600 ml-1">⚠️ Must be 11</span>
-                                                       )}
-                                                       <div className="text-gray-500">slot_type=STARTER across all squads</div>
+                                                       <strong>DNP Starters:</strong> {scoringResult.diagnostics.dnp_starters_count}
+                                                       <div className="text-gray-500">Starters with 0 minutes</div>
+                                                   </div>
+                                                   <div>
+                                                       <strong>Auto-Subs:</strong> {scoringResult.diagnostics.auto_subs_count}
+                                                       <div className="text-gray-500">Bench players subbed in</div>
                                                    </div>
                                                    <div><strong>Goals Sum:</strong> {scoringResult.diagnostics.goals_sum}</div>
                                                    <div>
-                                                       <strong>Goal Scorers in Starters:</strong> {scoringResult.diagnostics.goal_scorers_in_starters_count}
+                                                       <strong>Goal Scorers in Resolved XI:</strong> {scoringResult.diagnostics.goal_scorers_in_starters_count}
                                                        {scoringResult.diagnostics.goals_sum > 0 && scoringResult.diagnostics.goal_scorers_in_starters_count === 0 && (
                                                            <span className="text-red-600 ml-1">⚠️ Should be &gt; 0</span>
                                                        )}
@@ -1107,24 +1109,42 @@ export default function AdminSystemTestHarness() {
                                                </div>
 
                                                {scoringResult.diagnostics.squad_details?.[0] && (
-                                                   <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                                                       <strong className="text-blue-900">Captain Info (First Squad):</strong>
-                                                       <div className="mt-1 space-y-1 text-blue-800">
-                                                           {scoringResult.diagnostics.squad_details[0].captain_player_name ? (
-                                                               <>
-                                                                   <div><strong>Captain:</strong> {scoringResult.diagnostics.squad_details[0].captain_player_name}</div>
-                                                                   <div className="text-xs text-blue-600">
-                                                                       ID: {scoringResult.diagnostics.squad_details[0].captain_player_id?.slice(-8)}
-                                                                   </div>
-                                                                   <div>
-                                                                       <strong>Captain Delta:</strong> +{scoringResult.diagnostics.squad_details[0].delta_from_captain_multiplier} points (2x applied)
-                                                                   </div>
-                                                               </>
-                                                           ) : (
-                                                               <div className="text-yellow-700">No captain data available</div>
-                                                           )}
+                                                   <>
+                                                       {scoringResult.diagnostics.squad_details[0].auto_subs?.length > 0 && (
+                                                           <div className="mt-3 p-2 bg-purple-50 border border-purple-200 rounded text-xs">
+                                                               <strong className="text-purple-900">Auto-Substitutions (First Squad):</strong>
+                                                               <div className="mt-1 space-y-1">
+                                                                   {scoringResult.diagnostics.squad_details[0].auto_subs.map((sub, idx) => (
+                                                                       <div key={idx} className="text-purple-800">
+                                                                           • OUT: {sub.out_player_name} → IN: {sub.in_player_name || 'None'} 
+                                                                           <span className="text-purple-600 ml-1">({sub.reason})</span>
+                                                                       </div>
+                                                                   ))}
+                                                               </div>
+                                                           </div>
+                                                       )}
+                                                       <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                                                           <strong className="text-blue-900">Captain Info (First Squad):</strong>
+                                                           <div className="mt-1 space-y-1 text-blue-800">
+                                                               {scoringResult.diagnostics.squad_details[0].captain_player_name ? (
+                                                                   <>
+                                                                       <div><strong>Captain:</strong> {scoringResult.diagnostics.squad_details[0].captain_player_name}</div>
+                                                                       <div className="text-xs text-blue-600">
+                                                                           ID: {scoringResult.diagnostics.squad_details[0].captain_player_id?.slice(-8)}
+                                                                       </div>
+                                                                       <div>
+                                                                           <strong>Resolved XI Count:</strong> {scoringResult.diagnostics.squad_details[0].resolved_xi_count} (must be 11)
+                                                                       </div>
+                                                                       <div>
+                                                                           <strong>Captain Delta:</strong> +{scoringResult.diagnostics.squad_details[0].delta_from_captain_multiplier} points (2x applied)
+                                                                       </div>
+                                                                   </>
+                                                               ) : (
+                                                                   <div className="text-yellow-700">No captain data available</div>
+                                                               )}
+                                                           </div>
                                                        </div>
-                                                   </div>
+                                                   </>
                                                )}
 
                                                {scoringResult.diagnostics.excluded_goal_scorer_player_ids?.length > 0 && (
@@ -1233,6 +1253,8 @@ export default function AdminSystemTestHarness() {
                                                 </div>
                                             )}
                                         </div>
+                                        <div><strong>Bench Count:</strong> {devSetupResult.bench_count || 0}</div>
+                                        <div><strong>DNP Starters:</strong> {devSetupResult.dnp_starters_count || 0}</div>
                                         <div><strong>Goal Scorers Count:</strong> {devSetupResult.goal_scorers_count}</div>
                                         <div><strong>Goal Scorers in Starters:</strong> {devSetupResult.goal_scorers_in_starters_count}
                                             {devSetupResult.goal_scorers_count > 0 && devSetupResult.goal_scorers_in_starters_count === 0 && (
