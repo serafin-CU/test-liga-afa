@@ -418,16 +418,19 @@ Deno.serve(async (req) => {
             finalStarters.push(...allAvailable.slice(0, 11));
         }
         
-        // Create STARTER entries
+        // Create STARTER entries (first one is captain, second is vice if exists)
         let playersAdded = 0;
-        for (const playerId of finalStarters) {
+        for (let i = 0; i < finalStarters.length; i++) {
+            const playerId = finalStarters[i];
             const player = playersMap[playerId];
             if (player) {
                 await base44.asServiceRole.entities.FantasySquadPlayer.create({
                     squad_id: squad.id,
                     player_id: playerId,
                     slot_type: 'STARTER',
-                    starter_position: player.position
+                    starter_position: player.position,
+                    is_captain: i === 0, // First starter is captain
+                    is_vice_captain: i === 1 // Second starter is vice-captain
                 });
                 playersAdded++;
             }

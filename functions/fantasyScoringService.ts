@@ -129,6 +129,33 @@ async function validateFantasySquad(base44, squad_id) {
             }
         };
     }
+
+    // Validate captain/vice-captain
+    const captains = starters.filter(sp => sp.is_captain);
+    if (captains.length !== 1) {
+        return {
+            ok: false,
+            error: {
+                code: 'INVALID_CAPTAIN',
+                message: `Squad has ${captains.length} captains, must have exactly 1`,
+                hint: 'Exactly one player must be captain among starters.',
+                details: { squad_id, captain_count: captains.length }
+            }
+        };
+    }
+
+    const viceCaptains = starters.filter(sp => sp.is_vice_captain);
+    if (viceCaptains.length > 1) {
+        return {
+            ok: false,
+            error: {
+                code: 'INVALID_VICE_CAPTAIN',
+                message: `Squad has ${viceCaptains.length} vice-captains, must have 0 or 1`,
+                hint: 'A maximum of one player can be vice-captain among starters.',
+                details: { squad_id, vice_captain_count: viceCaptains.length }
+            }
+        };
+    }
     
     return { ok: true, positionCounts };
 }
@@ -300,6 +327,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
         
         const starterPlayerIds = squadPlayers.map(sp => sp.player_id);
         allStarterPlayerIds.push(...starterPlayerIds);
+        
+        // Identify captain and vice-captain
+        const captain = squadPlayers.find(sp => sp.is_captain);
+        const viceCaptain = squadPlayers.find(sp => sp.is_vice_captain);
+        let captainMultiplierAppliedTo = null;
 
         for (const squadPlayer of squadPlayers) {
             const player = playersMap[squadPlayer.player_id];
@@ -346,7 +378,25 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             
             console.log(`  → Points: ${playerPoints}`);
 
-            squadTotalPoints += playerPoints;
+            // Apply captain multiplier
+            let multiplier = 1;
+            const isCaptain = captain && squadPlayer.player_id === captain.player_id;
+            const isViceCaptain = viceCaptain && squadPlayer.player_id === viceCaptain.player_id;
+            
+            // Logic to determine who gets the multiplier
+            const captainStats = captain ? statsMap[captain.player_id] : null;
+            const captainMinutes = captainStats?.minutes_played || 0;
+            
+            if (isCaptain && captainMinutes > 0) {
+                multiplier = 2;
+                captainMultiplierAppliedTo = captain.player_id;
+            } else if (isViceCaptain && captainMinutes === 0) {
+                multiplier = 2;
+                captainMultiplierAppliedTo = viceCaptain.player_id;
+            }
+
+            const finalPoints = playerPoints * multiplier;
+            squadTotalPoints += finalPoints;
 
             const playerDetail = {
                 player_id: squadPlayer.player_id,
@@ -356,7 +406,11 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
                 goals: goals,
                 yellow_cards: yc,
                 red_cards: rc,
-                points: playerPoints
+                base_points: playerPoints,
+                multiplier,
+                points: finalPoints,
+                is_captain: !!isCaptain,
+                is_vice_captain: !!isViceCaptain,
             };
             
             perPlayerDetails.push(playerDetail);
@@ -405,6 +459,9 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             formation: formationString,
             position_counts: positionCounts,
             starter_player_ids: starterPlayerIds,
+            captain_player_id: captain?.player_id || null,
+            vice_captain_player_id: viceCaptain?.player_id || null,
+            captain_multiplier_applied_to: captainMultiplierAppliedTo,
             squad_points: squadTotalPoints
         });
     }
@@ -419,6 +476,7 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     diagnostics.goal_scorers_in_starters_count = goalScorersInStarters.length;
     diagnostics.excluded_goal_scorer_player_ids = excludedGoalScorers;
     diagnostics.computed_total_points = ledgerAwards.reduce((sum, e) => sum + e.points, 0);
+    diagnostics.squad_details = squadDiagnostics;
     
     // Validate: if any stats have goals > 0 but total points is 0, return detailed error
     if (diagnostics.goals_sum > 0 && diagnostics.computed_total_points === 0) {

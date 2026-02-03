@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil, AlertTriangle } from 'lucide-react';
+import { Pencil, AlertTriangle, UserCircle, Star } from 'lucide-react';
 
 export default function AdminFantasyStatsViewer() {
     const [selectedMatchId, setSelectedMatchId] = useState(() => {
@@ -16,6 +16,7 @@ export default function AdminFantasyStatsViewer() {
         return params.get('match_id') || null;
     });
     const [editingStat, setEditingStat] = useState(null);
+    const [squadPlayers, setSquadPlayers] = useState([]);
     const [editForm, setEditForm] = useState({
         goals: 0,
         yellow_cards: 0,
@@ -85,6 +86,25 @@ export default function AdminFantasyStatsViewer() {
             })();
         }
     }, [finalizedMatches, selectedMatchId]);
+
+    useEffect(() => {
+        if (selectedMatchId) {
+            // Find a squad to display captaincy info. This is just for display, so picking one is fine.
+            const fetchSquadPlayers = async () => {
+                const match = matches.find(m => m.id === selectedMatchId);
+                if (!match) return;
+
+                const squads = await base44.entities.FantasySquad.filter({ phase: match.phase, status: 'FINAL' });
+                if (squads.length > 0) {
+                    const squadPlayersData = await base44.entities.FantasySquadPlayer.filter({ squad_id: squads[0].id });
+                    setSquadPlayers(squadPlayersData);
+                } else {
+                    setSquadPlayers([]);
+                }
+            };
+            fetchSquadPlayers();
+        }
+    }, [selectedMatchId, matches]);
     
     const updateStatsMutation = useMutation({
         mutationFn: async ({ statId, oldValues, newValues }) => {
@@ -218,9 +238,17 @@ export default function AdminFantasyStatsViewer() {
                                     {stats.map(stat => {
                                         const player = playersMap[stat.player_id];
                                         const team = teamsMap[stat.team_id];
+                                        const squadPlayer = squadPlayers.find(sp => sp.player_id === stat.player_id);
+
                                         return (
                                             <TableRow key={stat.id}>
-                                                <TableCell className="font-medium">{player?.full_name || 'Unknown'}</TableCell>
+                                                <TableCell className="font-medium">
+                                                   <div className="flex items-center gap-2">
+                                                       {squadPlayer?.is_captain && <UserCircle className="w-4 h-4 text-blue-600" title="Captain" />}
+                                                       {squadPlayer?.is_vice_captain && <Star className="w-4 h-4 text-yellow-500" title="Vice-Captain" />}
+                                                       <span>{player?.full_name || 'Unknown'}</span>
+                                                   </div>
+                                                </TableCell>
                                                 <TableCell>{team?.name || 'Unknown'}</TableCell>
                                                 <TableCell>{player?.position}</TableCell>
                                                 <TableCell>{stat.started ? '✓' : '-'}</TableCell>
