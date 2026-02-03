@@ -17,7 +17,6 @@ export default function AdminFantasyStatsViewer() {
     });
     const [editingStat, setEditingStat] = useState(null);
     const [squadPlayers, setSquadPlayers] = useState([]);
-    const [squadPlayers, setSquadPlayers] = useState([]);
     const [editForm, setEditForm] = useState({
         goals: 0,
         yellow_cards: 0,
