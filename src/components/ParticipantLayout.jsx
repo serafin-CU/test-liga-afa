@@ -11,6 +11,7 @@ import { Users, LogOut, Shield, MessageSquare } from 'lucide-react';
         { name: 'FAFOChat', label: 'FAFO', icon: MessageSquare }
     ];
 
+
     const handleLogout = () => {
         base44.auth.logout();
     };
