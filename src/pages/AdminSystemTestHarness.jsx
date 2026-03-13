@@ -1032,6 +1032,24 @@ export default function AdminSystemTestHarness() {
                         >
                             Award CORE_KEEPER
                         </Button>
+                        <Button
+                            onClick={async () => {
+                                try {
+                                    const currentUser = await base44.auth.me();
+                                    const response = await base44.functions.invoke('badgeService', {
+                                        action: 'award_loyal_core',
+                                        user_id: currentUser.id
+                                    });
+                                    alert(`LOYAL_CORE Badge Result:\n${JSON.stringify(response.data, null, 2)}`);
+                                } catch (error) {
+                                    alert(`Error: ${error.message}`);
+                                }
+                            }}
+                            variant="outline"
+                            size="sm"
+                        >
+                            Award LOYAL_CORE (FINAL)
+                        </Button>
                     </div>
 
                     {baselineResult && (

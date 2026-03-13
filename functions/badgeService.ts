@@ -25,6 +25,11 @@ Deno.serve(async (req) => {
             return Response.json({ status: 'SUCCESS', ...result });
         }
 
+        if (action === 'award_loyal_core') {
+            const result = await awardLoyalCoreBadge(base44, user_id || user.id);
+            return Response.json({ status: 'SUCCESS', ...result });
+        }
+
         return Response.json({ status: 'ERROR', code: 'INVALID_ACTION' }, { status: 400 });
 
     } catch (error) {

@@ -444,6 +444,13 @@ async function applyTransferPenalties(base44, user_id, phase, forceTransfersCoun
         console.warn('CORE_KEEPER badge award failed (non-fatal):', e.message)
     );
 
+    // Award LOYAL_CORE badge when FINAL phase is processed (fire-and-forget)
+    if (phase === 'FINAL') {
+        awardLoyalCoreBadge(base44, user_id).catch(e =>
+            console.warn('LOYAL_CORE badge award failed (non-fatal):', e.message)
+        );
+    }
+
     // Get lock status for this phase
     const lockStatus = await checkPhaseLock(base44, phase);
 
