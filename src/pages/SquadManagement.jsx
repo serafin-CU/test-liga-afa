@@ -4,8 +4,136 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Shield, Users, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Users, AlertCircle, Loader2, Award } from 'lucide-react';
 import { toast } from 'sonner';
+
+function BadgePills({ userId, currentPhase }) {
+    const { data: badges = [] } = useQuery({
+        queryKey: ['userBadges', userId],
+        queryFn: () => base44.entities.BadgeAward.filter({ user_id: userId }),
+        enabled: !!userId
+    });
+
+    const hasCoreKeeper = badges.some(b => b.badge_type === 'CORE_KEEPER' && b.phase === currentPhase);
+    const hasLoyalCore = badges.some(b => b.badge_type === 'LOYAL_CORE');
+
+    if (!hasCoreKeeper && !hasLoyalCore) return null;
+
+    return (
+        <div className="flex gap-2 mt-2 flex-wrap">
+            {hasCoreKeeper && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-sm font-semibold">
+                    🛡️ Core Keeper ✓
+                </span>
+            )}
+            {hasLoyalCore && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 border border-amber-200 rounded-full text-sm font-semibold">
+                    ⭐ Loyal Core ✓
+                </span>
+            )}
+        </div>
+    );
+}
+
+function BadgesSection({ userId, currentPhase }) {
+    const { data: badges = [], isLoading } = useQuery({
+        queryKey: ['userBadges', userId],
+        queryFn: () => base44.entities.BadgeAward.filter({ user_id: userId }),
+        enabled: !!userId
+    });
+
+    const coreKeeperBadges = badges.filter(b => b.badge_type === 'CORE_KEEPER');
+    const latestCoreKeeper = coreKeeperBadges.sort((a, b) => new Date(b.awarded_at) - new Date(a.awarded_at))[0];
+    const loyalCore = badges.find(b => b.badge_type === 'LOYAL_CORE');
+
+    const BADGE_INFO = {
+        CORE_KEEPER: {
+            title: '🛡️ Core Keeper',
+            description: 'Kept 8 or more of your 11 starters from the previous knockout phase.',
+            color: 'blue'
+        },
+        LOYAL_CORE: {
+            title: '⭐ Loyal Core',
+            description: 'Kept 9 or more of your original Round of 32 starters all the way to the Final.',
+            color: 'amber'
+        }
+    };
+
+    const BadgeCard = ({ info, earned, badge, earnedCount }) => {
+        const [expanded, setExpanded] = useState(false);
+        const colorMap = {
+            blue: { header: 'bg-blue-50 border-blue-200', tag: 'bg-blue-100 text-blue-800', count: 'text-blue-600' },
+            amber: { header: 'bg-amber-50 border-amber-200', tag: 'bg-amber-100 text-amber-800', count: 'text-amber-600' }
+        };
+        const colors = colorMap[info.color];
+
+        return (
+            <Card className={`border-2 ${earned ? colors.header : 'border-gray-200'}`}>
+                <CardContent className="pt-4 space-y-2">
+                    <div className="flex items-start justify-between">
+                        <div className="font-semibold text-base">{info.title}</div>
+                        {earned ? (
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${colors.tag}`}>Earned</span>
+                        ) : (
+                            <span className="text-xs font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-500">Not earned</span>
+                        )}
+                    </div>
+                    {earned && badge && (
+                        <div className="text-sm text-gray-600 space-y-0.5">
+                            <div><strong>Phase:</strong> {badge.phase || '—'}</div>
+                            <div><strong>When:</strong> {badge.awarded_at ? new Date(badge.awarded_at).toLocaleString() : '—'}</div>
+                            {earnedCount > 1 && (
+                                <div className={`text-xs ${colors.count}`}>+{earnedCount - 1} more phase(s)</div>
+                            )}
+                        </div>
+                    )}
+                    <button
+                        className="text-xs text-gray-400 underline hover:text-gray-600"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        {expanded ? 'Hide' : 'How it\'s earned'}
+                    </button>
+                    {expanded && (
+                        <p className="text-xs text-gray-500 bg-gray-50 rounded p-2">{info.description}</p>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
+
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Award className="w-5 h-5 text-amber-500" />
+                    My Badges
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="flex items-center gap-2 text-gray-500 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading badges...
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <BadgeCard
+                            info={BADGE_INFO.CORE_KEEPER}
+                            earned={coreKeeperBadges.length > 0}
+                            badge={latestCoreKeeper}
+                            earnedCount={coreKeeperBadges.length}
+                        />
+                        <BadgeCard
+                            info={BADGE_INFO.LOYAL_CORE}
+                            earned={!!loyalCore}
+                            badge={loyalCore}
+                            earnedCount={loyalCore ? 1 : 0}
+                        />
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function SquadManagement() {
     const [confirmCaptainDialog, setConfirmCaptainDialog] = useState(null);
@@ -282,6 +410,7 @@ export default function SquadManagement() {
             <div className="mb-6">
                 <h1 className="text-3xl font-bold">My Squad</h1>
                 <p className="text-gray-600 mt-1">Manage your fantasy football team</p>
+                <BadgePills userId={currentUser.id} currentPhase={activeSquad?.phase} />
             </div>
 
             {/* Phase lock warning */}
@@ -399,6 +528,9 @@ export default function SquadManagement() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Badges Section */}
+            <BadgesSection userId={currentUser.id} currentPhase={activeSquad?.phase} />
 
             {/* Confirm captain dialog */}
             <Dialog open={!!confirmCaptainDialog} onOpenChange={(open) => !open && setConfirmCaptainDialog(null)}>
