@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Users, LogOut, Shield, MessageSquare } from 'lucide-react';
 
+
     const navItems = [
         { name: 'SquadManagement', label: 'My Squad', icon: Users },
         { name: 'FAFOChat', label: 'FAFO', icon: MessageSquare }
