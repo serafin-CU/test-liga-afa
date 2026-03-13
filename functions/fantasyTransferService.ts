@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { awardCoreKeeperBadge } from './badgeService';
 
 /**
  * Fantasy Transfer Service

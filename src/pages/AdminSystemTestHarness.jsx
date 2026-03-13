@@ -1013,6 +1013,25 @@ export default function AdminSystemTestHarness() {
                         >
                             Check Phase Lock
                         </Button>
+                        <Button
+                            onClick={async () => {
+                                try {
+                                    const currentUser = await base44.auth.me();
+                                    const response = await base44.functions.invoke('badgeService', {
+                                        action: 'award_core_keeper',
+                                        user_id: currentUser.id,
+                                        phase: selectedPhase
+                                    });
+                                    alert(`CORE_KEEPER Badge Result:\n${JSON.stringify(response.data, null, 2)}`);
+                                } catch (error) {
+                                    alert(`Error: ${error.message}`);
+                                }
+                            }}
+                            variant="outline"
+                            size="sm"
+                        >
+                            Award CORE_KEEPER
+                        </Button>
                     </div>
 
                     {baselineResult && (
