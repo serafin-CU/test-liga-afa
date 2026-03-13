@@ -2,14 +2,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 /**
  * Fantasy Transfer Service
- * Handles transfer detection, validation, penalties, and phase locks
+ * Handles transfer detection, validation, phase locks, and badge awarding
  * 
- * TRANSFER RULES (source of truth):
- * - R32: free=2; transfers 3-5 => -3 each; 6-7 => -4 each
- * - R16: free=3; transfers 4-6 => -2 each; 7-11 => -3 each
- * - QF: free=2; transfers 3-5 => -4 each
- * - SF: free=2; transfers 3-5 => -5 each
- * - FINAL: free=5; transfers 6+ => -7 each
+ * TRANSFER FREE ALLOWANCES (source of truth):
+ * - R32: free=2
+ * - R16: free=3
+ * - QF: free=2 (hard cap 5)
+ * - SF: free=2 (hard cap 5)
+ * - FINAL: free=5
  */
 
 const PHASE_ORDER = ['PRE_TOURNAMENT', 'GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
             return Response.json(result);
         }
 
-        if (action === 'apply_transfer_penalties') {
-            const result = await applyTransferPenalties(base44, user_id || user.id, phase, force_transfers_count);
+        if (action === 'apply_transfers_and_badges') {
+            const result = await applyTransfersAndBadges(base44, user_id || user.id, phase, force_transfers_count);
             return Response.json(result);
         }
 
@@ -394,7 +394,7 @@ function calculatePenalty(phase, transfersCount) {
     };
 }
 
-async function applyTransferPenalties(base44, user_id, phase, forceTransfersCount = null) {
+async function applyTransfersAndBadges(base44, user_id, phase, forceTransfersCount = null) {
     // Ensure baseline squad exists first
     const baselineResult = await ensureBaselineSquadForPhase(base44, user_id, phase);
     if (baselineResult.status !== 'SUCCESS') {
