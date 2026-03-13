@@ -975,7 +975,7 @@ export default function AdminSystemTestHarness() {
                                     // Phase-aware max transfers: QF/SF cap at 5, others at 11
                                     const maxTransfers = (selectedPhase === 'QUARTERFINALS' || selectedPhase === 'SEMIFINALS') ? 5 : 11;
                                     const response = await base44.functions.invoke('fantasyTransferService', {
-                                        action: 'apply_transfer_penalties',
+                                        action: 'apply_transfers_and_badges',
                                         user_id: currentUser.id,
                                         phase: selectedPhase,
                                         force_transfers_count: maxTransfers
@@ -1022,7 +1022,16 @@ export default function AdminSystemTestHarness() {
                                         user_id: currentUser.id,
                                         phase: selectedPhase
                                     });
-                                    alert(`CORE_KEEPER Badge Result:\n${JSON.stringify(response.data, null, 2)}`);
+                                    const d = response.data;
+                                    const lines = [
+                                        `awarded: ${d.awarded}`,
+                                        `already_existed: ${d.already_existed ?? false}`,
+                                        `kept_count: ${d.kept_count ?? '—'}`,
+                                        `threshold: ${d.threshold ?? '—'}`,
+                                        `phase: ${d.phase ?? selectedPhase}`,
+                                        d.reason ? `reason: ${d.reason}` : null
+                                    ].filter(Boolean);
+                                    alert(`CORE_KEEPER Badge (${selectedPhase}):\n\n${lines.join('\n')}`);
                                 } catch (error) {
                                     alert(`Error: ${error.message}`);
                                 }
@@ -1030,7 +1039,7 @@ export default function AdminSystemTestHarness() {
                             variant="outline"
                             size="sm"
                         >
-                            Award CORE_KEEPER
+                            Award CORE_KEEPER (current phase)
                         </Button>
                         <Button
                             onClick={async () => {
@@ -1040,7 +1049,16 @@ export default function AdminSystemTestHarness() {
                                         action: 'award_loyal_core',
                                         user_id: currentUser.id
                                     });
-                                    alert(`LOYAL_CORE Badge Result:\n${JSON.stringify(response.data, null, 2)}`);
+                                    const d = response.data;
+                                    const lines = [
+                                        `awarded: ${d.awarded}`,
+                                        `already_existed: ${d.already_existed ?? false}`,
+                                        `kept_count: ${d.kept_count ?? '—'}`,
+                                        `threshold: ${d.threshold ?? '—'}`,
+                                        `base_phase: ${d.base_phase ?? 'ROUND_OF_32'}`,
+                                        d.reason ? `reason: ${d.reason}` : null
+                                    ].filter(Boolean);
+                                    alert(`LOYAL_CORE Badge (FINAL):\n\n${lines.join('\n')}`);
                                 } catch (error) {
                                     alert(`Error: ${error.message}`);
                                 }
