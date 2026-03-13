@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
         if (action === 'award_core_keeper') {
             const result = await awardCoreKeeperBadge(base44, user_id || user.id, phase);
-            return Response.json(result);
+            return Response.json({ status: 'SUCCESS', ...result });
         }
 
         return Response.json({ status: 'ERROR', code: 'INVALID_ACTION' }, { status: 400 });
