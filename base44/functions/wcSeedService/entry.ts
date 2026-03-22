@@ -80,23 +80,18 @@ Deno.serve(async (req) => {
         }
 
         // ── 1. Clean slate: delete existing matches, players, teams ──
-        console.log('Deleting existing matches...');
-        const existingMatches = await base44.asServiceRole.entities.Match.list();
-        for (const m of existingMatches) {
-            await base44.asServiceRole.entities.Match.delete(m.id);
-        }
+        // Fetch all in parallel, then delete sequentially per type
+        console.log('Fetching existing data for deletion...');
+        const [existingMatches, existingPlayers, existingTeams] = await Promise.all([
+            base44.asServiceRole.entities.Match.list(),
+            base44.asServiceRole.entities.Player.list(),
+            base44.asServiceRole.entities.Team.list(),
+        ]);
 
-        console.log('Deleting existing players...');
-        const existingPlayers = await base44.asServiceRole.entities.Player.list();
-        for (const p of existingPlayers) {
-            await base44.asServiceRole.entities.Player.delete(p.id);
-        }
-
-        console.log('Deleting existing teams...');
-        const existingTeams = await base44.asServiceRole.entities.Team.list();
-        for (const t of existingTeams) {
-            await base44.asServiceRole.entities.Team.delete(t.id);
-        }
+        console.log(`Deleting ${existingMatches.length} matches, ${existingPlayers.length} players, ${existingTeams.length} teams...`);
+        for (const m of existingMatches) await base44.asServiceRole.entities.Match.delete(m.id);
+        for (const p of existingPlayers) await base44.asServiceRole.entities.Player.delete(p.id);
+        for (const t of existingTeams) await base44.asServiceRole.entities.Team.delete(t.id);
 
         // ── 2. Create teams ──
         console.log('Creating teams...');
