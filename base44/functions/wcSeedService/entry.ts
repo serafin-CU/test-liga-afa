@@ -107,23 +107,33 @@ Deno.serve(async (req) => {
         // Map: fifa_code -> created team record
         const teamMap = {};
 
+        // Bulk create all teams at once
+        const allTeamData = GROUPS.flatMap(g => g.teams.map(t => ({
+            name: t.name,
+            fifa_code: t.code,
+            is_qualified: t.qualified,
+        })));
+        const createdTeams = await base44.asServiceRole.entities.Team.bulkCreate(allTeamData);
+        teams_created = createdTeams.length;
+
+        // Build fifa_code -> team record map
+        for (const t of createdTeams) {
+            teamMap[t.fifa_code] = t;
+        }
+
+        // ── 3. Bulk create 14 players per team ──
+        const allPlayerData = [];
         for (const group of GROUPS) {
             for (const t of group.teams) {
-                const created = await base44.asServiceRole.entities.Team.create({
-                    name: t.name,
-                    fifa_code: t.code,
-                    is_qualified: t.qualified,
-                });
-                teamMap[t.code] = created;
-                teams_created++;
-
-                // ── 3. Create 14 players per team ──
-                const players = buildPlayersForTeam(created.id, t.code);
-                for (const p of players) {
-                    await base44.asServiceRole.entities.Player.create(p);
-                    players_created++;
-                }
+                const team = teamMap[t.code];
+                allPlayerData.push(...buildPlayersForTeam(team.id, t.code));
             }
+        }
+        // Batch in chunks of 100 to avoid payload limits
+        for (let i = 0; i < allPlayerData.length; i += 100) {
+            const chunk = allPlayerData.slice(i, i + 100);
+            const created = await base44.asServiceRole.entities.Player.bulkCreate(chunk);
+            players_created += created.length;
         }
 
         // ── 4. Create group stage matches ──
