@@ -95,6 +95,34 @@ export default function AdminDevSeed() {
         setDeleting(false);
     };
 
+    const resetTestData = async () => {
+        if (!confirm('This will delete all scores, squads, badges, and match results. Predictions will be kept. Are you sure?')) {
+            return;
+        }
+
+        setResetting(true);
+        setSummary(null);
+
+        try {
+            const response = await base44.functions.invoke('wcSeedService', {
+                action: 'reset_test_data'
+            });
+
+            setSummary({
+                success: response.data.success,
+                message: response.data.message,
+                resetSummary: response.data.summary,
+            });
+        } catch (error) {
+            setSummary({
+                success: false,
+                message: 'Reset failed: ' + error.message,
+            });
+        }
+
+        setResetting(false);
+    };
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Dev Seed Data</h1>
