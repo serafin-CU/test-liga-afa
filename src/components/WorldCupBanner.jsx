@@ -142,7 +142,7 @@ export default function WorldCupBanner({ compact = false }) {
                 }}
             />
 
-            <div className="relative z-10 px-5 sm:px-8 py-6 sm:py-8" style={{ aspectRatio: '9/12' }}
+            <div className="relative z-10 px-5 sm:px-8 py-6 sm:py-8" style={{ aspectRatio: '9/12' }}>
                 {/* CU Colorful Logo — centered, primary */}
                 <div className="flex flex-col items-center mb-4">
                     <img
