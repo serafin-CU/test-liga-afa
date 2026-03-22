@@ -257,7 +257,10 @@ export default function Dashboard() {
                 <StatCard icon={TrendingUp} label="Total Points" value={totalPoints} sublabel="Prode + Fantasy" accentColor={CU.orange} />
                 <StatCard icon={Trophy} label="Prode Points" value={prodePoints} sublabel={`${predictions.length} predictions`} accentColor={CU.green} />
                 <StatCard icon={Users} label="Fantasy Points" value={fantasyPoints} accentColor={CU.blue} />
-                <StatCard icon={Award} label="Badges" value={badges.length} sublabel={badges.length > 0 ? badges.map(b => b.badge_type).join(', ') : 'None yet'} accentColor={CU.magenta} />
+                <StatCard icon={Award} label="Badges" value={badges.length} sublabel={badges.length > 0 ? badges.map(b => {
+                    const names = { UNBREAKABLE_XI: '🛡️ Unbreakable XI', THE_ORIGINALS: '👑 The Originals', PERFECT_MATCHDAY: '🎯 Perfect Matchday' };
+                    return names[b.badge_type] || b.badge_type;
+                }).join(', ') : 'None yet'} accentColor={CU.magenta} />
             </div>
 
             {/* Two-column content */}
