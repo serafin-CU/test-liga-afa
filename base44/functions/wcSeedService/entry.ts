@@ -153,8 +153,30 @@ Deno.serve(async (req) => {
 
         const body = await req.json();
 
-        if (!['seed_wc2026', 'reseed_matches', 'reset_test_data'].includes(body.action)) {
-            return Response.json({ error: 'Invalid action. Use seed_wc2026, reseed_matches, or reset_test_data' }, { status: 400 });
+        if (!['seed_wc2026', 'reseed_matches', 'reset_test_data', 'purge_stale_ledger'].includes(body.action)) {
+            return Response.json({ error: 'Invalid action. Use seed_wc2026, reseed_matches, reset_test_data, or purge_stale_ledger' }, { status: 400 });
+        }
+
+        // ── purge_stale_ledger: delete all PointsLedger entries except those created in the last 30 minutes ──
+        if (body.action === 'purge_stale_ledger') {
+            console.log('Purging stale PointsLedger entries...');
+            const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+            const allEntries = await base44.asServiceRole.entities.PointsLedger.list();
+            const toDelete = allEntries.filter(e => e.created_date < cutoff);
+
+            for (let i = 0; i < toDelete.length; i += 20) {
+                const chunk = toDelete.slice(i, i + 20);
+                await Promise.all(chunk.map(e => base44.asServiceRole.entities.PointsLedger.delete(e.id)));
+                if (i + 20 < toDelete.length) await new Promise(r => setTimeout(r, 300));
+            }
+
+            console.log(`Purged ${toDelete.length} stale ledger entries, kept ${allEntries.length - toDelete.length} recent ones.`);
+            return Response.json({
+                success: true,
+                message: `Purged ${toDelete.length} stale PointsLedger entries (kept ${allEntries.length - toDelete.length} from last 30 min)`,
+                deleted: toDelete.length,
+                kept: allEntries.length - toDelete.length,
+            });
         }
 
         // ── reset_test_data: wipe scores/squads/badges, reset match statuses ──
