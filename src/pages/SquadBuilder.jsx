@@ -448,6 +448,9 @@ export default function SquadBuilder() {
         }
     };
 
+    // Countdown to lock
+    const lockCountdown = useCountdownText(phaseLock?.lock_time);
+
     // Loading
     if (!allPlayers.length || !allTeams.length) {
         return (
