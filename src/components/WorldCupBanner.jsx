@@ -20,8 +20,12 @@ const CU = {
 const KICKOFF = new Date('2026-06-11T19:00:00Z'); // Mexico vs South Africa, 3pm ET
 
 const CU_LOGO_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/407350a2e_CU_Logo_Horizontal-021.png';
-// Dark background → use colorful or white logo; light background → use black logo
-const FIFA_EMBLEM_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/fb2b4d7e5_fifa-world-cup-2026-logo-alt.png'; // colorful — works on dark
+const CU_LOGO_COLORFUL_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/5fbf37489_Gemini_Generated_Image_3wjyul3wjyul3wjy.png';
+const FIFA_EMBLEM_COLORFUL_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/fb2b4d7e5_fifa-world-cup-2026-logo-alt.png';
+const FIFA_EMBLEM_WHITE_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/a7080d94e_fifa-world-cup-2026-logo-white.png';
+const FIFA_EMBLEM_BLACK_URL = 'https://media.base44.com/images/public/697e13bb6118f7db732b8054/c4595d84f_fifa-world-cup-2026-logo.png';
+// Active selection for the banner (dark bg → white FIFA logo)
+const FIFA_EMBLEM_URL = FIFA_EMBLEM_WHITE_URL;
 
 function useCountdown(target) {
     const [timeLeft, setTimeLeft] = useState(getTimeLeft(target));
