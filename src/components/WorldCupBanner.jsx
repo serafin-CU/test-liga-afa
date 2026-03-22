@@ -142,57 +142,33 @@ export default function WorldCupBanner({ compact = false }) {
                 }}
             />
 
-            <div className="relative z-10 px-5 sm:px-8 py-6 sm:py-8" style={{ aspectRatio: '16/7' }}>
-                {/* Top row: CU Logo left | Badge center | FIFA emblem right */}
-                <div className="flex items-center justify-between mb-5">
-                    {/* CU Logo — top left, white */}
+            <div className="relative z-10 px-5 sm:px-8 py-4 sm:py-5">
+                {/* CU Logo — centered hero element, original colors */}
+                <div className="flex justify-center mb-3">
                     <img
                         src={CU_LOGO_COLORFUL_URL}
                         alt="CookUnity"
-                        className="h-8 sm:h-10"
-                        style={{ filter: 'brightness(0) invert(1)' }}
+                        className="h-12 sm:h-16 max-w-full"
                         onError={e => { e.target.style.display = 'none'; }}
                     />
-                    {/* INTERNAL COMPETITION badge — centered */}
-                    <div
-                        className="px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase"
-                        style={{
-                            fontFamily: "'Raleway', sans-serif",
-                            background: CU.orange,
-                            color: CU.charcoal
-                        }}
-                    >
-                        Internal Competition
-                    </div>
-                    {/* FIFA emblem — top right */}
-                    {!fifaLogoError ? (
-                        <img
-                            src={FIFA_EMBLEM_URL}
-                            alt="FIFA World Cup 2026"
-                            className="h-14 sm:h-16"
-                            onError={() => setFifaLogoError(true)}
-                        />
-                    ) : (
-                        <span className="text-2xl">🏆</span>
-                    )}
                 </div>
 
                 {/* Title */}
-                <div className="text-center mb-5 sm:mb-6">
+                <div className="text-center mb-3">
                     <h1
-                        className="text-3xl sm:text-4xl font-bold text-white mb-1"
+                        className="text-2xl sm:text-3xl font-bold text-white mb-0.5"
                         style={{ fontFamily: "'DM Serif Display', serif" }}
                     >
                         UnityCup
                     </h1>
                     <p
-                        className="text-sm sm:text-base"
+                        className="text-sm"
                         style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.5)' }}
                     >
                         FIFA World Cup 2026
                     </p>
                     <p
-                        className="text-xs mt-1"
+                        className="text-xs mt-0.5"
                         style={{ fontFamily: "'Raleway', sans-serif", color: CU.orange }}
                     >
                         Canada · Mexico · United States · June 11 — July 19, 2026
@@ -201,25 +177,25 @@ export default function WorldCupBanner({ compact = false }) {
 
                 {/* Countdown */}
                 {!countdown.started ? (
-                    <div>
+                    <div className="mt-2">
                         <p
-                            className="text-center text-xs uppercase tracking-widest mb-3"
-                            style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.35)' }}
+                            className="text-center uppercase tracking-widest mb-2"
+                            style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.35)', fontSize: '10px' }}
                         >
                             Countdown to Kickoff
                         </p>
-                        <div className="flex items-center justify-center gap-3 sm:gap-4">
+                        <div className="flex items-center justify-center gap-2 sm:gap-3">
                             <CountdownUnit value={countdown.days} label="Days" />
-                            <span className="text-white/20 text-2xl font-light mt-[-20px]">:</span>
+                            <span className="text-white/20 text-lg font-light mt-[-16px]">:</span>
                             <CountdownUnit value={countdown.hours} label="Hrs" />
-                            <span className="text-white/20 text-2xl font-light mt-[-20px]">:</span>
+                            <span className="text-white/20 text-lg font-light mt-[-16px]">:</span>
                             <CountdownUnit value={countdown.minutes} label="Min" />
-                            <span className="text-white/20 text-2xl font-light mt-[-20px]">:</span>
+                            <span className="text-white/20 text-lg font-light mt-[-16px]">:</span>
                             <CountdownUnit value={countdown.seconds} label="Sec" />
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center">
+                    <div className="text-center mt-2">
                         <span
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold"
                             style={{
@@ -231,6 +207,22 @@ export default function WorldCupBanner({ compact = false }) {
                             ⚽ Tournament In Progress
                         </span>
                     </div>
+                )}
+
+                {/* FIFA emblem — bottom right, subtle */}
+                {!fifaLogoError && (
+                    <img
+                        src={FIFA_EMBLEM_URL}
+                        alt="FIFA World Cup 2026"
+                        style={{
+                            position: 'absolute',
+                            bottom: '12px',
+                            right: '16px',
+                            height: '32px',
+                            opacity: 0.7
+                        }}
+                        onError={() => setFifaLogoError(true)}
+                    />
                 )}
             </div>
         </div>
