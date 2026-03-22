@@ -57,6 +57,7 @@ import AdminMatchSourceLinks from './pages/AdminMatchSourceLinks';
 import AdminMatchValidation from './pages/AdminMatchValidation';
 import AdminSystemTestHarness from './pages/AdminSystemTestHarness';
 import SquadManagement from './pages/SquadManagement';
+import Dashboard from './pages/Dashboard';
 import __Layout from './Layout.jsx';
 
 
