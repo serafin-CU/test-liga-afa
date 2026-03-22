@@ -18,95 +18,94 @@ const GROUPS = [
 ];
 
 // Real MD1 fixtures: [groupCode, homeCode, awayCode, kickoff_utc]
-// MD1: T1vT3 and T2vT4 per group — times derived from official ET schedule
 const MD1_FIXTURES = [
     // June 11
-    ['A', 'MEX', 'KOR', '2026-06-11T19:00:00Z'], // Mexico vs South Korea (MD1: T1vT3)
-    ['A', 'RSA', 'PLD', '2026-06-12T02:00:00Z'], // South Africa vs Playoff D (T2vT4)
+    ['A', 'MEX', 'RSA', '2026-06-11T19:00:00Z'], // Mexico vs South Africa
+    ['A', 'KOR', 'PLD', '2026-06-12T02:00:00Z'], // South Korea vs UEFA Playoff D
     // June 12
-    ['B', 'CAN', 'QAT', '2026-06-12T19:00:00Z'], // Canada vs Qatar (T1vT3)
-    ['B', 'PLA', 'SUI', '2026-06-13T01:00:00Z'], // Playoff A vs Switzerland (T2vT4)
+    ['B', 'CAN', 'PLA', '2026-06-12T19:00:00Z'], // Canada vs UEFA Playoff A
+    ['B', 'QAT', 'SUI', '2026-06-13T01:00:00Z'], // Qatar vs Switzerland
     // June 13
-    ['C', 'BRA', 'HAI', '2026-06-13T19:00:00Z'], // Brazil vs Haiti (T1vT3)
-    ['C', 'MAR', 'SCO', '2026-06-13T22:00:00Z'], // Morocco vs Scotland (T2vT4)
-    ['D', 'USA', 'AUS', '2026-06-14T01:00:00Z'], // USA vs Australia (T1vT3)
-    ['D', 'PAR', 'PLC', '2026-06-14T04:00:00Z'], // Paraguay vs Playoff C (T2vT4)
+    ['C', 'BRA', 'MAR', '2026-06-13T19:00:00Z'], // Brazil vs Morocco
+    ['C', 'HAI', 'SCO', '2026-06-13T22:00:00Z'], // Haiti vs Scotland
+    ['D', 'USA', 'PAR', '2026-06-14T01:00:00Z'], // USA vs Paraguay
+    ['D', 'AUS', 'PLC', '2026-06-14T04:00:00Z'], // Australia vs UEFA Playoff C
     // June 14
-    ['E', 'GER', 'CIV', '2026-06-14T17:00:00Z'], // Germany vs Ivory Coast (T1vT3)
-    ['E', 'CUW', 'ECU', '2026-06-14T20:00:00Z'], // Curaçao vs Ecuador (T2vT4)
-    ['F', 'NED', 'PLB', '2026-06-14T22:00:00Z'], // Netherlands vs Playoff B (T1vT3)
-    ['F', 'JPN', 'TUN', '2026-06-15T04:00:00Z'], // Japan vs Tunisia (T2vT4)
+    ['E', 'GER', 'CUW', '2026-06-14T17:00:00Z'], // Germany vs Curaçao
+    ['F', 'NED', 'JPN', '2026-06-14T20:00:00Z'], // Netherlands vs Japan
+    ['F', 'PLB', 'TUN', '2026-06-14T22:00:00Z'], // UEFA Playoff B vs Tunisia
+    ['E', 'CIV', 'ECU', '2026-06-15T04:00:00Z'], // Ivory Coast vs Ecuador
     // June 15
-    ['H', 'ESP', 'KSA', '2026-06-15T16:00:00Z'], // Spain vs Saudi Arabia (T1vT3)
-    ['G', 'BEL', 'EGY', '2026-06-15T19:00:00Z'], // Belgium vs Egypt (T1vT3) — note: user listed BEL vs EGY as T1vT2
-    ['H', 'CPV', 'URU', '2026-06-15T22:00:00Z'], // Cape Verde vs Uruguay (T2vT4)
-    ['G', 'IRN', 'NZL', '2026-06-16T01:00:00Z'], // Iran vs New Zealand (T3vT4)
+    ['H', 'ESP', 'CPV', '2026-06-15T16:00:00Z'], // Spain vs Cape Verde
+    ['G', 'BEL', 'EGY', '2026-06-15T19:00:00Z'], // Belgium vs Egypt
+    ['H', 'KSA', 'URU', '2026-06-15T22:00:00Z'], // Saudi Arabia vs Uruguay
+    ['G', 'IRN', 'NZL', '2026-06-16T01:00:00Z'], // Iran vs New Zealand
     // June 16
-    ['I', 'FRA', 'SEN', '2026-06-16T19:00:00Z'], // France vs Senegal (T1vT2) — official fixture
-    ['I', 'IC2', 'NOR', '2026-06-16T22:00:00Z'], // Intercontinental 2 vs Norway (T3vT4)
-    ['J', 'ARG', 'AUT', '2026-06-17T01:00:00Z'], // Argentina vs Austria (T1vT3)
-    ['J', 'ALG', 'JOR', '2026-06-17T04:00:00Z'], // Algeria vs Jordan (T2vT4)
+    ['I', 'FRA', 'SEN', '2026-06-16T19:00:00Z'], // France vs Senegal
+    ['I', 'IC2', 'NOR', '2026-06-16T22:00:00Z'], // Intercontinental Playoff 2 vs Norway
+    ['J', 'ARG', 'ALG', '2026-06-17T01:00:00Z'], // Argentina vs Algeria
+    ['J', 'AUT', 'JOR', '2026-06-17T04:00:00Z'], // Austria vs Jordan
     // June 17
-    ['K', 'POR', 'UZB', '2026-06-17T17:00:00Z'], // Portugal vs Uzbekistan (T1vT3)
-    ['L', 'ENG', 'GHA', '2026-06-17T20:00:00Z'], // England vs Ghana (T1vT3)
-    ['L', 'CRO', 'PAN', '2026-06-17T23:00:00Z'], // Croatia vs Panama (T2vT4)
-    ['K', 'IC1', 'COL', '2026-06-18T02:00:00Z'], // Intercontinental 1 vs Colombia (T2vT4)
+    ['K', 'POR', 'IC1', '2026-06-17T17:00:00Z'], // Portugal vs Intercontinental Playoff 1
+    ['L', 'ENG', 'CRO', '2026-06-17T20:00:00Z'], // England vs Croatia
+    ['L', 'GHA', 'PAN', '2026-06-17T23:00:00Z'], // Ghana vs Panama
+    ['K', 'UZB', 'COL', '2026-06-18T02:00:00Z'], // Uzbekistan vs Colombia
 ];
 
-// MD2 fixtures: T1vT4, T3vT2 — spaced June 18-23
+// MD2 fixtures — June 18-23
 const MD2_FIXTURES = [
-    ['A', 'MEX', 'PLD', '2026-06-18T19:00:00Z'],
-    ['A', 'KOR', 'RSA', '2026-06-19T02:00:00Z'],
-    ['B', 'CAN', 'SUI', '2026-06-19T19:00:00Z'],
-    ['B', 'QAT', 'PLA', '2026-06-20T01:00:00Z'],
-    ['C', 'BRA', 'SCO', '2026-06-20T17:00:00Z'],
-    ['C', 'HAI', 'MAR', '2026-06-20T20:00:00Z'],
-    ['D', 'USA', 'PLC', '2026-06-20T22:00:00Z'],
-    ['D', 'AUS', 'PAR', '2026-06-21T01:00:00Z'],
-    ['E', 'GER', 'ECU', '2026-06-21T17:00:00Z'],
-    ['E', 'CIV', 'CUW', '2026-06-21T20:00:00Z'],
-    ['F', 'NED', 'TUN', '2026-06-21T22:00:00Z'],
-    ['F', 'PLB', 'JPN', '2026-06-22T01:00:00Z'],
-    ['G', 'BEL', 'IRN', '2026-06-22T17:00:00Z'],
-    ['G', 'EGY', 'NZL', '2026-06-22T20:00:00Z'],
-    ['H', 'ESP', 'URU', '2026-06-22T22:00:00Z'],
-    ['H', 'KSA', 'CPV', '2026-06-23T01:00:00Z'],
-    ['I', 'FRA', 'IC2', '2026-06-23T17:00:00Z'],
-    ['I', 'SEN', 'NOR', '2026-06-23T20:00:00Z'],
-    ['J', 'ARG', 'JOR', '2026-06-23T22:00:00Z'],
-    ['J', 'AUT', 'ALG', '2026-06-24T01:00:00Z'],
-    ['K', 'POR', 'COL', '2026-06-24T17:00:00Z'],
-    ['K', 'UZB', 'IC1', '2026-06-24T20:00:00Z'],
-    ['L', 'ENG', 'PAN', '2026-06-24T22:00:00Z'],
-    ['L', 'GHA', 'CRO', '2026-06-25T01:00:00Z'],
+    ['A', 'PLD', 'RSA', '2026-06-18T19:00:00Z'], // UEFA Playoff D vs South Africa
+    ['A', 'MEX', 'KOR', '2026-06-19T02:00:00Z'], // Mexico vs South Korea
+    ['B', 'SUI', 'PLA', '2026-06-19T19:00:00Z'], // Switzerland vs UEFA Playoff A
+    ['B', 'CAN', 'QAT', '2026-06-20T01:00:00Z'], // Canada vs Qatar
+    ['C', 'SCO', 'MAR', '2026-06-20T17:00:00Z'], // Scotland vs Morocco
+    ['C', 'BRA', 'HAI', '2026-06-20T20:00:00Z'], // Brazil vs Haiti
+    ['D', 'PLC', 'PAR', '2026-06-20T22:00:00Z'], // UEFA Playoff C vs Paraguay
+    ['D', 'USA', 'AUS', '2026-06-21T01:00:00Z'], // USA vs Australia
+    ['E', 'GER', 'CIV', '2026-06-21T17:00:00Z'], // Germany vs Ivory Coast
+    ['E', 'ECU', 'CUW', '2026-06-21T20:00:00Z'], // Ecuador vs Curaçao
+    ['F', 'NED', 'PLB', '2026-06-21T22:00:00Z'], // Netherlands vs UEFA Playoff B
+    ['F', 'TUN', 'JPN', '2026-06-22T01:00:00Z'], // Tunisia vs Japan
+    ['G', 'BEL', 'IRN', '2026-06-22T17:00:00Z'], // Belgium vs Iran
+    ['G', 'NZL', 'EGY', '2026-06-22T20:00:00Z'], // New Zealand vs Egypt
+    ['H', 'ESP', 'KSA', '2026-06-22T22:00:00Z'], // Spain vs Saudi Arabia
+    ['H', 'URU', 'CPV', '2026-06-23T01:00:00Z'], // Uruguay vs Cape Verde
+    ['I', 'FRA', 'IC2', '2026-06-23T17:00:00Z'], // France vs Intercontinental Playoff 2
+    ['I', 'NOR', 'SEN', '2026-06-23T20:00:00Z'], // Norway vs Senegal
+    ['J', 'ARG', 'AUT', '2026-06-23T22:00:00Z'], // Argentina vs Austria
+    ['J', 'JOR', 'ALG', '2026-06-24T01:00:00Z'], // Jordan vs Algeria
+    ['K', 'POR', 'UZB', '2026-06-24T17:00:00Z'], // Portugal vs Uzbekistan
+    ['K', 'COL', 'IC1', '2026-06-24T20:00:00Z'], // Colombia vs Intercontinental Playoff 1
+    ['L', 'ENG', 'GHA', '2026-06-24T22:00:00Z'], // England vs Ghana
+    ['L', 'PAN', 'CRO', '2026-06-25T01:00:00Z'], // Panama vs Croatia
 ];
 
-// MD3 fixtures: T1vT2, T3vT4 — simultaneous kickoffs per group, June 25-27
+// MD3 fixtures — simultaneous kickoffs per group, June 25-30
 const MD3_FIXTURES = [
-    ['A', 'MEX', 'RSA', '2026-06-25T19:00:00Z'],
-    ['A', 'KOR', 'PLD', '2026-06-25T19:00:00Z'],
-    ['B', 'CAN', 'PLA', '2026-06-25T23:00:00Z'],
-    ['B', 'QAT', 'SUI', '2026-06-25T23:00:00Z'],
-    ['C', 'BRA', 'MAR', '2026-06-26T19:00:00Z'],
-    ['C', 'HAI', 'SCO', '2026-06-26T19:00:00Z'],
-    ['D', 'USA', 'PAR', '2026-06-26T23:00:00Z'],
-    ['D', 'AUS', 'PLC', '2026-06-26T23:00:00Z'],
-    ['E', 'GER', 'CUW', '2026-06-27T16:00:00Z'],
-    ['E', 'CIV', 'ECU', '2026-06-27T16:00:00Z'],
-    ['F', 'NED', 'JPN', '2026-06-27T20:00:00Z'],
-    ['F', 'PLB', 'TUN', '2026-06-27T20:00:00Z'],
-    ['G', 'BEL', 'NZL', '2026-06-28T16:00:00Z'],
-    ['G', 'EGY', 'IRN', '2026-06-28T16:00:00Z'],
-    ['H', 'ESP', 'CPV', '2026-06-28T20:00:00Z'],
-    ['H', 'KSA', 'URU', '2026-06-28T20:00:00Z'],
-    ['I', 'FRA', 'NOR', '2026-06-29T16:00:00Z'],
-    ['I', 'SEN', 'IC2', '2026-06-29T16:00:00Z'],
-    ['J', 'ARG', 'ALG', '2026-06-29T20:00:00Z'],
-    ['J', 'AUT', 'JOR', '2026-06-29T20:00:00Z'],
-    ['K', 'POR', 'IC1', '2026-06-30T16:00:00Z'],
-    ['K', 'UZB', 'COL', '2026-06-30T16:00:00Z'],
-    ['L', 'ENG', 'CRO', '2026-06-30T20:00:00Z'],
-    ['L', 'GHA', 'PAN', '2026-06-30T20:00:00Z'],
+    ['A', 'PLD', 'MEX', '2026-06-25T19:00:00Z'], // UEFA Playoff D vs Mexico
+    ['A', 'KOR', 'RSA', '2026-06-25T19:00:00Z'], // South Korea vs South Africa
+    ['B', 'PLA', 'QAT', '2026-06-25T23:00:00Z'], // UEFA Playoff A vs Qatar
+    ['B', 'SUI', 'CAN', '2026-06-25T23:00:00Z'], // Switzerland vs Canada
+    ['C', 'MAR', 'HAI', '2026-06-26T19:00:00Z'], // Morocco vs Haiti
+    ['C', 'SCO', 'BRA', '2026-06-26T19:00:00Z'], // Scotland vs Brazil
+    ['D', 'PLC', 'USA', '2026-06-26T23:00:00Z'], // UEFA Playoff C vs USA
+    ['D', 'PAR', 'AUS', '2026-06-26T23:00:00Z'], // Paraguay vs Australia
+    ['E', 'CUW', 'CIV', '2026-06-27T16:00:00Z'], // Curaçao vs Ivory Coast
+    ['E', 'ECU', 'GER', '2026-06-27T16:00:00Z'], // Ecuador vs Germany
+    ['F', 'TUN', 'NED', '2026-06-27T20:00:00Z'], // Tunisia vs Netherlands
+    ['F', 'JPN', 'PLB', '2026-06-27T20:00:00Z'], // Japan vs UEFA Playoff B
+    ['G', 'NZL', 'BEL', '2026-06-28T16:00:00Z'], // New Zealand vs Belgium
+    ['G', 'EGY', 'IRN', '2026-06-28T16:00:00Z'], // Egypt vs Iran
+    ['H', 'CPV', 'KSA', '2026-06-28T20:00:00Z'], // Cape Verde vs Saudi Arabia
+    ['H', 'URU', 'ESP', '2026-06-28T20:00:00Z'], // Uruguay vs Spain
+    ['I', 'NOR', 'FRA', '2026-06-29T16:00:00Z'], // Norway vs France
+    ['I', 'SEN', 'IC2', '2026-06-29T16:00:00Z'], // Senegal vs Intercontinental Playoff 2
+    ['J', 'JOR', 'ARG', '2026-06-29T20:00:00Z'], // Jordan vs Argentina
+    ['J', 'ALG', 'AUT', '2026-06-29T20:00:00Z'], // Algeria vs Austria
+    ['K', 'IC1', 'UZB', '2026-06-30T16:00:00Z'], // Intercontinental Playoff 1 vs Uzbekistan
+    ['K', 'COL', 'POR', '2026-06-30T16:00:00Z'], // Colombia vs Portugal
+    ['L', 'PAN', 'ENG', '2026-06-30T20:00:00Z'], // Panama vs England
+    ['L', 'CRO', 'GHA', '2026-06-30T20:00:00Z'], // Croatia vs Ghana
 ];
 
 const POSITION_PRICES = {
