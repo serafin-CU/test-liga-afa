@@ -144,7 +144,7 @@ export default function WorldCupBanner({ compact = false }) {
 
             <div className="relative z-10 px-5 sm:px-8 py-4 sm:py-5">
                 {/* CU Logo — centered hero element, original colors, faded edges */}
-                <div className="flex justify-center mb-3">
+                <div className="flex justify-center mb-3 relative">
                     <img
                         src={CU_LOGO_COLORFUL_URL}
                         alt="CookUnity"
@@ -154,6 +154,14 @@ export default function WorldCupBanner({ compact = false }) {
                             WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at center, black 45%, transparent 100%)'
                         }}
                         onError={e => { e.target.style.display = 'none'; }}
+                    />
+                    <div
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: `radial-gradient(ellipse 120% 120% at center, transparent 20%, ${CU.charcoal}80)`,
+                            pointerEvents: 'none'
+                        }}
                     />
                 </div>
 
