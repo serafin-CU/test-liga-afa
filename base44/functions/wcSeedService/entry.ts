@@ -138,9 +138,10 @@ Deno.serve(async (req) => {
         // 12 groups × 2 matches per MD × 3 MDs = 72 matches
         // Each MD spans 4 days × 6 slots = 24 slots (we have 24 matches per MD)
 
+        const allMatchData = [];
         for (const [phase, pairs] of Object.entries(MATCHDAY_PAIRS)) {
             const dates = MD_DATES[phase];
-            let slotIndex = 0; // global slot counter for this MD across all groups
+            let slotIndex = 0;
 
             for (const group of GROUPS) {
                 const groupTeams = group.teams;
@@ -150,14 +151,9 @@ Deno.serve(async (req) => {
 
                     const dayIdx = Math.floor(slotIndex / SLOT_TIMES.length) % dates.length;
                     const timeIdx = slotIndex % SLOT_TIMES.length;
-                    const dateStr = dates[dayIdx];
-                    const timeStr = SLOT_TIMES[timeIdx];
+                    const kickoff = new Date(`${dates[dayIdx]}T${SLOT_TIMES[timeIdx]}:00Z`);
 
-                    // Handle times past midnight (01:00, 04:00 belong to next calendar day technically,
-                    // but we just use them as-is on the same date string for simplicity)
-                    const kickoff = new Date(`${dateStr}T${timeStr}:00Z`);
-
-                    await base44.asServiceRole.entities.Match.create({
+                    allMatchData.push({
                         phase,
                         kickoff_at: kickoff.toISOString(),
                         home_team_id: homeTeam.id,
@@ -165,11 +161,13 @@ Deno.serve(async (req) => {
                         status: 'SCHEDULED',
                         venue: `Group ${group.name} - ${phase} Match`,
                     });
-                    matches_created++;
                     slotIndex++;
                 }
             }
         }
+
+        const createdMatches = await base44.asServiceRole.entities.Match.bulkCreate(allMatchData);
+        matches_created = createdMatches.length;
 
         // ── 5. Update AppConfig ──
         console.log('Updating AppConfig...');
