@@ -437,8 +437,9 @@ export default function SquadBuilder() {
             }
 
             setShowConfirmFinalize(false);
-            toast.success(isEditable ? 'Squad updated! ✓' : 'Squad finalized! 🎉');
+            toast.success('Squad saved! ✓');
             setExistingSquadId(squadId);
+            await new Promise(r => setTimeout(r, 100));
             queryClient.invalidateQueries(['userSquads']);
 
         } catch (error) {
