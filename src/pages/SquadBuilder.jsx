@@ -436,10 +436,10 @@ export default function SquadBuilder() {
                 });
             }
 
+            setShowConfirmFinalize(false);
             toast.success(isEditable ? 'Squad updated! ✓' : 'Squad finalized! 🎉');
             setExistingSquadId(squadId);
             queryClient.invalidateQueries(['userSquads']);
-            setShowConfirmFinalize(false);
 
         } catch (error) {
             toast.error(error.message || 'Failed to save squad');
