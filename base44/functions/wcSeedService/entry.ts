@@ -89,9 +89,18 @@ Deno.serve(async (req) => {
         ]);
 
         console.log(`Deleting ${existingMatches.length} matches, ${existingPlayers.length} players, ${existingTeams.length} teams...`);
-        for (const m of existingMatches) await base44.asServiceRole.entities.Match.delete(m.id);
-        for (const p of existingPlayers) await base44.asServiceRole.entities.Player.delete(p.id);
-        for (const t of existingTeams) await base44.asServiceRole.entities.Team.delete(t.id);
+
+        async function deleteInChunks(entity, items, chunkSize = 10, delayMs = 500) {
+            for (let i = 0; i < items.length; i += chunkSize) {
+                const chunk = items.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(x => entity.delete(x.id)));
+                if (i + chunkSize < items.length) await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+
+        await deleteInChunks(base44.asServiceRole.entities.Match, existingMatches);
+        await deleteInChunks(base44.asServiceRole.entities.Player, existingPlayers);
+        await deleteInChunks(base44.asServiceRole.entities.Team, existingTeams);
 
         // ── 2. Create teams ──
         console.log('Creating teams...');
