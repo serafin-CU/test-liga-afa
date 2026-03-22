@@ -30,23 +30,23 @@ function BadgePills({ userId, currentPhase }) {
         enabled: !!userId
     });
 
-    const hasCoreKeeper = badges.some(b => b.badge_type === 'CORE_KEEPER' && b.phase === currentPhase);
-    const hasLoyalCore = badges.some(b => b.badge_type === 'LOYAL_CORE');
+    const hasUnbreakableXi = badges.some(b => b.badge_type === 'UNBREAKABLE_XI' && b.phase === currentPhase);
+    const hasTheOriginals = badges.some(b => b.badge_type === 'THE_ORIGINALS');
 
-    if (!hasCoreKeeper && !hasLoyalCore) return null;
+    if (!hasUnbreakableXi && !hasTheOriginals) return null;
 
     return (
         <div className="flex gap-2 mt-2 flex-wrap">
-            {hasCoreKeeper && (
+            {hasUnbreakableXi && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold"
                       style={{ background: CU.blue + '18', color: CU.blue, border: `1px solid ${CU.blue}30`, fontFamily: "'Raleway', sans-serif" }}>
-                    🛡️ Core Keeper ✓
+                    🛡️ Unbreakable XI ✓
                 </span>
             )}
-            {hasLoyalCore && (
+            {hasTheOriginals && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold"
                       style={{ background: CU.orange + '20', color: '#9a6e00', border: `1px solid ${CU.orange}40`, fontFamily: "'Raleway', sans-serif" }}>
-                    ⭐ Loyal Core ✓
+                    👑 The Originals ✓
                 </span>
             )}
         </div>
@@ -60,13 +60,16 @@ function BadgesSection({ userId, currentPhase }) {
         enabled: !!userId
     });
 
-    const coreKeeperBadges = badges.filter(b => b.badge_type === 'CORE_KEEPER');
-    const latestCoreKeeper = coreKeeperBadges.sort((a, b) => new Date(b.awarded_at) - new Date(a.awarded_at))[0];
-    const loyalCore = badges.find(b => b.badge_type === 'LOYAL_CORE');
+    const unbreakableXiBadges = badges.filter(b => b.badge_type === 'UNBREAKABLE_XI');
+    const latestUnbreakableXi = unbreakableXiBadges.sort((a, b) => new Date(b.awarded_at) - new Date(a.awarded_at))[0];
+    const theOriginals = badges.find(b => b.badge_type === 'THE_ORIGINALS');
+    const perfectMatchdayBadges = badges.filter(b => b.badge_type === 'PERFECT_MATCHDAY');
+    const latestPerfectMatchday = perfectMatchdayBadges.sort((a, b) => new Date(b.awarded_at) - new Date(a.awarded_at))[0];
 
     const BADGE_INFO = {
-        CORE_KEEPER: { title: '🛡️ Core Keeper', description: 'Kept 8 or more of your 11 starters from the previous knockout phase.', accentColor: CU.blue },
-        LOYAL_CORE: { title: '⭐ Loyal Core', description: 'Kept 9 or more of your original Round of 32 starters all the way to the Final.', accentColor: CU.orange },
+        UNBREAKABLE_XI: { title: '🛡️ Unbreakable XI', description: 'Kept 8 or more of your 11 starters between knockout rounds.', accentColor: CU.blue },
+        THE_ORIGINALS: { title: '👑 The Originals', description: '9 of your original Round of 32 starters made it all the way to the Final.', accentColor: CU.orange },
+        PERFECT_MATCHDAY: { title: '🎯 Perfect Matchday', description: 'Predicted the correct winner (or draw) for every match in a single matchday.', accentColor: CU.green },
     };
 
     const BadgeCard = ({ info, earned, badge, earnedCount }) => {
@@ -119,9 +122,10 @@ function BadgesSection({ userId, currentPhase }) {
                         <Loader2 className="w-4 h-4 animate-spin" /> Loading badges...
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <BadgeCard info={BADGE_INFO.CORE_KEEPER} earned={coreKeeperBadges.length > 0} badge={latestCoreKeeper} earnedCount={coreKeeperBadges.length} />
-                        <BadgeCard info={BADGE_INFO.LOYAL_CORE} earned={!!loyalCore} badge={loyalCore} earnedCount={loyalCore ? 1 : 0} />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <BadgeCard info={BADGE_INFO.UNBREAKABLE_XI} earned={unbreakableXiBadges.length > 0} badge={latestUnbreakableXi} earnedCount={unbreakableXiBadges.length} />
+                        <BadgeCard info={BADGE_INFO.THE_ORIGINALS} earned={!!theOriginals} badge={theOriginals} earnedCount={theOriginals ? 1 : 0} />
+                        <BadgeCard info={BADGE_INFO.PERFECT_MATCHDAY} earned={perfectMatchdayBadges.length > 0} badge={latestPerfectMatchday} earnedCount={perfectMatchdayBadges.length} />
                     </div>
                 )}
             </div>
