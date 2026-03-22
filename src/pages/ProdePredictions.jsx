@@ -1,32 +1,174 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, CheckCircle2, Lock, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle, Clock, Lock, Loader2, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
-const PHASES = [
-    'GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3',
-    'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'
-];
-
 const PHASE_LABELS = {
-    GROUP_MD1: 'Group MD1', GROUP_MD2: 'Group MD2', GROUP_MD3: 'Group MD3',
-    ROUND_OF_32: 'Round of 32', ROUND_OF_16: 'Round of 16',
-    QUARTERFINALS: 'Quarterfinals', SEMIFINALS: 'Semifinals', FINAL: 'Final'
+    GROUP_MD1: 'Group Stage — Matchday 1',
+    GROUP_MD2: 'Group Stage — Matchday 2',
+    GROUP_MD3: 'Group Stage — Matchday 3',
+    ROUND_OF_32: 'Round of 32',
+    ROUND_OF_16: 'Round of 16',
+    QUARTERFINALS: 'Quarterfinals',
+    SEMIFINALS: 'Semifinals',
+    FINAL: 'Final'
 };
+
+function PredictionCard({ match, teams, prediction, onSubmit, submitting }) {
+    const [homeGoals, setHomeGoals] = useState(prediction?.pred_home_goals ?? '');
+    const [awayGoals, setAwayGoals] = useState(prediction?.pred_away_goals ?? '');
+
+    const homeTeam = teams[match.home_team_id];
+    const awayTeam = teams[match.away_team_id];
+    const homeName = homeTeam?.fifa_code || homeTeam?.name || 'TBD';
+    const awayName = awayTeam?.fifa_code || awayTeam?.name || 'TBD';
+
+    const kickoff = new Date(match.kickoff_at);
+    const now = new Date();
+    const isLocked = now >= kickoff;
+    const isFinal = match.status === 'FINAL';
+    const hasPrediction = prediction != null;
+
+    const canSubmit = !isLocked && homeGoals !== '' && awayGoals !== '' &&
+        Number(homeGoals) >= 0 && Number(awayGoals) >= 0;
+
+    const hasChanged = hasPrediction
+        ? (Number(homeGoals) !== prediction.pred_home_goals || Number(awayGoals) !== prediction.pred_away_goals)
+        : (homeGoals !== '' || awayGoals !== '');
+
+    const handleSubmit = () => {
+        onSubmit({
+            match_id: match.id,
+            pred_home_goals: Number(homeGoals),
+            pred_away_goals: Number(awayGoals)
+        });
+    };
+
+    const timeUntil = () => {
+        const diff = kickoff - now;
+        if (diff <= 0) return null;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+        if (hours > 0) return `${hours}h ${mins}m`;
+        return `${mins}m`;
+    };
+
+    return (
+        <Card className={`transition-all ${isFinal ? 'border-gray-200 bg-gray-50' : hasPrediction ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+            <CardContent className="pt-4">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs text-gray-500">
+                        {kickoff.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        {' · '}
+                        {kickoff.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        {isFinal && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                                Final
+                            </span>
+                        )}
+                        {isLocked && !isFinal && (
+                            <span className="text-xs font-medium text-orange-600 flex items-center gap-1">
+                                <Lock className="w-3 h-3" /> Locked
+                            </span>
+                        )}
+                        {!isLocked && timeUntil() && (
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> {timeUntil()}
+                            </span>
+                        )}
+                        {hasPrediction && (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {/* Home team */}
+                    <div className="flex-1 text-right">
+                        <div className="font-semibold text-sm">{homeName}</div>
+                        <div className="text-xs text-gray-400">{homeTeam?.name || ''}</div>
+                    </div>
+
+                    {/* Score input */}
+                    <div className="flex items-center gap-1.5">
+                        <Input
+                            type="number"
+                            min="0"
+                            max="20"
+                            value={homeGoals}
+                            onChange={e => setHomeGoals(e.target.value)}
+                            disabled={isLocked}
+                            className="w-12 h-10 text-center text-lg font-bold p-0"
+                            placeholder="–"
+                        />
+                        <span className="text-gray-300 font-light text-lg">:</span>
+                        <Input
+                            type="number"
+                            min="0"
+                            max="20"
+                            value={awayGoals}
+                            onChange={e => setAwayGoals(e.target.value)}
+                            disabled={isLocked}
+                            className="w-12 h-10 text-center text-lg font-bold p-0"
+                            placeholder="–"
+                        />
+                    </div>
+
+                    {/* Away team */}
+                    <div className="flex-1">
+                        <div className="font-semibold text-sm">{awayName}</div>
+                        <div className="text-xs text-gray-400">{awayTeam?.name || ''}</div>
+                    </div>
+                </div>
+
+                {/* Submit button */}
+                {!isLocked && hasChanged && (
+                    <div className="mt-3 flex justify-center">
+                        <Button
+                            size="sm"
+                            onClick={handleSubmit}
+                            disabled={!canSubmit || submitting}
+                            className="w-full max-w-[200px]"
+                        >
+                            {submitting ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                            ) : null}
+                            {hasPrediction ? 'Update Prediction' : 'Submit Prediction'}
+                        </Button>
+                    </div>
+                )}
+
+                {/* Show submitted prediction if locked */}
+                {isLocked && hasPrediction && (
+                    <div className="mt-2 text-center text-xs text-gray-500">
+                        Your prediction: {prediction.pred_home_goals} – {prediction.pred_away_goals}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function ProdePredictions() {
     const [selectedPhase, setSelectedPhase] = useState(null);
-    const [predictions, setPredictions] = useState({}); // match_id -> { home, away }
-    const [serverPreds, setServerPreds] = useState({}); // match_id -> { pred_home_goals, pred_away_goals }
-    const [submitting, setSubmitting] = useState({}); // match_id -> bool
-    const [predsLoaded, setPredsLoaded] = useState(false);
+    const [submittingMatch, setSubmittingMatch] = useState(null);
+    const queryClient = useQueryClient();
 
-    const { data: matches = [] } = useQuery({
+    const { data: currentUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: () => base44.auth.me()
+    });
+
+    const { data: matches = [], isLoading: matchesLoading } = useQuery({
         queryKey: ['matches'],
         queryFn: () => base44.entities.Match.list()
     });
@@ -36,299 +178,156 @@ export default function ProdePredictions() {
         queryFn: () => base44.entities.Team.list()
     });
 
+    const { data: predictions = [], isLoading: predsLoading } = useQuery({
+        queryKey: ['prodePredictions', currentUser?.id],
+        queryFn: async () => {
+            if (!currentUser) return [];
+            const result = await base44.functions.invoke('prodeService', {
+                action: 'get_user_predictions',
+                target_user_id: currentUser.id
+            });
+            return result.data?.predictions || [];
+        },
+        enabled: !!currentUser
+    });
+
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
+    const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
 
-    // Load existing predictions once
-    useEffect(() => {
-        if (predsLoaded) return;
-        base44.functions.invoke('prodeService', { action: 'get_user_predictions' })
-            .then(res => {
-                const preds = res.data?.predictions || [];
-                const map = {};
-                preds.forEach(p => { map[p.match_id] = p; });
-                setServerPreds(map);
-                // Pre-fill inputs from server
-                const inputMap = {};
-                preds.forEach(p => {
-                    inputMap[p.match_id] = {
-                        home: String(p.pred_home_goals ?? ''),
-                        away: String(p.pred_away_goals ?? '')
-                    };
-                });
-                setPredictions(inputMap);
-                setPredsLoaded(true);
-            })
-            .catch(() => setPredsLoaded(true));
-    }, [predsLoaded]);
+    // Group matches by phase
+    const phases = {};
+    for (const match of matches) {
+        if (!phases[match.phase]) phases[match.phase] = [];
+        phases[match.phase].push(match);
+    }
+    // Sort matches within each phase by kickoff
+    for (const phase in phases) {
+        phases[phase].sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
+    }
 
-    // Determine phases that have matches
-    const phasesWithMatches = PHASES.filter(p => matches.some(m => m.phase === p));
+    // Determine which phases exist
+    const PHASE_ORDER = ['GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
+    const availablePhases = PHASE_ORDER.filter(p => phases[p]?.length > 0);
 
-    // Auto-select first phase with upcoming matches
-    useEffect(() => {
-        if (!selectedPhase && phasesWithMatches.length > 0) {
-            const now = new Date();
-            const phaseWithUpcoming = phasesWithMatches.find(p =>
-                matches.some(m => m.phase === p && new Date(m.kickoff_at) > now)
-            );
-            setSelectedPhase(phaseWithUpcoming || phasesWithMatches[0]);
-        }
-    }, [phasesWithMatches.length]);
-
-    const matchesInPhase = matches
-        .filter(m => m.phase === selectedPhase)
-        .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
-
-    const now = new Date();
-
-    const isLocked = (match) => new Date(match.kickoff_at) <= now;
-
-    const totalMatches = matches.length;
-    const predictedCount = Object.keys(serverPreds).length;
-    const toGo = totalMatches - predictedCount;
-
-    const phaseStats = (phase) => {
-        const phaseMatches = matches.filter(m => m.phase === phase);
-        const phasePredicted = phaseMatches.filter(m => serverPreds[m.id]).length;
-        return `${phasePredicted}/${phaseMatches.length}`;
-    };
-
-    const getDraft = (matchId) => predictions[matchId] || { home: '', away: '' };
-
-    const setDraft = (matchId, key, val) => {
-        // Only allow non-negative integers
-        if (val !== '' && !/^\d+$/.test(val)) return;
-        setPredictions(prev => ({
-            ...prev,
-            [matchId]: { ...getDraft(matchId), [key]: val }
-        }));
-    };
-
-    const isDirty = (matchId) => {
-        const draft = getDraft(matchId);
-        const server = serverPreds[matchId];
-        if (draft.home === '' || draft.away === '') return false;
-        if (!server) return true;
-        return (
-            parseInt(draft.home) !== server.pred_home_goals ||
-            parseInt(draft.away) !== server.pred_away_goals
+    // Auto-select: first phase with an unlockable match, or the first phase
+    if (!selectedPhase && availablePhases.length > 0) {
+        const now = new Date();
+        const upcoming = availablePhases.find(p =>
+            phases[p].some(m => new Date(m.kickoff_at) > now)
         );
-    };
+        setSelectedPhase(upcoming || availablePhases[0]);
+    }
 
-    const handleSubmit = async (match) => {
-        const draft = getDraft(match.id);
-        if (draft.home === '' || draft.away === '') {
-            toast.error('Please enter both home and away goals');
-            return;
-        }
-        setSubmitting(prev => ({ ...prev, [match.id]: true }));
+    const currentMatches = phases[selectedPhase] || [];
+
+    // Prediction counts
+    const totalMatches = matches.length;
+    const predictedCount = predictions.length;
+    const now = new Date();
+    const upcomingUnpredicted = matches.filter(m =>
+        new Date(m.kickoff_at) > now && !predictionsMap[m.id]
+    ).length;
+
+    const handleSubmitPrediction = async (data) => {
+        setSubmittingMatch(data.match_id);
         try {
             await base44.functions.invoke('prodeService', {
                 action: 'submit_prediction',
-                match_id: match.id,
-                pred_home_goals: parseInt(draft.home),
-                pred_away_goals: parseInt(draft.away)
+                ...data
             });
-            setServerPreds(prev => ({
-                ...prev,
-                [match.id]: {
-                    ...prev[match.id],
-                    match_id: match.id,
-                    pred_home_goals: parseInt(draft.home),
-                    pred_away_goals: parseInt(draft.away)
-                }
-            }));
             toast.success('Prediction saved!');
-        } catch (err) {
-            toast.error(err.message || 'Failed to save prediction');
+            queryClient.invalidateQueries(['prodePredictions']);
+        } catch (error) {
+            toast.error(error.message || 'Failed to save prediction');
+        } finally {
+            setSubmittingMatch(null);
         }
-        setSubmitting(prev => ({ ...prev, [match.id]: false }));
     };
 
-    const getTimeRemaining = (match) => {
-        const diff = new Date(match.kickoff_at) - now;
-        if (diff <= 0) return null;
-        const hours = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        if (hours >= 48) return `${Math.floor(hours / 24)}d remaining`;
-        if (hours >= 1) return `${hours}h ${mins}m remaining`;
-        return `${mins}m remaining`;
-    };
+    if (matchesLoading) {
+        return (
+            <div className="max-w-3xl mx-auto p-6">
+                <div className="flex items-center gap-2 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin" /> Loading matches...
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                    <Trophy className="w-7 h-7 text-yellow-500" />
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-yellow-500" />
                     Prode Predictions
                 </h1>
-                <p className="text-gray-500 mt-1 text-sm">
-                    Exact score = 5 pts · Correct winner = 3 pts · Correct MVP = 2 pts
+                <p className="text-sm text-gray-500 mt-1">
+                    Predict the score for each match. Exact score = 5 pts, correct winner = 3 pts, correct MVP = 2 pts.
                 </p>
             </div>
 
             {/* Stats bar */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-                <Card>
-                    <CardContent className="pt-3 pb-3 text-center">
-                        <div className="text-2xl font-bold text-green-600">{predictedCount}</div>
-                        <div className="text-xs text-gray-500">Predicted</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-3 pb-3 text-center">
-                        <div className="text-2xl font-bold text-orange-500">{toGo}</div>
-                        <div className="text-xs text-gray-500">To go</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-3 pb-3 text-center">
-                        <div className="text-2xl font-bold">{totalMatches}</div>
-                        <div className="text-xs text-gray-500">Total</div>
-                    </CardContent>
-                </Card>
+            <div className="flex gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-gray-600">{predictedCount} predicted</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-orange-400" />
+                    <span className="text-gray-600">{upcomingUnpredicted} to go</span>
+                </div>
+                <div className="text-gray-400">
+                    {totalMatches} total matches
+                </div>
             </div>
 
             {/* Phase selector */}
-            {phasesWithMatches.length > 0 && (
-                <div className="mb-6">
+            {availablePhases.length > 0 ? (
+                <>
                     <Select value={selectedPhase || ''} onValueChange={setSelectedPhase}>
-                        <SelectTrigger className="w-full sm:w-72">
+                        <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select phase" />
                         </SelectTrigger>
                         <SelectContent>
-                            {phasesWithMatches.map(p => (
-                                <SelectItem key={p} value={p}>
-                                    {PHASE_LABELS[p]} ({phaseStats(p)})
-                                </SelectItem>
-                            ))}
+                            {availablePhases.map(phase => {
+                                const phaseMatches = phases[phase];
+                                const predicted = phaseMatches.filter(m => predictionsMap[m.id]).length;
+                                return (
+                                    <SelectItem key={phase} value={phase}>
+                                        {PHASE_LABELS[phase] || phase} ({predicted}/{phaseMatches.length})
+                                    </SelectItem>
+                                );
+                            })}
                         </SelectContent>
                     </Select>
-                </div>
+
+                    {/* Match cards */}
+                    <div className="space-y-3">
+                        {currentMatches.map(match => (
+                            <PredictionCard
+                                key={match.id}
+                                match={match}
+                                teams={teamsMap}
+                                prediction={predictionsMap[match.id]}
+                                onSubmit={handleSubmitPrediction}
+                                submitting={submittingMatch === match.id}
+                            />
+                        ))}
+                        {currentMatches.length === 0 && (
+                            <div className="text-center text-gray-400 py-12">
+                                No matches in this phase yet.
+                            </div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <Card>
+                    <CardContent className="pt-6 text-center text-gray-500">
+                        No matches have been scheduled yet. Check back soon!
+                    </CardContent>
+                </Card>
             )}
-
-            {/* Match cards */}
-            <div className="space-y-3">
-                {matchesInPhase.map(match => {
-                    const home = teamsMap[match.home_team_id];
-                    const away = teamsMap[match.away_team_id];
-                    const locked = isLocked(match);
-                    const server = serverPreds[match.id];
-                    const draft = getDraft(match.id);
-                    const dirty = !locked && isDirty(match.id);
-                    const timeLeft = getTimeRemaining(match);
-                    const isSubmitting = submitting[match.id];
-
-                    return (
-                        <Card key={match.id} className={`border ${locked ? 'bg-gray-50' : 'bg-white'}`}>
-                            <CardContent className="pt-4 pb-4">
-                                {/* Date + status row */}
-                                <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
-                                    <span>
-                                        {new Date(match.kickoff_at).toLocaleString('en-US', {
-                                            weekday: 'short', month: 'short', day: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        })}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                        {server && (
-                                            <span className="flex items-center gap-1 text-green-600 font-medium">
-                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                                Predicted
-                                            </span>
-                                        )}
-                                        {locked ? (
-                                            <span className="flex items-center gap-1 text-gray-400">
-                                                <Lock className="w-3.5 h-3.5" />
-                                                Locked
-                                            </span>
-                                        ) : timeLeft ? (
-                                            <span className="flex items-center gap-1 text-blue-500">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                {timeLeft}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                </div>
-
-                                {/* Teams + score inputs */}
-                                <div className="flex items-center gap-3">
-                                    {/* Home team */}
-                                    <div className="flex-1 text-right">
-                                        <div className="font-bold text-gray-900">{home?.name || '—'}</div>
-                                        <div className="text-xs text-gray-400">{home?.fifa_code || ''}</div>
-                                    </div>
-
-                                    {/* Score inputs or read-only */}
-                                    {locked ? (
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-gray-100 text-xl font-bold text-gray-500">
-                                                {server ? server.pred_home_goals : '—'}
-                                            </div>
-                                            <span className="text-gray-400 font-bold text-sm">vs</span>
-                                            <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-gray-100 text-xl font-bold text-gray-500">
-                                                {server ? server.pred_away_goals : '—'}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="20"
-                                                value={draft.home}
-                                                onChange={e => setDraft(match.id, 'home', e.target.value)}
-                                                className="w-14 h-12 text-center text-xl font-bold p-1"
-                                                placeholder="0"
-                                            />
-                                            <span className="text-gray-400 font-bold text-sm">vs</span>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="20"
-                                                value={draft.away}
-                                                onChange={e => setDraft(match.id, 'away', e.target.value)}
-                                                className="w-14 h-12 text-center text-xl font-bold p-1"
-                                                placeholder="0"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Away team */}
-                                    <div className="flex-1 text-left">
-                                        <div className="font-bold text-gray-900">{away?.name || '—'}</div>
-                                        <div className="text-xs text-gray-400">{away?.fifa_code || ''}</div>
-                                    </div>
-                                </div>
-
-                                {/* Submit button */}
-                                {!locked && dirty && (
-                                    <div className="mt-3 flex justify-center">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleSubmit(match)}
-                                            disabled={isSubmitting}
-                                            className="w-full sm:w-auto"
-                                        >
-                                            {isSubmitting ? (
-                                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
-                                            ) : server ? 'Update Prediction' : 'Submit Prediction'}
-                                        </Button>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-
-                {matchesInPhase.length === 0 && selectedPhase && (
-                    <div className="text-center py-12 text-gray-400">No matches in this phase</div>
-                )}
-                {!selectedPhase && phasesWithMatches.length === 0 && (
-                    <div className="text-center py-12 text-gray-400">No matches available yet</div>
-                )}
-            </div>
         </div>
     );
 }
