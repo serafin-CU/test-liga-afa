@@ -35,6 +35,11 @@ Deno.serve(async (req) => {
             return Response.json({ status: 'SUCCESS', ...result });
         }
 
+        if (action === 'migrate_badge_names') {
+            const result = await migrateBadgeNames(base44);
+            return Response.json({ status: 'SUCCESS', ...result });
+        }
+
         return Response.json({ status: 'ERROR', code: 'INVALID_ACTION' }, { status: 400 });
 
     } catch (error) {
@@ -210,4 +215,28 @@ export async function awardUnbreakableXiBadge(base44, user_id, phase) {
     });
 
     return { awarded: true, already_existed: false, kept_count: keptCount, threshold: CORE_KEEPER_THRESHOLD, phase, prev_phase: prevPhase, badge_id: badge.id };
+}
+
+async function migrateBadgeNames(base44) {
+    const coreKeeperBadges = await base44.asServiceRole.entities.BadgeAward.filter({ badge_type: 'CORE_KEEPER' });
+    const loyalCoreBadges = await base44.asServiceRole.entities.BadgeAward.filter({ badge_type: 'LOYAL_CORE' });
+
+    let coreKeeperUpdated = 0;
+    let loyalCoreUpdated = 0;
+
+    for (const badge of coreKeeperBadges) {
+        await base44.asServiceRole.entities.BadgeAward.update(badge.id, { badge_type: 'UNBREAKABLE_XI' });
+        coreKeeperUpdated++;
+    }
+
+    for (const badge of loyalCoreBadges) {
+        await base44.asServiceRole.entities.BadgeAward.update(badge.id, { badge_type: 'THE_ORIGINALS' });
+        loyalCoreUpdated++;
+    }
+
+    return {
+        core_keeper_migrated_to_unbreakable_xi: coreKeeperUpdated,
+        loyal_core_migrated_to_the_originals: loyalCoreUpdated,
+        total_migrated: coreKeeperUpdated + loyalCoreUpdated
+    };
 }
