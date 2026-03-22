@@ -39,7 +39,7 @@ export default function AdminLayout({ children, currentPageName }) {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-8">
                             <div className="text-xl font-bold text-white">
-                                Admin Dashboard
+                                UnityCup Admin
                             </div>
                             <div className="hidden lg:flex items-center gap-1">
                                 {adminNavItems.map(item => {
