@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Users, LogOut, Shield, MessageSquare, Trophy, BarChart2 } from 'lucide-react';
+import { Users, LogOut, Shield, MessageSquare, Trophy, Target, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function ParticipantLayout({ children, currentPageName }) {
