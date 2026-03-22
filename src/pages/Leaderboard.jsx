@@ -60,6 +60,7 @@ function LeaderboardTable({ entries, currentUserId, mode }) {
                                 fontWeight: 600,
                                 color: isMe ? CU.charcoal : CU.charcoal
                             }}>
+                                {rank === 1 && <span className="mr-1">🏆</span>}
                                 {entry.display_name || entry.email || entry.user_id.slice(-8)}
                                 {isMe && (
                                     <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
@@ -164,9 +165,14 @@ export default function Leaderboard() {
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: CU.orange }}>
                         <Trophy className="w-5 h-5 text-white" />
                     </div>
-                    <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, margin: 0 }}>
-                        Leaderboard
-                    </h1>
+                    <div>
+                        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, margin: 0 }}>
+                            ⚽ Leaderboard
+                        </h1>
+                        <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
+                            World Cup 2026 Standings
+                        </p>
+                    </div>
                 </div>
                 <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#6b7280' }}>
                     {entries.length} participant{entries.length !== 1 ? 's' : ''}

@@ -237,8 +237,30 @@ export default function Dashboard() {
         );
     }
 
+    const kickoff = new Date('2026-06-11T00:00:00');
+    const daysUntil = Math.max(0, Math.ceil((kickoff - new Date()) / (1000 * 60 * 60 * 24)));
+
     return (
         <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+            {/* Hero Banner */}
+            <div className="rounded-xl px-6 py-5 flex items-center justify-between" style={{ background: CU.charcoal }}>
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <span style={{ fontSize: '1.4rem' }}>⚽</span>
+                        <h2 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.6rem', color: 'white', margin: 0 }}>
+                            FIFA World Cup 2026
+                        </h2>
+                    </div>
+                    <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                        Canada · Mexico · United States — June 11 to July 19
+                    </p>
+                </div>
+                <div className="text-right shrink-0 ml-4">
+                    <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.orange, lineHeight: 1 }}>{daysUntil}</div>
+                    <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>days to kickoff</div>
+                </div>
+            </div>
+
             {/* Header */}
             <div>
                 <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, margin: 0 }}>

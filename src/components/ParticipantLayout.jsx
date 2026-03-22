@@ -32,12 +32,12 @@ export default function ParticipantLayout({ children, currentPageName }) {
 
     return (
         <div className="min-h-screen" style={{ background: '#f9fafb' }}>
-            <nav style={{ background: CU.charcoal }}>
+            <nav style={{ background: CU.charcoal, borderTop: `2px solid ${CU.orange}` }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-8">
                             <div style={{ fontFamily: "'DM Serif Display', serif", color: 'white', fontSize: '1.25rem' }}>
-                                ScoreKeeper Pro
+                                ScoreKeeper Pro <span style={{ fontSize: '1rem' }}>⚽</span> <span style={{ fontSize: '0.85rem', color: CU.orange, fontFamily: "'Raleway', sans-serif", fontWeight: 600 }}>WC 2026</span>
                             </div>
                             <div className="hidden md:flex items-center gap-1">
                                 {navItems.map(item => {

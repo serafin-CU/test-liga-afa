@@ -331,8 +331,8 @@ export default function SquadManagement() {
         <div className="p-4 md:p-8 max-w-6xl mx-auto">
             {/* Header */}
             <div className="mb-6">
-                <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>My Squad</h1>
-                <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Manage your fantasy football team</p>
+                <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>🏟️ My Squad</h1>
+                <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Build your World Cup XI</p>
                 <BadgePills userId={currentUser.id} currentPhase={activeSquad?.phase} />
             </div>
 
