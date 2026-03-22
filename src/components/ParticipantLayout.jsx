@@ -13,12 +13,13 @@ export default function ParticipantLayout({ children, currentPageName }) {
 
     const isAdmin = currentUser?.role === 'admin';
 
-    const navItems = [
-        { name: 'SquadManagement', label: 'My Squad', icon: Users },
-        { name: 'ProdePredictions', label: 'Prode', icon: Trophy },
-        { name: 'Leaderboard', label: 'Leaderboard', icon: Trophy },
-        { name: 'FAFOChat', label: 'FAFO', icon: MessageSquare }
-    ];
+const navItems = [
+    { name: 'Dashboard', label: 'Home', icon: LayoutDashboard },
+    { name: 'ProdePredictions', label: 'Prode', icon: Target },
+    { name: 'SquadManagement', label: 'My Squad', icon: Users },
+    { name: 'Leaderboard', label: 'Standings', icon: Trophy },
+    { name: 'FAFOChat', label: 'FAFO', icon: MessageSquare }
+];
 
     const handleLogout = () => {
         base44.auth.logout();
