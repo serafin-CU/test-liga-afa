@@ -124,14 +124,36 @@ function PoolPlayer({ player, team, onAdd, disabled, alreadyIn, cantAfford }) {
     );
 }
 
+/* ── Countdown hook ── */
+function useCountdownText(isoTime) {
+    const [text, setText] = useState('');
+    useEffect(() => {
+        if (!isoTime) return;
+        const update = () => {
+            const diff = new Date(isoTime) - new Date();
+            if (diff <= 0) { setText('now'); return; }
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const mins = Math.floor((diff / (1000 * 60)) % 60);
+            if (days > 0) setText(`${days}d ${hours}h`);
+            else if (hours > 0) setText(`${hours}h ${mins}m`);
+            else setText(`${mins}m`);
+        };
+        update();
+        const t = setInterval(update, 60000);
+        return () => clearInterval(t);
+    }, [isoTime]);
+    return text;
+}
+
 /* ── Main Squad Builder ── */
 export default function SquadBuilder() {
     const queryClient = useQueryClient();
 
     // State
     const [phase, setPhase] = useState('GROUP_MD1');
-    const [starters, setStarters] = useState([]); // [{ player_id, position }]
-    const [benchPlayers, setBench] = useState([]); // [player_id, ...]
+    const [starters, setStarters] = useState([]);
+    const [benchPlayers, setBench] = useState([]);
     const [captainId, setCaptainId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [posFilter, setPosFilter] = useState('ALL');
@@ -140,6 +162,9 @@ export default function SquadBuilder() {
     const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
     const [existingSquadId, setExistingSquadId] = useState(null);
     const [initialized, setInitialized] = useState(false);
+    // Phase lock state
+    const [phaseLock, setPhaseLock] = useState(null); // { is_locked, lock_time }
+    const [lockLoading, setLockLoading] = useState(false);
 
     // Data queries
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
@@ -155,14 +180,27 @@ export default function SquadBuilder() {
     const playersMap = useMemo(() => Object.fromEntries(allPlayers.map(p => [p.id, p])), [allPlayers]);
     const teamsMap = useMemo(() => Object.fromEntries(allTeams.map(t => [t.id, t])), [allTeams]);
 
+    // Fetch phase lock whenever phase changes
+    useEffect(() => {
+        setLockLoading(true);
+        setPhaseLock(null);
+        base44.functions.invoke('fantasyTransferService', {
+            action: 'check_phase_lock',
+            target_phase: phase
+        }).then(res => {
+            setPhaseLock(res.data);
+        }).finally(() => setLockLoading(false));
+    }, [phase]);
+
     // Load existing squad for selected phase
     useEffect(() => {
-        if (!existingSquads.length || initialized) return;
+        if (initialized) return;
+        // Wait until we know the lock status and squads are loaded
+        if (lockLoading || phaseLock === null) return;
 
         const existing = existingSquads.find(s => s.phase === phase);
         if (existing) {
             setExistingSquadId(existing.id);
-            // Load squad players
             base44.entities.FantasySquadPlayer.filter({ squad_id: existing.id }).then(players => {
                 const starterList = players.filter(sp => sp.slot_type === 'STARTER').map(sp => ({
                     player_id: sp.player_id,
@@ -172,7 +210,6 @@ export default function SquadBuilder() {
                     .sort((a, b) => (a.bench_order || 0) - (b.bench_order || 0))
                     .map(sp => sp.player_id);
                 const cap = players.find(sp => sp.is_captain);
-
                 setStarters(starterList);
                 setBench(benchList);
                 if (cap) setCaptainId(cap.player_id);
@@ -185,7 +222,7 @@ export default function SquadBuilder() {
             setCaptainId(null);
             setInitialized(true);
         }
-    }, [existingSquads, phase, playersMap]);
+    }, [existingSquads, phase, playersMap, initialized, lockLoading, phaseLock]);
 
     // Reset when phase changes
     const handlePhaseChange = (newPhase) => {
@@ -195,6 +232,7 @@ export default function SquadBuilder() {
         setBench([]);
         setCaptainId(null);
         setExistingSquadId(null);
+        setPhaseLock(null);
     };
 
     // Computed
