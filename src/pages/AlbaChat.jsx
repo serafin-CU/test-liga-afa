@@ -78,12 +78,11 @@ function getAlbaResponse(userMessage) {
 
 function AlbaAvatar() {
     return (
-        <div
-            className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-            style={{ background: CU.orange, fontFamily: "'DM Serif Display', serif" }}
-        >
-            A
-        </div>
+        <img
+            src="https://media.base44.com/images/public/697e13bb6118f7db732b8054/c94fef301_image.png"
+            alt="Alba"
+            className="h-10 w-10 rounded-full flex-shrink-0 object-cover"
+        />
     );
 }
 
