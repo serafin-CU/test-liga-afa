@@ -58,7 +58,7 @@ function CountdownUnit({ value, label }) {
     return (
         <div className="flex flex-col items-center">
             <div
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center text-2xl sm:text-3xl font-bold"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-lg sm:text-xl font-bold"
                 style={{
                     fontFamily: "'DM Serif Display', serif",
                     background: 'rgba(255,255,255,0.1)',
@@ -70,8 +70,8 @@ function CountdownUnit({ value, label }) {
                 {String(value).padStart(2, '0')}
             </div>
             <span
-                className="text-xs mt-1.5 uppercase tracking-widest"
-                style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.5)' }}
+                className="mt-1 uppercase tracking-widest"
+                style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.5)', fontSize: '9px' }}
             >
                 {label}
             </span>
