@@ -1,21 +1,39 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Medal, TrendingUp, Loader2, Crown } from 'lucide-react';
 
+const CU = {
+    orange: '#FFB81C',
+    charcoal: '#2C2B2B',
+    magenta: '#AA0061',
+    blue: '#475CC7',
+    sand: '#C7B273',
+};
+
 function RankBadge({ rank }) {
-    if (rank === 1) return <div className="w-7 h-7 rounded-full bg-yellow-400 text-white flex items-center justify-center text-xs font-bold shadow-sm">1</div>;
-    if (rank === 2) return <div className="w-7 h-7 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold shadow-sm">2</div>;
-    if (rank === 3) return <div className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">3</div>;
-    return <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-medium">{rank}</div>;
+    if (rank === 1) return (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+             style={{ background: CU.orange, color: 'white', fontFamily: "'DM Serif Display', serif" }}>1</div>
+    );
+    if (rank === 2) return (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+             style={{ background: CU.sand, color: 'white', fontFamily: "'DM Serif Display', serif" }}>2</div>
+    );
+    if (rank === 3) return (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+             style={{ background: CU.magenta, color: 'white', fontFamily: "'DM Serif Display', serif" }}>3</div>
+    );
+    return (
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium"
+             style={{ background: '#f3f4f6', color: '#6b7280', fontFamily: "'Raleway', sans-serif" }}>{rank}</div>
+    );
 }
 
 function LeaderboardTable({ entries, currentUserId, mode }) {
     if (entries.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
                 No scores recorded yet for {mode === 'ALL' ? 'any mode' : mode}.
             </div>
         );
@@ -29,24 +47,35 @@ function LeaderboardTable({ entries, currentUserId, mode }) {
                 return (
                     <div
                         key={entry.user_id}
-                        className={`flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors ${
-                            isMe ? 'bg-blue-50 border border-blue-200' : rank <= 3 ? 'bg-gray-50' : ''
-                        }`}
+                        className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors"
+                        style={{
+                            background: isMe ? CU.orange + '18' : rank <= 3 ? '#f9fafb' : 'white',
+                            border: isMe ? `1px solid ${CU.orange}50` : '1px solid transparent',
+                        }}
                     >
                         <RankBadge rank={rank} />
                         <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium truncate ${isMe ? 'text-blue-700' : 'text-gray-900'}`}>
+                            <div className="text-sm truncate" style={{
+                                fontFamily: "'Raleway', sans-serif",
+                                fontWeight: 600,
+                                color: isMe ? CU.charcoal : CU.charcoal
+                            }}>
                                 {entry.display_name || entry.email || entry.user_id.slice(-8)}
-                                {isMe && <span className="text-xs text-blue-500 ml-1.5">(you)</span>}
+                                {isMe && (
+                                    <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+                                          style={{ background: CU.orange + '30', color: CU.charcoal, fontWeight: 700 }}>
+                                        you
+                                    </span>
+                                )}
                             </div>
                         </div>
                         {mode === 'ALL' && (
-                            <div className="flex gap-4 text-xs text-gray-400">
+                            <div className="flex gap-3 text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
                                 <span title="Prode">P: {entry.prode_points}</span>
                                 <span title="Fantasy">F: {entry.fantasy_points}</span>
                             </div>
                         )}
-                        <div className={`text-lg font-bold ${rank <= 3 ? 'text-gray-900' : 'text-gray-700'}`}>
+                        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.2rem', color: CU.charcoal }}>
                             {entry.total_points}
                         </div>
                     </div>
@@ -55,6 +84,12 @@ function LeaderboardTable({ entries, currentUserId, mode }) {
         </div>
     );
 }
+
+const TAB_CONFIG = [
+    { value: 'ALL', label: 'Overall', icon: TrendingUp },
+    { value: 'PRODE', label: 'Prode', icon: Medal },
+    { value: 'FANTASY', label: 'Fantasy', icon: Crown },
+];
 
 export default function Leaderboard() {
     const [tab, setTab] = useState('ALL');
@@ -82,7 +117,6 @@ export default function Leaderboard() {
 
     const usersMap = Object.fromEntries(users.map(u => [u.id, u]));
 
-    // Aggregate points by user and mode
     const aggregated = {};
     for (const entry of ledger) {
         if (!entry.user_id) continue;
@@ -98,34 +132,17 @@ export default function Leaderboard() {
             };
         }
         const pts = entry.points || 0;
-        if (entry.mode === 'PRODE') {
-            aggregated[entry.user_id].prode_points += pts;
-        } else if (entry.mode === 'FANTASY') {
-            aggregated[entry.user_id].fantasy_points += pts;
-        }
-        // Penalties (mode === 'PENALTY') would subtract — but transfers are free now
+        if (entry.mode === 'PRODE') aggregated[entry.user_id].prode_points += pts;
+        else if (entry.mode === 'FANTASY') aggregated[entry.user_id].fantasy_points += pts;
         aggregated[entry.user_id].total_points += pts;
     }
 
     const allEntries = Object.values(aggregated);
 
-    // Sort and filter by tab
     const getEntries = (mode) => {
-        let entries;
-        if (mode === 'ALL') {
-            entries = [...allEntries].sort((a, b) => b.total_points - a.total_points);
-        } else if (mode === 'PRODE') {
-            entries = [...allEntries]
-                .map(e => ({ ...e, total_points: e.prode_points }))
-                .filter(e => e.total_points !== 0)
-                .sort((a, b) => b.total_points - a.total_points);
-        } else {
-            entries = [...allEntries]
-                .map(e => ({ ...e, total_points: e.fantasy_points }))
-                .filter(e => e.total_points !== 0)
-                .sort((a, b) => b.total_points - a.total_points);
-        }
-        return entries;
+        if (mode === 'ALL') return [...allEntries].sort((a, b) => b.total_points - a.total_points);
+        if (mode === 'PRODE') return [...allEntries].map(e => ({ ...e, total_points: e.prode_points })).filter(e => e.total_points !== 0).sort((a, b) => b.total_points - a.total_points);
+        return [...allEntries].map(e => ({ ...e, total_points: e.fantasy_points })).filter(e => e.total_points !== 0).sort((a, b) => b.total_points - a.total_points);
     };
 
     const entries = getEntries(tab);
@@ -133,10 +150,8 @@ export default function Leaderboard() {
 
     if (ledgerLoading) {
         return (
-            <div className="max-w-2xl mx-auto p-6">
-                <div className="flex items-center gap-2 text-gray-500">
-                    <Loader2 className="w-5 h-5 animate-spin" /> Loading standings...
-                </div>
+            <div className="max-w-2xl mx-auto p-6 flex items-center gap-2" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
+                <Loader2 className="w-5 h-5 animate-spin" /> Loading standings...
             </div>
         );
     }
@@ -145,60 +160,67 @@ export default function Leaderboard() {
         <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Trophy className="w-6 h-6 text-yellow-500" />
-                    Leaderboard
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
+                <div className="flex items-center gap-3 mb-1">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: CU.orange }}>
+                        <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, margin: 0 }}>
+                        Leaderboard
+                    </h1>
+                </div>
+                <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#6b7280' }}>
                     {entries.length} participant{entries.length !== 1 ? 's' : ''}
-                    {myRank > 0 && <> · You're ranked <span className="font-semibold text-gray-700">#{myRank}</span></>}
+                    {myRank > 0 && (
+                        <> · You're ranked <span style={{ fontWeight: 700, color: CU.charcoal }}>#{myRank}</span></>
+                    )}
                 </p>
             </div>
 
-            {/* My position highlight */}
+            {/* My position */}
             {myRank > 0 && (
-                <Card className="border-blue-200 bg-blue-50/50">
-                    <CardContent className="pt-4 pb-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <RankBadge rank={myRank} />
-                            <div>
-                                <div className="text-sm font-medium text-blue-700">Your Position</div>
-                                <div className="text-xs text-blue-500">
-                                    {tab === 'ALL' ? `${entries[myRank - 1]?.prode_points || 0} Prode + ${entries[myRank - 1]?.fantasy_points || 0} Fantasy` : `${entries[myRank - 1]?.total_points || 0} points`}
-                                </div>
+                <div className="rounded-xl p-4 flex items-center justify-between" style={{ background: CU.orange + '15', border: `1px solid ${CU.orange}40` }}>
+                    <div className="flex items-center gap-3">
+                        <RankBadge rank={myRank} />
+                        <div>
+                            <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 700, fontSize: '0.875rem', color: CU.charcoal }}>Your Position</div>
+                            <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#6b7280' }}>
+                                {tab === 'ALL'
+                                    ? `${entries[myRank - 1]?.prode_points || 0} Prode + ${entries[myRank - 1]?.fantasy_points || 0} Fantasy`
+                                    : `${entries[myRank - 1]?.total_points || 0} points`}
                             </div>
                         </div>
-                        <div className="text-2xl font-bold text-blue-700">
-                            {entries[myRank - 1]?.total_points || 0}
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.75rem', color: CU.charcoal }}>
+                        {entries[myRank - 1]?.total_points || 0}
+                    </div>
+                </div>
             )}
 
-            {/* Tabs */}
-            <Tabs value={tab} onValueChange={setTab}>
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="ALL">
-                        <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Overall
-                    </TabsTrigger>
-                    <TabsTrigger value="PRODE">
-                        <Medal className="w-3.5 h-3.5 mr-1.5" /> Prode
-                    </TabsTrigger>
-                    <TabsTrigger value="FANTASY">
-                        <Crown className="w-3.5 h-3.5 mr-1.5" /> Fantasy
-                    </TabsTrigger>
-                </TabsList>
+            {/* Tab buttons */}
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: '#f3f4f6' }}>
+                {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
+                    <button
+                        key={value}
+                        onClick={() => setTab(value)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm transition-all"
+                        style={{
+                            fontFamily: "'Raleway', sans-serif",
+                            fontWeight: 600,
+                            background: tab === value ? 'white' : 'transparent',
+                            color: tab === value ? CU.magenta : '#6b7280',
+                            borderBottom: tab === value ? `2px solid ${CU.magenta}` : '2px solid transparent',
+                            border: tab === value ? `1px solid #e5e7eb` : '1px solid transparent',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Icon className="w-3.5 h-3.5" />
+                        {label}
+                    </button>
+                ))}
+            </div>
 
-                <TabsContent value="ALL" className="mt-4">
-                    <LeaderboardTable entries={getEntries('ALL')} currentUserId={currentUser?.id} mode="ALL" />
-                </TabsContent>
-                <TabsContent value="PRODE" className="mt-4">
-                    <LeaderboardTable entries={getEntries('PRODE')} currentUserId={currentUser?.id} mode="PRODE" />
-                </TabsContent>
-                <TabsContent value="FANTASY" className="mt-4">
-                    <LeaderboardTable entries={getEntries('FANTASY')} currentUserId={currentUser?.id} mode="FANTASY" />
-                </TabsContent>
-            </Tabs>
+            {/* Table */}
+            <LeaderboardTable entries={entries} currentUserId={currentUser?.id} mode={tab} />
         </div>
     );
 }

@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MessageBubble from '@/components/MessageBubble';
 import { Send, Loader2, Plus } from 'lucide-react';
+
+const CU = {
+    orange: '#FFB81C',
+    charcoal: '#2C2B2B',
+    magenta: '#AA0061',
+};
 
 const AGENT_NAME = 'FAFO';
 
@@ -22,12 +27,8 @@ export default function FAFOChat() {
         queryFn: () => base44.auth.me()
     });
 
-    // Load conversations on mount
-    useEffect(() => {
-        loadConversations();
-    }, []);
+    useEffect(() => { loadConversations(); }, []);
 
-    // Subscribe to active conversation
     useEffect(() => {
         if (!activeConversation?.id) return;
         const unsubscribe = base44.agents.subscribeToConversation(activeConversation.id, (data) => {
@@ -36,7 +37,6 @@ export default function FAFOChat() {
         return () => unsubscribe();
     }, [activeConversation?.id]);
 
-    // Auto-scroll
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
@@ -46,9 +46,7 @@ export default function FAFOChat() {
         try {
             const convs = await base44.agents.listConversations({ agent_name: AGENT_NAME });
             setConversations(convs || []);
-            if (convs?.length > 0) {
-                await selectConversation(convs[0]);
-            }
+            if (convs?.length > 0) await selectConversation(convs[0]);
         } catch (e) {
             console.error(e);
         }
@@ -98,30 +96,42 @@ export default function FAFOChat() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-slate-50">
+        <div className="flex" style={{ height: 'calc(100vh - 64px)', background: '#f9fafb', fontFamily: "'Raleway', sans-serif" }}>
             {/* Sidebar */}
-            <div className="w-64 bg-white border-r flex flex-col">
-                <div className="p-4 border-b">
-                    <Button onClick={createNewConversation} className="w-full gap-2" size="sm">
+            <div className="w-64 flex flex-col" style={{ background: 'white', borderRight: '1px solid #e5e7eb' }}>
+                <div className="p-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <button
+                        onClick={createNewConversation}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                        style={{ background: CU.magenta, color: 'white', fontFamily: "'Raleway', sans-serif", border: 'none', cursor: 'pointer' }}
+                    >
                         <Plus className="w-4 h-4" /> New Chat
-                    </Button>
+                    </button>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     {loadingConvs ? (
-                        <div className="p-4 text-center text-slate-400 text-sm">
+                        <div className="p-4 text-center" style={{ color: '#9ca3af' }}>
                             <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                         </div>
                     ) : conversations.length === 0 ? (
-                        <div className="p-4 text-center text-slate-400 text-sm">No conversations yet</div>
+                        <div className="p-4 text-center text-sm" style={{ color: '#9ca3af' }}>No conversations yet</div>
                     ) : (
                         conversations.map(conv => (
                             <button
                                 key={conv.id}
                                 onClick={() => selectConversation(conv)}
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-slate-50 border-b transition-colors ${activeConversation?.id === conv.id ? 'bg-slate-100 font-medium' : ''}`}
+                                className="w-full text-left px-4 py-3 text-sm transition-colors"
+                                style={{
+                                    borderBottom: '1px solid #f3f4f6',
+                                    background: activeConversation?.id === conv.id ? CU.orange + '15' : 'transparent',
+                                    borderLeft: activeConversation?.id === conv.id ? `3px solid ${CU.orange}` : '3px solid transparent',
+                                    color: CU.charcoal,
+                                    fontWeight: activeConversation?.id === conv.id ? 600 : 400,
+                                    cursor: 'pointer'
+                                }}
                             >
                                 <div className="truncate">{conv.metadata?.name || 'Chat'}</div>
-                                <div className="text-xs text-slate-400 mt-0.5">
+                                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
                                     {new Date(conv.created_date).toLocaleDateString()}
                                 </div>
                             </button>
@@ -133,11 +143,12 @@ export default function FAFOChat() {
             {/* Main chat */}
             <div className="flex-1 flex flex-col">
                 {/* Header */}
-                <div className="bg-white border-b px-6 py-4 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white text-xs font-bold">F</div>
+                <div className="flex items-center gap-3 px-6 py-4" style={{ background: 'white', borderBottom: '1px solid #e5e7eb' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                         style={{ background: CU.charcoal, fontFamily: "'DM Serif Display', serif" }}>F</div>
                     <div>
-                        <div className="font-semibold text-slate-900">FAFO</div>
-                        <div className="text-xs text-slate-500">AI Assistant</div>
+                        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.1rem', color: CU.charcoal }}>FAFO</div>
+                        <div className="text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>AI Assistant</div>
                     </div>
                 </div>
 
@@ -145,12 +156,13 @@ export default function FAFOChat() {
                 <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
                     {!activeConversation ? (
                         <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-                            <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-bold text-slate-400">F</div>
-                            <div className="text-slate-600 font-medium">Start a conversation with FAFO</div>
-                            <div className="text-sm text-slate-400">Type a message below or create a new chat</div>
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold"
+                                 style={{ background: CU.charcoal, color: 'white', fontFamily: "'DM Serif Display', serif" }}>F</div>
+                            <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 600, color: CU.charcoal }}>Start a conversation with FAFO</div>
+                            <div className="text-sm" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>Type a message below or create a new chat</div>
                         </div>
                     ) : messages.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                        <div className="flex items-center justify-center h-full text-sm" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
                             Send a message to begin
                         </div>
                     ) : (
@@ -160,10 +172,10 @@ export default function FAFOChat() {
                     )}
                     {sending && (
                         <div className="flex gap-3">
-                            <div className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center mt-0.5">
-                                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                            <div className="h-7 w-7 rounded-lg flex items-center justify-center mt-0.5" style={{ background: '#f3f4f6' }}>
+                                <Loader2 className="h-3 w-3 animate-spin" style={{ color: '#9ca3af' }} />
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-sm text-slate-400">
+                            <div className="rounded-2xl px-4 py-2.5 text-sm" style={{ background: 'white', border: '1px solid #e5e7eb', fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
                                 Thinking...
                             </div>
                         </div>
@@ -172,7 +184,7 @@ export default function FAFOChat() {
                 </div>
 
                 {/* Input */}
-                <div className="bg-white border-t px-6 py-4">
+                <div className="px-6 py-4" style={{ background: 'white', borderTop: '1px solid #e5e7eb' }}>
                     <div className="flex gap-3 max-w-4xl mx-auto">
                         <Input
                             value={input}
@@ -181,10 +193,21 @@ export default function FAFOChat() {
                             placeholder="Message FAFO..."
                             className="flex-1"
                             disabled={sending}
+                            style={{ fontFamily: "'Raleway', sans-serif" }}
                         />
-                        <Button onClick={sendMessage} disabled={!input.trim() || sending} size="icon">
+                        <button
+                            onClick={sendMessage}
+                            disabled={!input.trim() || sending}
+                            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all"
+                            style={{
+                                background: !input.trim() || sending ? '#e5e7eb' : CU.magenta,
+                                color: 'white',
+                                border: 'none',
+                                cursor: !input.trim() || sending ? 'not-allowed' : 'pointer'
+                            }}
+                        >
                             <Send className="w-4 h-4" />
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </div>
