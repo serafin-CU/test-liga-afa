@@ -37,16 +37,9 @@ export default function ParticipantLayout({ children, currentPageName }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-8">
-                            <Link to="/Dashboard" style={{ display: 'flex', alignItems: 'center' }}>
-                                <img
-                                    src="https://media.base44.com/images/public/697e13bb6118f7db732b8054/043a209c6_image.png"
-                                    alt="UnityCup"
-                                    style={{
-                                        height: '36px',
-                                        maskImage: 'radial-gradient(ellipse 80% 80% at center, black 45%, transparent 100%)',
-                                        WebkitMaskImage: 'radial-gradient(ellipse 80% 80% at center, black 45%, transparent 100%)'
-                                    }}
-                                />
+                            <Link to="/Dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white', lineHeight: 1 }}>⚽ UnityCup</span>
+                                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: CU.orange, lineHeight: 1 }}>FIFA World Cup 2026</span>
                             </Link>
                             <div className="hidden md:flex items-center gap-1">
                                 {navItems.map(item => {
