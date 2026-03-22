@@ -465,7 +465,7 @@ async function applyTransfersAndBadges(base44, user_id, phase, forceTransfersCou
     };
 }
 
-// ─── CORE_KEEPER Badge Logic ───────────────────────────────────────────────
+// ─── Badge Logic ───────────────────────────────────────────────────────────
 
 const KNOCKOUT_PHASE_PREV = {
     'ROUND_OF_16': 'ROUND_OF_32',
@@ -474,7 +474,7 @@ const KNOCKOUT_PHASE_PREV = {
     'FINAL': 'SEMIFINALS'
 };
 
-async function awardLoyalCoreBadge(base44, user_id) {
+async function awardTheOriginalsBadge(base44, user_id) {
     const THRESHOLD = 9;
     const BASE_PHASE = 'ROUND_OF_32';
     const TARGET_PHASE = 'FINAL';
@@ -504,14 +504,14 @@ async function awardLoyalCoreBadge(base44, user_id) {
         return { awarded: false, kept_count: keptCount, threshold: THRESHOLD, base_phase: BASE_PHASE, phase: TARGET_PHASE };
     }
 
-    const existing = await base44.asServiceRole.entities.BadgeAward.filter({ user_id, badge_type: 'LOYAL_CORE', phase: TARGET_PHASE });
+    const existing = await base44.asServiceRole.entities.BadgeAward.filter({ user_id, badge_type: 'THE_ORIGINALS', phase: TARGET_PHASE });
     if (existing.length > 0) {
         return { awarded: true, already_existed: true, kept_count: keptCount, threshold: THRESHOLD, base_phase: BASE_PHASE, phase: TARGET_PHASE, badge_id: existing[0].id };
     }
 
     const badge = await base44.asServiceRole.entities.BadgeAward.create({
         user_id,
-        badge_type: 'LOYAL_CORE',
+        badge_type: 'THE_ORIGINALS',
         phase: TARGET_PHASE,
         awarded_at: new Date().toISOString(),
         metadata_json: JSON.stringify({ kept_count: keptCount, threshold: THRESHOLD, base_phase: BASE_PHASE })
@@ -520,7 +520,7 @@ async function awardLoyalCoreBadge(base44, user_id) {
     return { awarded: true, already_existed: false, kept_count: keptCount, threshold: THRESHOLD, base_phase: BASE_PHASE, phase: TARGET_PHASE, badge_id: badge.id };
 }
 
-async function awardCoreKeeperBadge(base44, user_id, phase) {
+async function awardUnbreakableXiBadge(base44, user_id, phase) {
     const prevPhase = KNOCKOUT_PHASE_PREV[phase];
     if (!prevPhase) return { awarded: false, reason: 'NOT_A_KNOCKOUT_PHASE' };
 
@@ -548,14 +548,14 @@ async function awardCoreKeeperBadge(base44, user_id, phase) {
     }
 
     // Idempotency check
-    const existing = await base44.asServiceRole.entities.BadgeAward.filter({ user_id, badge_type: 'CORE_KEEPER', phase });
+    const existing = await base44.asServiceRole.entities.BadgeAward.filter({ user_id, badge_type: 'UNBREAKABLE_XI', phase });
     if (existing.length > 0) {
         return { awarded: true, already_existed: true, kept_count: keptCount, threshold: 8, phase, prev_phase: prevPhase, badge_id: existing[0].id };
     }
 
     const badge = await base44.asServiceRole.entities.BadgeAward.create({
         user_id,
-        badge_type: 'CORE_KEEPER',
+        badge_type: 'UNBREAKABLE_XI',
         phase,
         awarded_at: new Date().toISOString(),
         metadata_json: JSON.stringify({ kept_count: keptCount, threshold: 8, prev_phase: prevPhase })
