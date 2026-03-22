@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import WorldCupBanner from '@/components/WorldCupBanner';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

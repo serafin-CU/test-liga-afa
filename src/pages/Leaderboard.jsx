@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import WorldCupBanner from '@/components/WorldCupBanner';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy, Medal, TrendingUp, Loader2, Crown } from 'lucide-react';
