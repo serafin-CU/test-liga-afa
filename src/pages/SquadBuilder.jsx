@@ -770,10 +770,17 @@ export default function SquadBuilder() {
             <Dialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>Finalize Your Squad?</DialogTitle>
+                        <DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>
+                            {isEditable ? 'Update Your Squad?' : 'Finalize Your Squad?'}
+                        </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3" style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem' }}>
-                        <p>This will lock your squad for <strong>{PHASE_OPTIONS.find(p => p.value === phase)?.label}</strong>.</p>
+                        <p>
+                            {isEditable
+                                ? <>This will update your squad for <strong>{PHASE_OPTIONS.find(p => p.value === phase)?.label}</strong>.</>
+                                : <>This will lock your squad for <strong>{PHASE_OPTIONS.find(p => p.value === phase)?.label}</strong>.</>
+                            }
+                        </p>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="p-2 rounded bg-gray-50"><strong>Starters:</strong> {starters.length}/11</div>
                             <div className="p-2 rounded bg-gray-50"><strong>Bench:</strong> {benchPlayers.length}/3</div>
@@ -782,9 +789,11 @@ export default function SquadBuilder() {
                                 <strong>Captain:</strong> {playersMap[captainId]?.full_name || '—'}
                             </div>
                         </div>
-                        <p className="text-xs" style={{ color: '#9ca3af' }}>
-                            After finalizing, you won't be able to edit this squad (until the next transfer window).
-                        </p>
+                        {!isEditable && (
+                            <p className="text-xs" style={{ color: '#9ca3af' }}>
+                                After finalizing, you won't be able to edit this squad (until the next transfer window).
+                            </p>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowConfirmFinalize(false)} disabled={saving}>Cancel</Button>
@@ -793,7 +802,7 @@ export default function SquadBuilder() {
                             disabled={saving}
                             style={{ background: CU.magenta, color: 'white', fontFamily: "'Raleway', sans-serif", fontWeight: 700 }}
                         >
-                            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : 'Finalize Squad ✓'}
+                            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : isEditable ? 'Update Squad ✓' : 'Finalize Squad ✓'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
