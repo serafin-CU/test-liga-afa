@@ -14,6 +14,7 @@ const navItems = [
     { name: 'Dashboard', label: 'Home', icon: LayoutDashboard },
     { name: 'ProdePredictions', label: 'Prode', icon: Target },
     { name: 'SquadManagement', label: 'My Squad', icon: Users },
+    { name: 'SquadBuilder', label: 'Build Squad', icon: Shield },
     { name: 'Leaderboard', label: 'Standings', icon: Trophy },
     { name: 'FAFOChat', label: 'FAFO', icon: MessageSquare }
 ];

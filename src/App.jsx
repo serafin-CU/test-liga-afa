@@ -9,6 +9,7 @@ import FAFOChat from './pages/FAFOChat';
 import ProdePredictions from './pages/ProdePredictions';
 import Leaderboard from './pages/Leaderboard';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
+import SquadBuilder from './pages/SquadBuilder';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
