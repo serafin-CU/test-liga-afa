@@ -143,36 +143,24 @@ export default function WorldCupBanner({ compact = false }) {
             />
 
             <div className="relative z-10 px-5 sm:px-8 py-6 sm:py-8">
-                {/* Logos row */}
-                <div className="flex items-center justify-between mb-5 sm:mb-6">
+                {/* CU Colorful Logo — centered, primary */}
+                <div className="flex flex-col items-center mb-4">
                     <img
-                        src={CU_LOGO_URL}
+                        src={CU_LOGO_COLORFUL_URL}
                         alt="CookUnity"
-                        className="h-6 sm:h-7"
+                        className="w-64 sm:w-80 max-w-full"
                         onError={e => { e.target.style.display = 'none'; }}
                     />
-                    
                     <div
-                        className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide"
+                        className="mt-2 px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase"
                         style={{
                             fontFamily: "'Raleway', sans-serif",
                             background: CU.orange,
                             color: CU.charcoal
                         }}
                     >
-                        INTERNAL COMPETITION
+                        Internal Competition
                     </div>
-
-                    {!fifaLogoError ? (
-                        <img
-                            src={FIFA_EMBLEM_URL}
-                            alt="FIFA World Cup 2026"
-                            className="h-10 sm:h-12"
-                            onError={() => setFifaLogoError(true)}
-                        />
-                    ) : (
-                        <span className="text-2xl">🏆</span>
-                    )}
                 </div>
 
                 {/* Title */}
@@ -230,6 +218,21 @@ export default function WorldCupBanner({ compact = false }) {
                         </span>
                     </div>
                 )}
+
+                {/* FIFA Logo — bottom left */}
+                <div className="flex items-end justify-between mt-5">
+                    {!fifaLogoError ? (
+                        <img
+                            src={FIFA_EMBLEM_URL}
+                            alt="FIFA World Cup 2026"
+                            className="h-14 sm:h-16"
+                            onError={() => setFifaLogoError(true)}
+                        />
+                    ) : (
+                        <span className="text-2xl">🏆</span>
+                    )}
+                    <div />
+                </div>
             </div>
         </div>
     );
