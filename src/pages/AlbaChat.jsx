@@ -9,57 +9,57 @@ const CU = {
 };
 
 const ALBA_FAQ = {
-    welcome: "Hey! 👋 I'm Alba, your UnityCup assistant. Ask me about scoring rules, squad building, the tournament schedule, or how UnityCup works!",
+    welcome: "¡Hola! 👋 Soy Alba, tu asistente del Liga AFA Test. Preguntame sobre reglas de puntaje, cómo armar tu equipo, el calendario del Apertura, ¡o cómo funciona el juego!",
     
     responses: [
         {
-            triggers: ['score', 'points', 'scoring', 'how do points work'],
-            response: "📊 UnityCup has two game modes:\n\n**Prode (Predictions):**\n• Exact score = 5 pts\n• Correct winner = 3 pts\n\n**Fantasy:**\n• FWD goal = 4 pts\n• MID goal = 5 pts\n• DEF/GK goal = 6 pts\n• 60+ minutes played = 1 pt\n• Yellow card = -1 pt\n• Red card = -3 pts\n• Captain gets 2x points!"
+            triggers: ['score', 'points', 'scoring', 'how do points work', 'puntos', 'puntaje', 'como se puntua'],
+            response: "📊 El Liga AFA Test tiene dos modos:\n\n**Prode (Predicciones):**\n• Resultado exacto = 5 pts\n• Ganador correcto = 3 pts\n\n**Fantasy:**\n• Gol de DL = 5 pts\n• Gol de MED = 6 pts\n• Gol de DEF/GK = 7 pts\n• 60+ minutos jugados = 2 pts\n• 1-59 minutos = 1 pt\n• Tarjeta amarilla = -1 pt\n• Tarjeta roja = -3 pts\n• ¡El capitán gana 2x puntos!"
         },
         {
-            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build'],
-            response: "⚽ Your fantasy squad needs:\n• 11 starters (1 GK, 4 DEF, 3 MID, 3 FWD)\n• 3 bench players\n• 1 captain (earns 2x points)\n• Budget: $150M total\n\nFormation is fixed at 4-3-3. Go to 'Build Squad' in the nav to create yours!"
+            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build', 'equipo', 'jugadores', 'armar'],
+            response: "⚽ Tu equipo fantasy necesita:\n• 11 titulares (1 GK, 4 DEF, 3 MED, 3 DL)\n• 3 jugadores en el banco\n• 1 capitán (gana 2x puntos)\n• Presupuesto: $150M total\n\nFormación fija en 4-3-3. ¡Andá a 'Build Squad' para armarlo!"
         },
         {
-            triggers: ['transfer', 'change', 'edit', 'swap', 'lock', 'window', 'deadline'],
-            response: "🔄 Transfers are FREE in UnityCup — no penalties!\n\nYou can edit your squad anytime until 48 hours before the first match of each phase. After that, your squad locks for that phase.\n\nCheck the countdown on your Squad Builder page to see when the window closes."
+            triggers: ['transfer', 'change', 'edit', 'swap', 'lock', 'window', 'deadline', 'transferencia', 'cambio', 'cierre'],
+            response: "🔄 ¡Las transferencias son GRATIS en este torneo!\n\nPodés editar tu equipo hasta 48 horas antes del primer partido de cada fase. Después de eso, tu equipo se bloquea.\n\nFijate en el countdown del Squad Builder para ver cuándo cierra la ventana."
         },
         {
-            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match'],
-            response: "📅 FIFA World Cup 2026 Schedule:\n\n• Group Stage: June 11–27\n• Round of 32: June 28 – July 3\n• Round of 16: July 4–7\n• Quarterfinals: July 9–11\n• Semifinals: July 14–15\n• Third Place: July 18\n• Final: July 19 🏆\n\n48 teams, 104 matches across USA, Canada & Mexico!"
+            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match', 'calendario', 'fecha', 'partido', 'cuando'],
+            response: "📅 Calendario del Apertura 2026:\n\n• Fecha 10: 5-7 de abril\n• Fecha 11: 12-14 de abril\n• Octavos de Final (Apertura R16): por confirmar\n• Cuartos de Final: por confirmar\n• Semifinales: por confirmar\n• Final: 24 de mayo 🏆\n\n30 equipos en 2 zonas (A y B) en la fase de grupos."
         },
         {
-            triggers: ['prode', 'predict', 'prediction', 'guess'],
-            response: "🎯 Prode is the prediction game!\n\nFor each match, predict the final score (home goals vs away goals). You can predict as many matches as you want and save them all at once.\n\nScoring: Exact score = 5 pts, Correct winner/draw = 3 pts.\n\nGo to 'Prode' in the nav to start predicting!"
+            triggers: ['prode', 'predict', 'prediction', 'guess', 'predecir', 'pronostico'],
+            response: "🎯 ¡El Prode es el juego de predicciones!\n\nPor cada partido, predecí el marcador final (goles local vs visitante). Podés predecir todos los partidos que quieras y guardarlos de una.\n\nPuntaje: Resultado exacto = 5 pts, ganador/empate correcto = 3 pts.\n\n¡Andá a 'Prode' en el menú para empezar!"
         },
         {
-            triggers: ['badge', 'achievement', 'award', 'trophy'],
-            response: "🏅 UnityCup Badges:\n\n🛡️ **Unbreakable XI** — Keep 8+ of your 11 starters between knockout rounds\n👑 **The Originals** — Keep 9+ original R32 starters all the way to the Final\n🎯 **Perfect Matchday** — Predict the correct winner for every match in a matchday\n\nBadges appear on your profile and Squad page!"
+            triggers: ['badge', 'achievement', 'award', 'trophy', 'logro', 'medalla', 'insignia'],
+            response: "🏅 Insignias del Liga AFA Test:\n\n🛡️ **Unbreakable XI** — Mantenés 8+ de tus 11 titulares entre rondas del knockout\n👑 **The Originals** — Mantenés 9+ de tus titulares originales del R16 hasta la Final\n🎯 **Perfect Matchday** — Predecís correctamente todos los resultados de una fecha\n\n¡Las insignias aparecen en tu perfil y página de equipo!"
         },
         {
-            triggers: ['captain', '2x', 'double', 'multiplier'],
-            response: "©️ Your Captain earns DOUBLE points!\n\nOnly starters can be captain. Choose wisely — pick someone likely to score or play 60+ minutes.\n\nYou can change your captain anytime before the squad locks. Go to Build Squad → tap the ☆ star on any starter."
+            triggers: ['captain', '2x', 'double', 'multiplier', 'capitan', 'capitán'],
+            response: "⭐ ¡Tu Capitán gana el DOBLE de puntos!\n\nSolo los titulares pueden ser capitán. Elegí bien — alguien que probablemente haga un gol o juegue 60+ minutos.\n\nPodés cambiar el capitán en cualquier momento antes del cierre. Andá a Build Squad → tocá la ☆ en cualquier titular."
         },
         {
-            triggers: ['group', 'argentina', 'brazil', 'usa', 'mexico', 'england', 'france', 'spain', 'germany', 'who is in'],
-            response: "🌍 12 Groups, 48 Teams!\n\nHighlights:\n• Group A: Mexico, South Korea, South Africa\n• Group C: Brazil, Morocco, Scotland\n• Group D: USA, Paraguay, Australia\n• Group H: Spain, Uruguay, Saudi Arabia\n• Group I: France, Senegal, Norway\n• Group J: Argentina, Algeria, Austria\n• Group L: England, Croatia, Ghana\n\nCheck 'Prode' to see all fixtures by matchday!"
+            triggers: ['boca', 'river', 'racing', 'independiente', 'san lorenzo', 'velez', 'huracan', 'belgrano', 'talleres', 'lanus', 'zona', 'equipos', 'teams', 'argentina'],
+            response: "🇦🇷 30 equipos en 2 zonas:\n\n**Zona A:** Boca, Independiente, San Lorenzo, Vélez, Riestra, Talleres, Instituto, Platense, Estudiantes LP, Gimnasia Mza, Lanús, Newell's, Defensa, Central Córdoba, Unión\n\n**Zona B:** River, Racing, Huracán, Barracas, Belgrano, Estudiantes RC, Argentinos, Tigre, Gimnasia LP, Ind. Rivadavia, Banfield, Rosario Central, Aldosivi, Atlético Tucumán, Sarmiento"
         },
         {
-            triggers: ['rules', 'how to play', 'how does this work', 'help', 'what is this', 'explain'],
-            response: "🏆 Welcome to UnityCup: FIFA World Cup 2026!\n\nTwo ways to play:\n\n1️⃣ **Prode** — Predict match scores. Exact = 5pts, correct winner = 3pts.\n2️⃣ **Fantasy** — Build a squad of 14 real players. They earn points based on real match performance.\n\nBoth modes have separate leaderboards. Your combined score determines the overall champion!\n\nNeed help with something specific? Ask me about scoring, squads, transfers, or the schedule!"
+            triggers: ['rules', 'how to play', 'how does this work', 'help', 'what is this', 'explain', 'reglas', 'como se juega', 'ayuda'],
+            response: "🏆 ¡Bienvenido al Liga AFA Test — Apertura 2026!\n\nDos formas de jugar:\n\n1️⃣ **Prode** — Predecí los marcadores de los partidos. Exacto = 5 pts, ganador = 3 pts.\n2️⃣ **Fantasy** — Armá un equipo de 14 jugadores reales. Ganan puntos según el rendimiento real.\n\nAmbos modos tienen sus propios leaderboards. ¡Tu puntaje combinado determina el campeón!\n\n¿Necesitás ayuda con algo específico? ¡Preguntame sobre puntaje, equipos, transferencias o el calendario!"
         }
     ],
     
-    fallback: "🤔 I'm not sure about that one! I can help with:\n• Scoring rules\n• Squad building\n• Transfer windows\n• Tournament schedule\n• Badges\n• How to play\n\nTry asking about one of those!"
+    fallback: "🤔 ¡No estoy segura de eso! Puedo ayudarte con:\n• Reglas de puntaje\n• Armar tu equipo\n• Ventanas de transferencia\n• Calendario del Apertura\n• Insignias\n• Cómo jugar\n\n¡Probá preguntando sobre alguno de esos temas!"
 };
 
 const QUICK_REPLIES = [
-    "How does scoring work?",
-    "Build my squad",
-    "Tournament schedule",
-    "What are badges?",
-    "Transfer rules",
-    "How to play"
+    "¿Cómo se puntúa?",
+    "Armar mi equipo",
+    "Calendario del Apertura",
+    "¿Qué son las insignias?",
+    "Reglas de transferencia",
+    "¿Cómo se juega?"
 ];
 
 function getAlbaResponse(userMessage) {
@@ -201,7 +201,7 @@ export default function AlbaChat() {
                 <AlbaAvatar />
                 <div>
                     <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white' }}>Alba 🤖</div>
-                    <div className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>Your UnityCup Assistant</div>
+                    <div className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>Tu asistente del Liga AFA Test</div>
                 </div>
             </div>
 
