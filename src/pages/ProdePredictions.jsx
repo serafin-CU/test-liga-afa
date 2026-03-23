@@ -58,7 +58,10 @@ function ScoreStepper({ value, onChange, disabled }) {
     return (
         <div className="flex items-center" style={{ opacity: disabled ? 0.4 : 1 }}>
             <button onClick={decrement} disabled={disabled || numVal === null || numVal <= 0}
-                className="w-8 h-10 flex items-center justify-center rounded-l-lg text-lg font-bold"
+                className="flex items-center justify-center rounded-l-lg text-lg font-bold"
+                style={{ width: '44px', height: '44px', flexShrink: 0, ...(disabled ? { background: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed' } : { background: CU.charcoal, color: 'white', cursor: 'pointer' }) }}
+                onMouseDown={e => e.preventDefault()}
+                {...{ style: { width: '44px', height: '44px', flexShrink: 0, background: (disabled || numVal === null || numVal <= 0) ? '#e5e7eb' : CU.charcoal, color: (disabled || numVal === null || numVal <= 0) ? '#9ca3af' : 'white', cursor: (disabled || numVal === null || numVal <= 0) ? 'not-allowed' : 'pointer' } }}
                 style={{ background: disabled ? '#e5e7eb' : CU.charcoal, color: 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>−</button>
             {editing ? (
                 <input
@@ -299,7 +302,7 @@ export default function ProdePredictions() {
 
     return (
         <>
-            <div className="max-w-3xl mx-auto p-4 sm:p-6 pb-32" style={{ fontFamily: "'Raleway', sans-serif" }}>
+            <div className="max-w-3xl mx-auto p-3 sm:p-6 pb-44" style={{ fontFamily: "'Raleway', sans-serif" }}>
                 <WorldCupBanner compact />
 
                 <div className="mb-6">
@@ -307,7 +310,7 @@ export default function ProdePredictions() {
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: CU.orange }}>
                             <span className="text-xl">⚽</span>
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
                             Prode
                         </h1>
                     </div>
@@ -377,10 +380,10 @@ export default function ProdePredictions() {
 
             {unsavedChanges > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-4 pt-3">
+                    <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 12px)' }}>
                         <button onClick={handleSaveAll} disabled={saving}
-                            className="w-full h-14 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg"
-                            style={{ background: saving ? '#9ca3af' : CU.magenta, fontFamily: "'Raleway', sans-serif", cursor: saving ? 'not-allowed' : 'pointer' }}>
+                            className="w-full rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg"
+                            style={{ background: saving ? '#9ca3af' : CU.magenta, fontFamily: "'Raleway', sans-serif", cursor: saving ? 'not-allowed' : 'pointer', minHeight: '52px', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                             {saving ? 'Guardando...' : `Guardar ${unsavedChanges} pronóstico${unsavedChanges > 1 ? 's' : ''}`}
                         </button>
