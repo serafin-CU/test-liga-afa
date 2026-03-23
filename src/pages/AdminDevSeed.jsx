@@ -130,30 +130,31 @@ export default function AdminDevSeed() {
         setResetting(false);
     };
 
-    const deleteAllLigaData = async () => {
-        if (!confirm('Delete ALL teams, players and matches? Run this before re-seeding.')) return;
-        setLigaDeleting(true);
-        setLigaDeleteSummary(null);
-        try {
-            const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'delete_all_data' });
-            setLigaDeleteSummary({ success: response.data.success, message: response.data.message, counts: response.data.deleted });
-        } catch (error) {
-            setLigaDeleteSummary({ success: false, message: 'Delete failed: ' + (error.response?.data?.error || error.message) });
-        }
-        setLigaDeleting(false);
-    };
-
     const seedLigaAfa = async () => {
-        if (!confirm('Create 30 Liga AFA teams, 420+ players, and 30 matches? (Run Delete All first if re-seeding.)')) return;
-        setLigaSeeding(true);
+        if (!confirm('This will wipe all existing teams/players/matches and re-seed Liga AFA data. Continue?')) return;
+        setLigaStep('wiping');
+        setLigaProgress('Paso 1/2: Borrando datos existentes...');
         setLigaSummary(null);
         try {
-            const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
-            setLigaSummary({ success: response.data.success, message: response.data.message, counts: response.data.summary });
+            const wipeRes = await base44.functions.invoke('ligaAfaSeedService', { action: 'wipe_data' });
+            const deleted = wipeRes.data.deleted;
+
+            setLigaStep('seeding');
+            setLigaProgress('Paso 2/2: Creando equipos, jugadores y partidos...');
+
+            const seedRes = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
+            setLigaStep('done');
+            setLigaProgress('');
+            setLigaSummary({
+                success: true,
+                deleted,
+                counts: seedRes.data.summary,
+            });
         } catch (error) {
-            setLigaSummary({ success: false, message: 'Seed failed: ' + (error.response?.data?.error || error.message) });
+            setLigaStep('error');
+            setLigaProgress('');
+            setLigaSummary({ success: false, message: (error.response?.data?.error || error.message) });
         }
-        setLigaSeeding(false);
     };
 
     const seedPromiedos = async () => {
