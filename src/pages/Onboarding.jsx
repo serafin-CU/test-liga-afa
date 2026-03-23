@@ -38,7 +38,7 @@ function Step1({ displayName, setDisplayName, onNext, onSkip }) {
     return (
         <div className="max-w-md w-full">
             <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
-                Welcome to UnityCup 🏆
+                Bienvenido a Liga AFA Test ⚽
             </h1>
             <p className="text-white/60 mb-8" style={{ fontFamily: "'Raleway', sans-serif" }}>
                 This is how you'll appear on the leaderboard
@@ -133,10 +133,10 @@ function Step3({ preferredTeamId, setPreferredTeamId, onNext, onSkip }) {
     return (
         <div className="max-w-2xl w-full max-h-[600px] flex flex-col">
             <h1 className="text-4xl font-bold text-white mb-2 text-center" style={{ fontFamily: "'DM Serif Display', serif" }}>
-                Who are you cheering for? 🌍
+                ¿De qué equipo sos? 🇦🇷
             </h1>
             <p className="text-white/60 text-center mb-6" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                Just for bragging rights — doesn't affect your Fantasy squad
+                Solo para el honor — no afecta tu equipo Fantasy
             </p>
             
             <div className="mb-6 flex gap-2">
