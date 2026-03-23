@@ -13,9 +13,8 @@ export default function AdminDevSeed() {
     const [summary, setSummary] = useState(null);
 
     // Liga AFA Seed state
-    const [ligaDeleting, setLigaDeleting] = useState(false);
-    const [ligaDeleteSummary, setLigaDeleteSummary] = useState(null);
-    const [ligaSeeding, setLigaSeeding] = useState(false);
+    const [ligaStep, setLigaStep] = useState(null); // null | 'wiping' | 'seeding' | 'done' | 'error'
+    const [ligaProgress, setLigaProgress] = useState('');
     const [ligaSummary, setLigaSummary] = useState(null);
     const [seedingPromiedos, setSeedingPromiedos] = useState(false);
     const [promiedosSummary, setPromiedosSummary] = useState(null);
