@@ -520,7 +520,7 @@ const PLAYERS_BY_CODE = {
         ['Sánchez, Ulises', 'MID', 8],
         ['Álvarez, Juan Pablo', 'MID', 5],
         ['Linares, Nicolás', 'MID', 5],
-        ['O'Connor, Tomás', 'MID', 4],
+        ["O'Connor, Tomás", 'MID', 4],
         ['Lencioni, Facundo', 'MID', 4],
         ['Rodríguez, Santiago', 'FWD', 5],
         ['Armoa, Blas', 'FWD', 4],
