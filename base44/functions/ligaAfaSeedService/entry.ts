@@ -637,9 +637,9 @@ Deno.serve(async (req) => {
         const body = await req.json();
         const { action } = body;
 
-        // ── ACTION: delete_all_data ──
+        // ── ACTION: wipe_data ──
         // Deletes teams, players, matches in fast parallel chunks. Run this first.
-        if (action === 'delete_all_data') {
+        if (action === 'wipe_data') {
             console.log('Fetching existing data counts...');
             const [existingTeams, existingPlayers, existingMatches] = await Promise.all([
                 base44.asServiceRole.entities.Team.list(),
@@ -759,7 +759,7 @@ Deno.serve(async (req) => {
             });
         }
 
-        return Response.json({ error: 'Invalid action. Use delete_all_data or seed_teams_and_matches' }, { status: 400 });
+        return Response.json({ error: 'Invalid action. Use wipe_data or seed_teams_and_matches' }, { status: 400 });
 
     } catch (error) {
         console.error('ligaAfaSeedService error:', error);
