@@ -129,9 +129,85 @@ export default function AdminDevSeed() {
         setResetting(false);
     };
 
+    const seedLigaAfa = async () => {
+        if (!confirm('This will delete all existing teams, players and matches, and create 30 Liga AFA teams with 420 players and 30 matches. Continue?')) return;
+        setLigaSeeding(true);
+        setLigaSummary(null);
+        try {
+            const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
+            setLigaSummary({ success: response.data.success, message: response.data.message, counts: response.data.counts });
+        } catch (error) {
+            setLigaSummary({ success: false, message: 'Seed failed: ' + error.message });
+        }
+        setLigaSeeding(false);
+    };
+
+    const seedPromiedos = async () => {
+        setSeedingPromiedos(true);
+        setPromiedosSummary(null);
+        try {
+            await base44.entities.DataSource.create({
+                name: 'Promiedos',
+                base_url: 'https://www.promiedos.com.ar',
+                allowed_paths_regex: '.*',
+                enabled: true,
+                notes: 'Primary source for Liga AFA live match data. source_type: PROMIEDOS, priority: PRIMARY'
+            });
+            setPromiedosSummary({ success: true, message: 'Promiedos DataSource created successfully.' });
+        } catch (error) {
+            setPromiedosSummary({ success: false, message: 'Failed: ' + error.message });
+        }
+        setSeedingPromiedos(false);
+    };
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Dev Seed Data</h1>
+
+            {/* Liga AFA Setup */}
+            <Card className="mb-6 border-blue-200 bg-blue-50">
+                <CardHeader>
+                    <CardTitle className="text-blue-800 flex items-center gap-2">
+                        <Shield className="w-5 h-5" />
+                        Liga AFA Setup
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <Button onClick={seedLigaAfa} disabled={ligaSeeding} className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white">
+                            {ligaSeeding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Seeding Liga AFA...</> : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
+                        </Button>
+                        <p className="text-sm text-blue-700 mt-1">Creates 30 teams, 420 players, and 30 matches for Torneo Apertura 2026.</p>
+                        {ligaSummary && (
+                            <div className={`mt-3 p-3 rounded text-sm flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {ligaSummary.success ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                                <div>
+                                    <div className="font-semibold">{ligaSummary.message}</div>
+                                    {ligaSummary.counts && (
+                                        <div className="mt-1 space-y-0.5">
+                                            {ligaSummary.counts.teams_created !== undefined && <div>• Teams: {ligaSummary.counts.teams_created}</div>}
+                                            {ligaSummary.counts.players_created !== undefined && <div>• Players: {ligaSummary.counts.players_created}</div>}
+                                            {ligaSummary.counts.matches_created !== undefined && <div>• Matches: {ligaSummary.counts.matches_created}</div>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <Button onClick={seedPromiedos} disabled={seedingPromiedos} variant="outline" className="w-full sm:w-auto border-blue-400 text-blue-800 hover:bg-blue-100">
+                            {seedingPromiedos ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : <><Database className="w-4 h-4 mr-2" />Seed Promiedos Data Source</>}
+                        </Button>
+                        <p className="text-sm text-blue-700 mt-1">Creates a Promiedos DataSource record for live match ingestion.</p>
+                        {promiedosSummary && (
+                            <div className={`mt-3 p-3 rounded text-sm flex items-center gap-2 ${promiedosSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {promiedosSummary.success ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                                {promiedosSummary.message}
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card className="mb-6 border-red-200 bg-red-50">
                 <CardHeader>
