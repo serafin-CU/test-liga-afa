@@ -188,14 +188,33 @@ export default function AdminDevSeed() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div>
-                        <Button onClick={seedLigaAfa} disabled={ligaSeeding} className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white">
-                            {ligaSeeding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Seeding Liga AFA...</> : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
+                    {/* Step 1: Delete */}
+                    <div className="border border-blue-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Paso 1 — Borrar datos existentes</p>
+                        <Button onClick={deleteAllLigaData} disabled={ligaDeleting} variant="outline" className="w-full sm:w-auto border-red-400 text-red-700 hover:bg-red-50">
+                            {ligaDeleting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Borrando...</> : <><Trash2 className="w-4 h-4 mr-2" />Delete All Teams / Players / Matches</>}
                         </Button>
-                        <p className="text-sm text-blue-700 mt-1">Creates 30 teams, 420 players, and 30 matches for Torneo Apertura 2026.</p>
+                        <p className="text-xs text-blue-700">Borra todos los equipos, jugadores y partidos. Chunk 50, sin delay.</p>
+                        {ligaDeleteSummary && (
+                            <div className={`p-2 rounded text-xs flex items-start gap-2 ${ligaDeleteSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {ligaDeleteSummary.success ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />}
+                                <div>
+                                    <div className="font-semibold">{ligaDeleteSummary.message}</div>
+                                    {ligaDeleteSummary.counts && <div>Teams: {ligaDeleteSummary.counts.teams} · Players: {ligaDeleteSummary.counts.players} · Matches: {ligaDeleteSummary.counts.matches}</div>}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Step 2: Seed */}
+                    <div className="border border-blue-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Paso 2 — Crear datos Liga AFA</p>
+                        <Button onClick={seedLigaAfa} disabled={ligaSeeding} className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white">
+                            {ligaSeeding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Seeding...</> : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
+                        </Button>
+                        <p className="text-xs text-blue-700">Crea 30 equipos, 420+ jugadores y 30 partidos. Chunk 200 para jugadores.</p>
                         {ligaSummary && (
-                            <div className={`mt-3 p-3 rounded text-sm flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {ligaSummary.success ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                            <div className={`p-2 rounded text-xs flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {ligaSummary.success ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />}
                                 <div>
                                     <div className="font-semibold">{ligaSummary.message}</div>
                                     {ligaSummary.counts && (
