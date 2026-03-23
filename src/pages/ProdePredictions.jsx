@@ -34,7 +34,7 @@ function getMatchdayLabel(match) {
 function ScoreStepper({ value, onChange, disabled }) {
     const [editing, setEditing] = useState(false);
     const [inputVal, setInputVal] = useState('');
-    const inputRef = React.useRef(null);
+    const inputRef = useRef(null);
 
     const numVal = value === '' || value === null || value === undefined ? null : Number(value);
 
