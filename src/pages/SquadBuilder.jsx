@@ -1,173 +1,275 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import WorldCupBanner from '@/components/WorldCupBanner';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Plus, X, Shield, Users, Loader2, Check, AlertCircle, ChevronDown, Star, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Plus, X, Check, Loader2, Star, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CU = {
     orange: '#FFB81C', charcoal: '#2C2B2B', magenta: '#AA0061',
     blue: '#475CC7', green: '#218848', orangeRed: '#F96F15',
-    pink: '#DB1984', sage: '#B8CDC2', sand: '#C7B273',
 };
 
-const POS_STYLE = {
-    GK:  { bg: CU.blue + '18', color: CU.blue, label: 'GK' },
-    DEF: { bg: CU.green + '18', color: CU.green, label: 'DEF' },
-    MID: { bg: CU.orange + '20', color: '#9a6e00', label: 'MID' },
-    FWD: { bg: CU.magenta + '18', color: CU.magenta, label: 'FWD' },
+const POS_MAP = {
+    GK:  { label: 'ARQ', color: '#3b82f6', bg: '#dbeafe' },
+    DEF: { label: 'DEF', color: '#16a34a', bg: '#dcfce7' },
+    MID: { label: 'VOL', color: '#ca8a04', bg: '#fef9c3' },
+    FWD: { label: 'DEL', color: '#dc2626', bg: '#fecaca' },
 };
 
 const FORMATION = { GK: 1, DEF: 4, MID: 3, FWD: 3 };
-const BENCH_SIZE = 3;
+const BENCH_SIZE = 4; // 1 ARQ + 1 DEF + 1 VOL + 1 DEL
 const BUDGET_CAP = 150;
 const TOTAL_STARTERS = 11;
 
-const PHASE_OPTIONS = [
-    { value: 'APERTURA_ZONE', label: 'Apertura — Fase de Zonas' },
-    { value: 'APERTURA_R16', label: 'Apertura — Octavos de Final' },
-    { value: 'APERTURA_QF', label: 'Apertura — Cuartos de Final' },
-    { value: 'APERTURA_SF', label: 'Apertura — Semifinales' },
-    { value: 'APERTURA_FINAL', label: 'Apertura — Final' },
-];
-
-/* ── Slot component (empty or filled) ── */
-function FormationSlot({ position, player, team, isCaptain, onRemove, onSetCaptain, disabled }) {
-    const ps = POS_STYLE[position];
+/* ═══════════════════════════════════════════════════
+   PITCH SLOT — a positioned card on the pitch
+   ═══════════════════════════════════════════════════ */
+function PitchSlot({ position, player, team, isCaptain, onClick, onRemove, onSetCaptain, style }) {
+    const pm = POS_MAP[position];
+    
     if (!player) {
         return (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed"
-                 style={{ borderColor: ps.color + '40', background: ps.bg, minHeight: 48 }}>
-                <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: ps.color + '20', color: ps.color, fontFamily: "'Raleway', sans-serif" }}>{ps.label}</span>
-                <span className="text-sm" style={{ color: ps.color + '80', fontFamily: "'Raleway', sans-serif" }}>
-                    Select {position}
+            <div onClick={onClick} className="absolute flex flex-col items-center cursor-pointer group" style={style}>
+                <div className="w-12 h-14 sm:w-14 sm:h-16 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all group-hover:scale-110"
+                     style={{ borderColor: pm.color + '60', background: 'rgba(255,255,255,0.15)' }}>
+                    <Plus className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.6)' }} />
+                </div>
+                <span className="text-xs mt-0.5 font-bold" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: "'Raleway', sans-serif", fontSize: '10px' }}>
+                    {pm.label}
                 </span>
             </div>
         );
     }
 
+    const lastName = player.full_name?.split(',')[0] || player.full_name?.split(' ').pop() || '?';
+    const shortName = lastName.length > 10 ? lastName.substring(0, 9) + '.' : lastName;
+
     return (
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border"
-             style={{ borderColor: isCaptain ? CU.orange : '#e5e7eb', background: isCaptain ? CU.orange + '08' : 'white' }}>
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{ background: ps.bg, color: ps.color, fontFamily: "'Raleway', sans-serif" }}>{ps.label}</span>
-            {isCaptain && (
-                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: CU.orange, color: 'white' }}>C</span>
-            )}
-            <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>
-                    {player.full_name}
-                </div>
-                <div className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
-                    {team?.name || '—'} · ${player.price}M
-                </div>
+        <div className="absolute flex flex-col items-center group" style={style}>
+            {/* Shirt / card */}
+            <div className="relative w-12 h-14 sm:w-14 sm:h-16 rounded-lg flex flex-col items-center justify-center shadow-md transition-all group-hover:scale-105"
+                 style={{ background: isCaptain ? CU.orange : 'white', color: isCaptain ? 'white' : CU.charcoal }}>
+                {/* Captain badge */}
+                {isCaptain && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-xs font-black"
+                         style={{ background: CU.magenta, color: 'white', fontSize: '9px' }}>C</div>
+                )}
+                {/* Remove button */}
+                <button onClick={(e) => { e.stopPropagation(); onRemove(player.id); }}
+                    className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: '#ef4444', color: 'white', fontSize: '8px' }}>
+                    <X className="w-2.5 h-2.5" />
+                </button>
+                {/* Captain star */}
+                {!isCaptain && (
+                    <button onClick={(e) => { e.stopPropagation(); onSetCaptain(player.id); }}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ background: CU.orange, color: 'white' }}>
+                        <Star className="w-2.5 h-2.5" />
+                    </button>
+                )}
+                {/* Position badge */}
+                <span className="text-xs font-bold rounded px-1" style={{ 
+                    background: pm.bg, color: pm.color, fontSize: '9px', fontFamily: "'Raleway', sans-serif"
+                }}>{pm.label}</span>
+                {/* Price */}
+                <span className="text-xs font-bold mt-0.5" style={{ fontSize: '11px', fontFamily: "'DM Serif Display', serif" }}>
+                    ${player.price}M
+                </span>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-                {!isCaptain && !disabled && (
-                    <button onClick={() => onSetCaptain(player.id)} className="p-1 rounded hover:bg-gray-100" title="Set Captain">
-                        <Star className="w-4 h-4" style={{ color: '#d1d5db' }} />
-                    </button>
-                )}
-                {!disabled && (
-                    <button onClick={() => onRemove(player.id)} className="p-1 rounded hover:bg-red-50" title="Remove">
-                        <X className="w-4 h-4" style={{ color: '#ef4444' }} />
-                    </button>
-                )}
+            {/* Name label */}
+            <span className="text-xs font-semibold mt-0.5 px-1 rounded text-center leading-tight"
+                  style={{ color: 'white', fontFamily: "'Raleway', sans-serif", fontSize: '10px', textShadow: '0 1px 3px rgba(0,0,0,0.8)', maxWidth: '70px' }}>
+                {shortName}
+            </span>
+            {/* Team */}
+            <span className="text-center leading-tight" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', fontFamily: "'Raleway', sans-serif" }}>
+                {team?.fifa_code || ''}
+            </span>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════════
+   PITCH LAYOUT — the green field with positioned slots
+   Formation: 4-3-3
+   ═══════════════════════════════════════════════════ */
+function PitchLayout({ starters, benchPlayers, captainId, playersMap, teamsMap, onClickSlot, onRemove, onSetCaptain }) {
+    // Slot positions on the pitch (percentage-based for responsive)
+    // Each slot: { pos, idx, top%, left% }
+    const SLOTS = [
+        // GK
+        { pos: 'GK', idx: 0, top: '82%', left: '50%' },
+        // DEF (4)
+        { pos: 'DEF', idx: 0, top: '64%', left: '12%' },
+        { pos: 'DEF', idx: 1, top: '64%', left: '35%' },
+        { pos: 'DEF', idx: 2, top: '64%', left: '65%' },
+        { pos: 'DEF', idx: 3, top: '64%', left: '88%' },
+        // MID (3)
+        { pos: 'MID', idx: 0, top: '42%', left: '20%' },
+        { pos: 'MID', idx: 1, top: '38%', left: '50%' },
+        { pos: 'MID', idx: 2, top: '42%', left: '80%' },
+        // FWD (3)
+        { pos: 'FWD', idx: 0, top: '16%', left: '20%' },
+        { pos: 'FWD', idx: 1, top: '12%', left: '50%' },
+        { pos: 'FWD', idx: 2, top: '16%', left: '80%' },
+    ];
+
+    // Map starters by position
+    const startersByPos = { GK: [], DEF: [], MID: [], FWD: [] };
+    for (const s of starters) {
+        const pos = playersMap[s.player_id]?.position || s.position;
+        startersByPos[pos]?.push(s);
+    }
+
+    return (
+        <div className="relative w-full rounded-2xl overflow-hidden" style={{ paddingBottom: '130%', background: 'linear-gradient(180deg, #1a6b30 0%, #1e7a38 30%, #22863e 50%, #1e7a38 70%, #1a6b30 100%)' }}>
+            {/* Pitch lines */}
+            <div className="absolute inset-0">
+                {/* Border */}
+                <div className="absolute" style={{ top: '3%', left: '4%', right: '4%', bottom: '3%', border: '2px solid rgba(255,255,255,0.25)', borderRadius: '4px' }} />
+                {/* Center line */}
+                <div className="absolute" style={{ top: '50%', left: '4%', right: '4%', height: '2px', background: 'rgba(255,255,255,0.2)' }} />
+                {/* Center circle */}
+                <div className="absolute" style={{ top: '50%', left: '50%', width: '18%', height: '14%', transform: 'translate(-50%, -50%)', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '50%' }} />
+                {/* Penalty area top */}
+                <div className="absolute" style={{ top: '3%', left: '22%', right: '22%', height: '14%', borderBottom: '2px solid rgba(255,255,255,0.2)', borderLeft: '2px solid rgba(255,255,255,0.2)', borderRight: '2px solid rgba(255,255,255,0.2)' }} />
+                {/* Penalty area bottom */}
+                <div className="absolute" style={{ bottom: '3%', left: '22%', right: '22%', height: '14%', borderTop: '2px solid rgba(255,255,255,0.2)', borderLeft: '2px solid rgba(255,255,255,0.2)', borderRight: '2px solid rgba(255,255,255,0.2)' }} />
+                {/* Goal area top */}
+                <div className="absolute" style={{ top: '3%', left: '35%', right: '35%', height: '6%', borderBottom: '2px solid rgba(255,255,255,0.15)', borderLeft: '2px solid rgba(255,255,255,0.15)', borderRight: '2px solid rgba(255,255,255,0.15)' }} />
+                {/* Goal area bottom */}
+                <div className="absolute" style={{ bottom: '3%', left: '35%', right: '35%', height: '6%', borderTop: '2px solid rgba(255,255,255,0.15)', borderLeft: '2px solid rgba(255,255,255,0.15)', borderRight: '2px solid rgba(255,255,255,0.15)' }} />
+            </div>
+
+            {/* Formation label */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full"
+                 style={{ background: 'rgba(0,0,0,0.4)', color: 'white', fontSize: '11px', fontFamily: "'Raleway', sans-serif", fontWeight: 700 }}>
+                4-3-3
+            </div>
+
+            {/* Player slots */}
+            {SLOTS.map((slot, i) => {
+                const posStarters = startersByPos[slot.pos];
+                const starter = posStarters[slot.idx];
+                const player = starter ? playersMap[starter.player_id] : null;
+                const team = player ? teamsMap[player.team_id] : null;
+
+                return (
+                    <PitchSlot
+                        key={i}
+                        position={slot.pos}
+                        player={player}
+                        team={team}
+                        isCaptain={player && captainId === player.id}
+                        onClick={() => onClickSlot(slot.pos)}
+                        onRemove={onRemove}
+                        onSetCaptain={onSetCaptain}
+                        style={{ top: slot.top, left: slot.left, transform: 'translate(-50%, -50%)' }}
+                    />
+                );
+            })}
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════════
+   BENCH — horizontal row below pitch
+   ═══════════════════════════════════════════════════ */
+function BenchRow({ benchPlayers, playersMap, teamsMap, onRemove }) {
+    const slots = ['ARQ', 'DEF', 'VOL', 'DEL'];
+    return (
+        <div className="mt-3">
+            <div className="text-xs font-bold mb-2 text-center" style={{ color: '#6b7280', fontFamily: "'Raleway', sans-serif", letterSpacing: '0.05em' }}>
+                SUPLENTES ({benchPlayers.length}/{BENCH_SIZE})
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+                {[0, 1, 2, 3].map(i => {
+                    const pid = benchPlayers[i];
+                    const player = pid ? playersMap[pid] : null;
+                    const team = player ? teamsMap[player.team_id] : null;
+                    const pm = player ? POS_MAP[player.position] : null;
+
+                    if (!player) {
+                        return (
+                            <div key={i} className="flex flex-col items-center py-2 rounded-lg border-2 border-dashed"
+                                 style={{ borderColor: '#d1d5db40', background: '#f9fafb' }}>
+                                <span className="text-xs" style={{ color: '#d1d5db', fontFamily: "'Raleway', sans-serif" }}>{slots[i]}</span>
+                            </div>
+                        );
+                    }
+
+                    const lastName = player.full_name?.split(',')[0] || player.full_name?.split(' ').pop() || '?';
+                    return (
+                        <div key={i} className="relative flex flex-col items-center py-1.5 rounded-lg group"
+                             style={{ background: 'white', border: '1px solid #e5e7eb' }}>
+                            <button onClick={() => onRemove(pid)}
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                style={{ background: '#ef4444', color: 'white' }}>
+                                <X className="w-2.5 h-2.5" />
+                            </button>
+                            <span className="text-xs font-bold px-1 rounded" style={{ background: pm?.bg, color: pm?.color, fontSize: '9px' }}>{pm?.label}</span>
+                            <span className="text-xs font-semibold truncate w-full text-center px-1" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal, fontSize: '10px' }}>
+                                {lastName.length > 8 ? lastName.substring(0, 7) + '.' : lastName}
+                            </span>
+                            <span className="text-xs" style={{ color: '#9ca3af', fontSize: '9px' }}>${player.price}M</span>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
 }
 
-/* ── Player pool row ── */
+/* ═══════════════════════════════════════════════════
+   PLAYER POOL — right panel list
+   ═══════════════════════════════════════════════════ */
 function PoolPlayer({ player, team, onAdd, disabled, alreadyIn, cantAfford }) {
-    const ps = POS_STYLE[player.position];
+    const pm = POS_MAP[player.position];
     const isDisabled = disabled || alreadyIn || cantAfford;
+    const lastName = player.full_name?.split(',')[0] || player.full_name;
 
     return (
         <div className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors"
              style={{ borderBottom: '1px solid #f3f4f6', opacity: isDisabled ? 0.4 : 1 }}>
-            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{ background: ps.bg, color: ps.color, fontFamily: "'Raleway', sans-serif" }}>{ps.label}</span>
+            <span className="w-6 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ background: pm.bg, color: pm.color, fontSize: '9px', fontFamily: "'Raleway', sans-serif" }}>{pm.label}</span>
             <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>
-                    {player.full_name}
-                </div>
-                <div className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
-                    {team?.name || '—'}
-                </div>
+                <div className="text-sm font-medium truncate" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>{lastName}</div>
+                <div className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>{team?.name || ''}</div>
             </div>
-            <span className="text-sm font-semibold shrink-0" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>
-                ${player.price}M
-            </span>
-            <button
-                onClick={() => onAdd(player)}
-                disabled={isDisabled}
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
-                style={{
-                    background: alreadyIn ? CU.green + '15' : isDisabled ? '#f3f4f6' : CU.magenta,
-                    color: alreadyIn ? CU.green : isDisabled ? '#d1d5db' : 'white',
-                    cursor: isDisabled ? 'default' : 'pointer'
-                }}
-            >
-                {alreadyIn ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span className="text-xs font-bold shrink-0" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>${player.price}M</span>
+            <button onClick={() => onAdd(player)} disabled={isDisabled}
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: alreadyIn ? CU.green + '15' : isDisabled ? '#f3f4f6' : CU.magenta, color: alreadyIn ? CU.green : isDisabled ? '#d1d5db' : 'white', cursor: isDisabled ? 'default' : 'pointer' }}>
+                {alreadyIn ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
             </button>
         </div>
     );
 }
 
-/* ── Countdown hook ── */
-function useCountdownText(isoTime) {
-    const [text, setText] = useState('');
-    useEffect(() => {
-        if (!isoTime) return;
-        const update = () => {
-            const diff = new Date(isoTime) - new Date();
-            if (diff <= 0) { setText('now'); return; }
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-            const mins = Math.floor((diff / (1000 * 60)) % 60);
-            if (days > 0) setText(`${days}d ${hours}h`);
-            else if (hours > 0) setText(`${hours}h ${mins}m`);
-            else setText(`${mins}m`);
-        };
-        update();
-        const t = setInterval(update, 60000);
-        return () => clearInterval(t);
-    }, [isoTime]);
-    return text;
-}
-
-/* ── Main Squad Builder ── */
+/* ═══════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════ */
 export default function SquadBuilder() {
     const queryClient = useQueryClient();
 
-    // State
-    const [phase, setPhase] = useState('APERTURA_ZONE');
+    const [phase] = useState('APERTURA_ZONE');
     const [starters, setStarters] = useState([]);
     const [benchPlayers, setBench] = useState([]);
     const [captainId, setCaptainId] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [posFilter, setPosFilter] = useState('ALL');
-    const [teamFilter, setTeamFilter] = useState('ALL');
     const [saving, setSaving] = useState(false);
-    const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
     const [existingSquadId, setExistingSquadId] = useState(null);
-    const [initialized, setInitialized] = useState(false);
-    // Phase lock state
-    const [phaseLock, setPhaseLock] = useState(null); // { is_locked, lock_time }
-    const [lockLoading, setLockLoading] = useState(false);
 
-    // Data queries
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
     const { data: allPlayers = [] } = useQuery({ queryKey: ['allPlayers'], queryFn: () => base44.entities.Player.list() });
     const { data: allTeams = [] } = useQuery({ queryKey: ['allTeams'], queryFn: () => base44.entities.Team.list() });
-
     const { data: existingSquads = [] } = useQuery({
         queryKey: ['userSquads', currentUser?.id],
         queryFn: () => base44.entities.FantasySquad.filter({ user_id: currentUser.id }),
@@ -177,60 +279,19 @@ export default function SquadBuilder() {
     const playersMap = useMemo(() => Object.fromEntries(allPlayers.map(p => [p.id, p])), [allPlayers]);
     const teamsMap = useMemo(() => Object.fromEntries(allTeams.map(t => [t.id, t])), [allTeams]);
 
-    // Fetch phase lock whenever phase changes
+    // Load existing squad
     useEffect(() => {
-        setLockLoading(true);
-        setPhaseLock(null);
-        base44.functions.invoke('fantasyTransferService', {
-            action: 'check_phase_lock',
-            target_phase: phase
-        }).then(res => {
-            setPhaseLock(res.data);
-        }).finally(() => setLockLoading(false));
-    }, [phase]);
-
-    // Load existing squad for selected phase
-    useEffect(() => {
-        if (initialized) return;
-        // Wait until we know the lock status and squads are loaded
-        if (lockLoading || phaseLock === null) return;
-
         const existing = existingSquads.find(s => s.phase === phase);
         if (existing) {
             setExistingSquadId(existing.id);
             base44.entities.FantasySquadPlayer.filter({ squad_id: existing.id }).then(players => {
-                const starterList = players.filter(sp => sp.slot_type === 'STARTER').map(sp => ({
-                    player_id: sp.player_id,
-                    position: playersMap[sp.player_id]?.position || sp.starter_position
-                }));
-                const benchList = players.filter(sp => sp.slot_type === 'BENCH')
-                    .sort((a, b) => (a.bench_order || 0) - (b.bench_order || 0))
-                    .map(sp => sp.player_id);
+                setStarters(players.filter(sp => sp.slot_type === 'STARTER').map(sp => ({ player_id: sp.player_id, position: playersMap[sp.player_id]?.position || sp.starter_position })));
+                setBench(players.filter(sp => sp.slot_type === 'BENCH').sort((a, b) => (a.bench_order || 0) - (b.bench_order || 0)).map(sp => sp.player_id));
                 const cap = players.find(sp => sp.is_captain);
-                setStarters(starterList);
-                setBench(benchList);
                 if (cap) setCaptainId(cap.player_id);
-                setInitialized(true);
             });
-        } else {
-            setExistingSquadId(null);
-            setStarters([]);
-            setBench([]);
-            setCaptainId(null);
-            setInitialized(true);
         }
-    }, [existingSquads, phase, playersMap, initialized, lockLoading, phaseLock]);
-
-    // Reset when phase changes
-    const handlePhaseChange = (newPhase) => {
-        setPhase(newPhase);
-        setInitialized(false);
-        setStarters([]);
-        setBench([]);
-        setCaptainId(null);
-        setExistingSquadId(null);
-        setPhaseLock(null);
-    };
+    }, [existingSquads, playersMap]);
 
     // Computed
     const squadPlayerIds = useMemo(() => {
@@ -241,8 +302,8 @@ export default function SquadBuilder() {
 
     const totalCost = useMemo(() => {
         let cost = 0;
-        for (const s of starters) { cost += playersMap[s.player_id]?.price || 0; }
-        for (const id of benchPlayers) { cost += playersMap[id]?.price || 0; }
+        for (const s of starters) cost += playersMap[s.player_id]?.price || 0;
+        for (const id of benchPlayers) cost += playersMap[id]?.price || 0;
         return cost;
     }, [starters, benchPlayers, playersMap]);
 
@@ -257,554 +318,244 @@ export default function SquadBuilder() {
         return counts;
     }, [starters, playersMap]);
 
-    const positionNeeds = useMemo(() => {
-        const needs = {};
-        for (const [pos, required] of Object.entries(FORMATION)) {
-            const have = positionCounts[pos] || 0;
-            if (have < required) needs[pos] = required - have;
-        }
-        return needs;
-    }, [positionCounts]);
-
-    const nextNeededPosition = Object.keys(positionNeeds)[0] || null;
     const startersComplete = starters.length === TOTAL_STARTERS;
     const benchComplete = benchPlayers.length === BENCH_SIZE;
     const hasCaptain = captainId !== null;
     const isSquadComplete = startersComplete && benchComplete && hasCaptain;
 
-    const existingSquadForPhase = existingSquads.find(s => s.phase === phase);
-    const hasFinalSquad = existingSquadForPhase?.status === 'FINAL';
-    const isPhaseLocked = phaseLock?.is_locked === true;
-    // View-only if locked (regardless of squad status) OR if no phase lock data yet
-    const isViewOnly = hasFinalSquad && isPhaseLocked;
-    // Allow editing a FINAL squad if phase is NOT locked
-    const isEditable = hasFinalSquad && !isPhaseLocked;
-    // For backwards compat: disable pool/slots when truly view-only
-    const isFinalized = isViewOnly;
-
-    // Smart auto-filter: show the position you need next
-    useEffect(() => {
-        if (!startersComplete && nextNeededPosition && posFilter === 'ALL') {
-            setPosFilter(nextNeededPosition);
+    // Auto-filter pool to the position you need
+    const nextNeededPos = useMemo(() => {
+        for (const [pos, req] of Object.entries(FORMATION)) {
+            if ((positionCounts[pos] || 0) < req) return pos;
         }
-        if (startersComplete && !benchComplete && posFilter !== 'ALL') {
-            setPosFilter('ALL');
-        }
-    }, [startersComplete, nextNeededPosition, benchComplete]);
+        return null;
+    }, [positionCounts]);
 
-    // Filtered player pool
+    // Player pool
     const filteredPlayers = useMemo(() => {
         let pool = allPlayers.filter(p => p.is_active !== false);
-
-        if (posFilter !== 'ALL') pool = pool.filter(p => p.position === posFilter);
-        if (teamFilter !== 'ALL') pool = pool.filter(p => p.team_id === teamFilter);
+        const activeFilter = posFilter !== 'ALL' ? posFilter : nextNeededPos;
+        if (activeFilter && !startersComplete) pool = pool.filter(p => p.position === activeFilter);
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
-            pool = pool.filter(p =>
-                p.full_name?.toLowerCase().includes(q) ||
-                teamsMap[p.team_id]?.name?.toLowerCase().includes(q) ||
-                teamsMap[p.team_id]?.fifa_code?.toLowerCase().includes(q)
-            );
+            pool = pool.filter(p => p.full_name?.toLowerCase().includes(q) || teamsMap[p.team_id]?.name?.toLowerCase().includes(q));
         }
-
         pool.sort((a, b) => (b.price || 0) - (a.price || 0));
         return pool;
-    }, [allPlayers, posFilter, teamFilter, searchQuery, teamsMap]);
+    }, [allPlayers, posFilter, searchQuery, teamsMap, nextNeededPos, startersComplete]);
 
     // Add player
     const handleAddPlayer = useCallback((player) => {
         if (squadPlayerIds.has(player.id)) return;
-        if (player.price > remainingBudget) { toast.error("Can't afford this player"); return; }
-
+        if (player.price > remainingBudget) { toast.error("Presupuesto insuficiente"); return; }
         const pos = player.position;
 
-        // Try starter first
         if (!startersComplete && (positionCounts[pos] || 0) < FORMATION[pos]) {
             setStarters(prev => [...prev, { player_id: player.id, position: pos }]);
-            // Auto-advance position filter
-            const newCounts = { ...positionCounts, [pos]: (positionCounts[pos] || 0) + 1 };
-            const nextPos = Object.entries(FORMATION).find(([p, req]) => (newCounts[p] || 0) < req);
-            if (nextPos) setPosFilter(nextPos[0]);
             return;
         }
-
-        // Try bench
         if (!benchComplete) {
             setBench(prev => [...prev, player.id]);
-            if (benchPlayers.length + 1 >= BENCH_SIZE) {
-                setPosFilter('ALL');
-            }
             return;
         }
+        toast.error('Equipo completo (11 titulares + 4 suplentes)');
+    }, [squadPlayerIds, remainingBudget, startersComplete, benchComplete, positionCounts]);
 
-        toast.error('Squad is full (11 starters + 3 bench)');
-    }, [squadPlayerIds, remainingBudget, startersComplete, benchComplete, positionCounts, benchPlayers.length]);
-
-    // Remove player
     const handleRemovePlayer = useCallback((playerId) => {
         if (captainId === playerId) setCaptainId(null);
         setStarters(prev => prev.filter(s => s.player_id !== playerId));
         setBench(prev => prev.filter(id => id !== playerId));
     }, [captainId]);
 
-    // Set captain
     const handleSetCaptain = useCallback((playerId) => {
         setCaptainId(playerId);
-        toast.success('Captain set!');
+        toast.success('¡Capitán asignado!');
     }, []);
 
-    // Finalize squad
+    const handleClickSlot = useCallback((pos) => {
+        setPosFilter(pos);
+    }, []);
+
+    // Finalize
     const handleFinalize = async () => {
         setSaving(true);
         try {
             let squadId = existingSquadId;
-
-            // Step 1: Get or create squad record
             if (!squadId) {
-                const createRes = await base44.functions.invoke('fantasyService', {
-                    action: 'create_squad',
-                    phase,
-                    budget_cap: BUDGET_CAP
-                });
-                if (createRes.data?.error) {
-                    if (createRes.data.existing_squad) {
-                        squadId = createRes.data.existing_squad.id;
-                    } else {
-                        throw new Error(createRes.data.error);
-                    }
-                } else {
-                    squadId = createRes.data.squad.id;
-                }
+                const res = await base44.functions.invoke('fantasyService', { action: 'create_squad', phase, budget_cap: BUDGET_CAP });
+                if (res.data?.error && res.data.existing_squad) squadId = res.data.existing_squad.id;
+                else squadId = res.data.squad.id;
             }
 
-            // Step 2: Clear ALL existing squad players for THIS squad only
-            const existingPlayers = await base44.entities.FantasySquadPlayer.filter({ squad_id: squadId });
-            for (const sp of existingPlayers) {
-                await base44.entities.FantasySquadPlayer.delete(sp.id);
-            }
+            const existing = await base44.entities.FantasySquadPlayer.filter({ squad_id: squadId });
+            for (const sp of existing) await base44.entities.FantasySquadPlayer.delete(sp.id);
 
-            // Step 3: Add all starters
             for (const starter of starters) {
-                await base44.functions.invoke('fantasyService', {
-                    action: 'add_player_to_squad',
-                    squad_id: squadId,
-                    player_id: starter.player_id,
-                    slot_type: 'STARTER',
-                    starter_position: starter.position
-                });
+                await base44.functions.invoke('fantasyService', { action: 'add_player_to_squad', squad_id: squadId, player_id: starter.player_id, slot_type: 'STARTER', starter_position: starter.position });
             }
-
-            // Step 4: Add bench with bench_order
             for (let i = 0; i < benchPlayers.length; i++) {
-                const spResult = await base44.functions.invoke('fantasyService', {
-                    action: 'add_player_to_squad',
-                    squad_id: squadId,
-                    player_id: benchPlayers[i],
-                    slot_type: 'BENCH'
-                });
-                if (spResult.data?.squad_player?.id) {
-                    await base44.entities.FantasySquadPlayer.update(spResult.data.squad_player.id, {
-                        bench_order: i + 1
-                    });
-                }
+                const res = await base44.functions.invoke('fantasyService', { action: 'add_player_to_squad', squad_id: squadId, player_id: benchPlayers[i], slot_type: 'BENCH' });
+                if (res.data?.squad_player?.id) await base44.entities.FantasySquadPlayer.update(res.data.squad_player.id, { bench_order: i + 1 });
             }
+            if (captainId) await base44.functions.invoke('squadCaptainService', { action: 'set_captain', squad_id: squadId, player_id: captainId });
+            await base44.functions.invoke('fantasyService', { action: 'finalize_squad', squad_id: squadId });
 
-            // Step 5: Set captain
-            if (captainId) {
-                await base44.functions.invoke('squadCaptainService', {
-                    action: 'set_captain',
-                    squad_id: squadId,
-                    player_id: captainId
-                });
-            }
-
-            // Step 6: Mark squad as FINAL (reuse existing or finalize fresh)
-            if (isEditable) {
-                // Re-finalize existing squad record with updated timestamp
-                await base44.entities.FantasySquad.update(squadId, {
-                    status: 'FINAL',
-                    finalized_at: new Date().toISOString(),
-                    total_cost: totalCost
-                });
-            } else {
-                await base44.functions.invoke('fantasyService', {
-                    action: 'finalize_squad',
-                    squad_id: squadId
-                });
-            }
-
-            setShowConfirmFinalize(false);
-            toast.success('Squad saved! ✓');
+            toast.success('¡Equipo guardado! 🎉');
             setExistingSquadId(squadId);
-            await new Promise(r => setTimeout(r, 100));
+            setShowConfirm(false);
             queryClient.invalidateQueries(['userSquads']);
-
         } catch (error) {
-            toast.error(error.message || 'Failed to save squad');
+            toast.error(error.message || 'Error al guardar');
         } finally {
             setSaving(false);
         }
     };
 
-    // Countdown to lock
-    const lockCountdown = useCountdownText(phaseLock?.lock_time);
-
-    // Loading
     if (!allPlayers.length || !allTeams.length) {
-        return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader2 className="w-8 h-8 animate-spin" style={{ color: CU.orange }} />
-            </div>
-        );
+        return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin" style={{ color: CU.orange }} /></div>;
     }
 
     return (
         <>
-            <div className="p-4 md:p-6 max-w-7xl mx-auto pb-28">
-                <WorldCupBanner compact />
-
+            <div className="max-w-6xl mx-auto p-3 sm:p-5 pb-28">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-                    <div>
-                        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>
-                            🏟️ Squad Builder
-                        </h1>
-                        <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>
-                            Armá tu equipo para el Apertura · 11 titulares + 3 suplentes · Presupuesto: ${BUDGET_CAP}M · Formación: 4-3-3
-                        </p>
-                        {/* Transfer window countdown — only show when not locked */}
-                        {phaseLock && !phaseLock.is_locked && lockCountdown && (
-                            <p className="mt-1 text-sm font-semibold" style={{ fontFamily: "'Raleway', sans-serif", color: CU.orange }}>
-                                ⏱ Transfer window closes in {lockCountdown}
-                            </p>
-                        )}
-                    </div>
-                    <Select value={phase} onValueChange={handlePhaseChange}>
-                        <SelectTrigger className="w-[220px]" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {PHASE_OPTIONS.map(p => (
-                                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="mb-4">
+                    <h1 className="text-2xl font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>⚽ Armá tu equipo</h1>
+                    <p className="text-sm mt-1" style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280' }}>
+                        11 titulares + 4 suplentes · Presupuesto: ${BUDGET_CAP}M · Formación: 4-3-3
+                    </p>
                 </div>
 
-                {/* Status banners */}
-                {lockLoading && (
-                    <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-                        <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#9ca3af' }} />
-                        <span style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af', fontSize: '0.875rem' }}>Checking transfer window...</span>
-                    </div>
-                )}
-                {/* Locked view-only banner */}
-                {isViewOnly && (
-                    <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl"
-                         style={{ background: '#1f2937' + '0a', border: `1px solid #374151` + '40' }}>
-                        <Lock className="w-5 h-5 shrink-0" style={{ color: '#374151' }} />
-                        <span style={{ fontFamily: "'Raleway', sans-serif", color: '#374151', fontWeight: 600 }}>
-                            🔒 Squad locked since {phaseLock?.lock_time ? new Date(phaseLock.lock_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}. Changes are no longer allowed for this phase.
-                        </span>
-                    </div>
-                )}
-                {/* Editable FINAL squad banner */}
-                {isEditable && (
-                    <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl"
-                         style={{ background: CU.orange + '10', border: `1px solid ${CU.orange}30` }}>
-                        <AlertCircle className="w-5 h-5 shrink-0" style={{ color: CU.orange }} />
-                        <span style={{ fontFamily: "'Raleway', sans-serif", color: '#9a6e00', fontWeight: 600 }}>
-                            You can edit your squad until {phaseLock?.lock_time ? new Date(phaseLock.lock_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                        </span>
-                    </div>
-                )}
-
-                {/* Budget + Formation status bar */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                    {/* Budget */}
-                    <div className="rounded-xl p-3" style={{ background: 'white', border: '1px solid #e5e7eb', borderTop: `3px solid ${remainingBudget < 10 ? CU.orangeRed : CU.orange}` }}>
-                        <div className="text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280' }}>Budget</div>
-                        <div className="text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
-                            ${totalCost}M <span className="text-sm font-normal" style={{ color: '#9ca3af' }}>/ ${BUDGET_CAP}M</span>
+                {/* Budget bar */}
+                <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
+                    <div className="flex-1">
+                        <div className="flex justify-between text-sm mb-1">
+                            <span style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 600, color: CU.charcoal }}>Presupuesto</span>
+                            <span style={{ fontFamily: "'DM Serif Display', serif", color: remainingBudget < 10 ? CU.orangeRed : CU.charcoal }}>${totalCost}M / ${BUDGET_CAP}M</span>
                         </div>
-                        <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{
-                                width: `${Math.min(100, (totalCost / BUDGET_CAP) * 100)}%`,
-                                background: totalCost > BUDGET_CAP ? '#ef4444' : totalCost > BUDGET_CAP * 0.85 ? CU.orangeRed : CU.orange
-                            }} />
+                        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (totalCost / BUDGET_CAP) * 100)}%`, background: totalCost > BUDGET_CAP ? '#ef4444' : CU.orange }} />
                         </div>
                     </div>
-
-                    {/* Formation slots */}
-                    {Object.entries(FORMATION).map(([pos, required]) => {
-                        const have = positionCounts[pos] || 0;
-                        const ps = POS_STYLE[pos];
-                        const complete = have >= required;
-                        return (
-                            <div key={pos} className="rounded-xl p-3" style={{
-                                background: 'white', border: '1px solid #e5e7eb',
-                                borderTop: `3px solid ${complete ? CU.green : ps.color}`
-                            }}>
-                                <div className="text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280' }}>{pos}</div>
-                                <div className="text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: complete ? CU.green : CU.charcoal }}>
-                                    {have}/{required} {complete && <Check className="inline w-4 h-4" />}
-                                </div>
-                            </div>
-                        );
-                    })}
+                    <div className="text-center px-3" style={{ borderLeft: '1px solid #e5e7eb' }}>
+                        <div className="text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.green }}>{starters.length + benchPlayers.length}</div>
+                        <div className="text-xs" style={{ color: '#9ca3af' }}>/{TOTAL_STARTERS + BENCH_SIZE}</div>
+                    </div>
                 </div>
 
-                {/* Two panel layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                    {/* LEFT: My Squad */}
-                    <div className="space-y-4">
-                        {/* Starters */}
-                        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
-                            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                <span className="font-semibold flex items-center gap-2" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
-                                    <Users className="w-4 h-4" style={{ color: CU.blue }} /> Starting XI
-                                </span>
-                                <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: startersComplete ? CU.green : '#9ca3af' }}>
-                                    {starters.length}/{TOTAL_STARTERS}
-                                </span>
-                            </div>
-                            <div className="p-3 space-y-2">
-                                {/* Render by position group */}
-                                {['GK', 'DEF', 'MID', 'FWD'].map(pos => {
-                                    const posStarters = starters.filter(s => (playersMap[s.player_id]?.position || s.position) === pos);
-                                    const slots = [];
-                                    for (let i = 0; i < FORMATION[pos]; i++) {
-                                        const starter = posStarters[i];
-                                        const player = starter ? playersMap[starter.player_id] : null;
-                                        const team = player ? teamsMap[player.team_id] : null;
-                                        slots.push(
-                                            <FormationSlot
-                                                key={`${pos}-${i}`}
-                                                position={pos}
-                                                player={player}
-                                                team={team}
-                                                isCaptain={player && captainId === player.id}
-                                                onRemove={handleRemovePlayer}
-                                                onSetCaptain={handleSetCaptain}
-                                                disabled={isFinalized}
-                                            />
-                                        );
-                                    }
-                                    return <div key={pos} className="space-y-1.5">{slots}</div>;
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Bench */}
-                        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
-                            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                                <span className="font-semibold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
-                                    Bench
-                                </span>
-                                <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: benchComplete ? CU.green : '#9ca3af' }}>
-                                    {benchPlayers.length}/{BENCH_SIZE}
-                                </span>
-                            </div>
-                            <div className="p-3 space-y-2">
-                                {[0, 1, 2].map(i => {
-                                    const playerId = benchPlayers[i];
-                                    const player = playerId ? playersMap[playerId] : null;
-                                    const team = player ? teamsMap[player.team_id] : null;
-                                    if (!player) {
-                                        return (
-                                            <div key={i} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed"
-                                                 style={{ borderColor: '#d1d5db40', background: '#f9fafb', minHeight: 48 }}>
-                                                <span className="text-sm" style={{ color: '#d1d5db', fontFamily: "'Raleway', sans-serif" }}>
-                                                    Bench slot {i + 1}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
-                                    return (
-                                        <div key={i} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border" style={{ borderColor: '#e5e7eb' }}>
-                                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
-                                                  style={{ background: '#f3f4f6', color: '#9ca3af', fontFamily: "'Raleway', sans-serif" }}>{i + 1}</span>
-                                            <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                                                  style={{ background: POS_STYLE[player.position]?.bg, color: POS_STYLE[player.position]?.color, fontFamily: "'Raleway', sans-serif" }}>
-                                                {player.position}
-                                            </span>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-medium truncate" style={{ fontFamily: "'Raleway', sans-serif", color: CU.charcoal }}>{player.full_name}</div>
-                                            </div>
-                                            <span className="text-xs" style={{ color: '#9ca3af' }}>${player.price}M</span>
-                                            {!isFinalized && (
-                                                <button onClick={() => handleRemovePlayer(playerId)} className="p-1 rounded hover:bg-red-50">
-                                                    <X className="w-4 h-4" style={{ color: '#ef4444' }} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                {/* Two columns: Pitch + Pool */}
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                    {/* LEFT: Pitch (3/5 width) */}
+                    <div className="lg:col-span-3">
+                        <PitchLayout
+                            starters={starters}
+                            benchPlayers={benchPlayers}
+                            captainId={captainId}
+                            playersMap={playersMap}
+                            teamsMap={teamsMap}
+                            onClickSlot={handleClickSlot}
+                            onRemove={handleRemovePlayer}
+                            onSetCaptain={handleSetCaptain}
+                        />
+                        <BenchRow benchPlayers={benchPlayers} playersMap={playersMap} teamsMap={teamsMap} onRemove={handleRemovePlayer} />
 
                         {/* Captain reminder */}
                         {startersComplete && !hasCaptain && (
-                            <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
-                                 style={{ background: CU.orange + '10', border: `1px solid ${CU.orange}30` }}>
-                                <Star className="w-5 h-5" style={{ color: CU.orange }} />
-                                <span className="text-sm font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: '#9a6e00' }}>
-                                    Tap the ☆ next to a starter to set your Captain (2× points)
+                            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: CU.orange + '15', border: `1px solid ${CU.orange}30` }}>
+                                <Star className="w-4 h-4" style={{ color: CU.orange }} />
+                                <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: '#9a6e00' }}>
+                                    Pasá el mouse sobre un titular y tocá ☆ para elegir capitán (2× puntos)
                                 </span>
                             </div>
                         )}
                     </div>
 
-                    {/* RIGHT: Player Pool */}
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
-                        {/* Pool header */}
-                        <div className="px-4 py-3" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="font-semibold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>
-                                    Player Pool
-                                </span>
-                                <span className="text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
-                                    {filteredPlayers.length} players
-                                </span>
+                    {/* RIGHT: Player pool (2/5 width) */}
+                    <div className="lg:col-span-2 rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
+                        <div className="px-3 py-2.5" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-sm" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>Jugadores</span>
+                                <span className="text-xs" style={{ color: '#9ca3af' }}>{filteredPlayers.length}</span>
                             </div>
-
-                            {/* Search */}
-                            <div className="relative mb-3">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search players or teams..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="pl-9 h-9 text-sm"
-                                    style={{ fontFamily: "'Raleway', sans-serif" }}
-                                />
+                            <div className="relative mb-2">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                <Input placeholder="Buscar jugador o equipo..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                                    className="pl-8 h-8 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }} />
                             </div>
-
-                            {/* Position filter pills */}
-                            <div className="flex gap-1.5 flex-wrap">
+                            <div className="flex gap-1">
                                 {['ALL', 'GK', 'DEF', 'MID', 'FWD'].map(pos => {
                                     const active = posFilter === pos;
-                                    const ps = pos !== 'ALL' ? POS_STYLE[pos] : null;
-                                    const need = pos !== 'ALL' ? (FORMATION[pos] - (positionCounts[pos] || 0)) : null;
+                                    const pm = pos !== 'ALL' ? POS_MAP[pos] : null;
+                                    const label = pos === 'ALL' ? 'Todos' : pm.label;
                                     return (
-                                        <button
-                                            key={pos}
-                                            onClick={() => setPosFilter(pos)}
-                                            className="px-3 py-1 rounded-full text-xs font-semibold transition-colors"
-                                            style={{
-                                                fontFamily: "'Raleway', sans-serif",
-                                                background: active ? (ps?.color || CU.charcoal) : '#f3f4f6',
-                                                color: active ? 'white' : (ps?.color || '#6b7280'),
-                                                border: active ? 'none' : `1px solid #e5e7eb`
-                                            }}
-                                        >
-                                            {pos === 'ALL' ? 'All' : pos}
-                                            {need != null && need > 0 && !active && (
-                                                <span className="ml-1 text-xs opacity-60">({need})</span>
-                                            )}
+                                        <button key={pos} onClick={() => setPosFilter(pos)}
+                                            className="px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
+                                            style={{ fontFamily: "'Raleway', sans-serif", background: active ? (pm?.color || CU.charcoal) : '#f3f4f6', color: active ? 'white' : (pm?.color || '#6b7280') }}>
+                                            {label}
                                         </button>
                                     );
                                 })}
                             </div>
                         </div>
-
-                        {/* Player list */}
                         <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
                             {filteredPlayers.length === 0 ? (
-                                <div className="p-8 text-center text-sm" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
-                                    No players match your filters
-                                </div>
-                            ) : (
-                                filteredPlayers.map(player => (
-                                    <PoolPlayer
-                                        key={player.id}
-                                        player={player}
-                                        team={teamsMap[player.team_id]}
-                                        onAdd={handleAddPlayer}
-                                        disabled={isFinalized}
-                                        alreadyIn={squadPlayerIds.has(player.id)}
-                                        cantAfford={player.price > remainingBudget && !squadPlayerIds.has(player.id)}
-                                    />
-                                ))
-                            )}
+                                <div className="p-6 text-center text-sm" style={{ color: '#9ca3af' }}>No hay jugadores con ese filtro</div>
+                            ) : filteredPlayers.map(player => (
+                                <PoolPlayer key={player.id} player={player} team={teamsMap[player.team_id]} onAdd={handleAddPlayer}
+                                    disabled={false} alreadyIn={squadPlayerIds.has(player.id)} cantAfford={player.price > remainingBudget && !squadPlayerIds.has(player.id)} />
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Sticky Finalize Bar */}
-            {isSquadComplete && (!isFinalized || isEditable) && (
+            {/* Sticky finalize bar */}
+            {isSquadComplete && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4 pt-3">
-                        <button
-                            onClick={() => setShowConfirmFinalize(true)}
-                            className="w-full h-14 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
-                            style={{ background: CU.magenta, fontFamily: "'Raleway', sans-serif", cursor: 'pointer' }}
-                        >
-                            <Check className="w-5 h-5" />
-                            Save Squad · {starters.length} starters · {benchPlayers.length} bench · Captain: {playersMap[captainId]?.full_name || '—'}
+                    <div className="max-w-6xl mx-auto px-4 pb-4 pt-3">
+                        <button onClick={() => setShowConfirm(true)}
+                            className="w-full h-14 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
+                            style={{ background: CU.magenta, fontFamily: "'Raleway', sans-serif" }}>
+                            <Check className="w-5 h-5" /> Confirmar Equipo
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Not-ready indicator */}
-            {!isSquadComplete && (!isFinalized || isEditable) && (starters.length > 0 || benchPlayers.length > 0) && (
+            {!isSquadComplete && (starters.length > 0 || benchPlayers.length > 0) && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-4 pt-3">
-                        <div className="w-full h-12 rounded-xl flex items-center justify-center gap-3 text-sm"
+                    <div className="max-w-6xl mx-auto px-4 pb-4 pt-3">
+                        <div className="w-full h-11 rounded-xl flex items-center justify-center gap-3 text-sm"
                              style={{ background: CU.charcoal, fontFamily: "'Raleway', sans-serif", color: 'white' }}>
-                            {!startersComplete && <span>⚽ {starters.length}/{TOTAL_STARTERS} starters</span>}
-                            {startersComplete && !benchComplete && <span>📋 {benchPlayers.length}/{BENCH_SIZE} bench</span>}
-                            {startersComplete && benchComplete && !hasCaptain && <span>⭐ Select a captain</span>}
-                            <span style={{ color: CU.orange }}>· ${remainingBudget}M remaining</span>
+                            {!startersComplete && <span>⚽ {starters.length}/{TOTAL_STARTERS} titulares</span>}
+                            {startersComplete && !benchComplete && <span>📋 {benchPlayers.length}/{BENCH_SIZE} suplentes</span>}
+                            {startersComplete && benchComplete && !hasCaptain && <span>⭐ Elegí un capitán</span>}
+                            <span style={{ color: CU.orange }}>· ${remainingBudget}M disponible</span>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Confirm finalize dialog */}
-            <Dialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
+            {/* Confirm dialog */}
+            <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>
-                            Save Squad Changes
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3" style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem' }}>
-                        <p>
-                            Saving your squad for <strong>{PHASE_OPTIONS.find(p => p.value === phase)?.label}</strong>.
-                        </p>
+                    <DialogHeader><DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>¿Confirmar equipo?</DialogTitle></DialogHeader>
+                    <div className="space-y-2 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                        <p>Tu equipo quedará guardado para el <strong>Apertura — Fase de Zonas</strong>.</p>
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="p-2 rounded bg-gray-50"><strong>Starters:</strong> {starters.length}/11</div>
-                            <div className="p-2 rounded bg-gray-50"><strong>Bench:</strong> {benchPlayers.length}/3</div>
-                            <div className="p-2 rounded bg-gray-50"><strong>Budget:</strong> ${totalCost}M / ${BUDGET_CAP}M</div>
+                            <div className="p-2 rounded bg-gray-50"><strong>Titulares:</strong> {starters.length}/11</div>
+                            <div className="p-2 rounded bg-gray-50"><strong>Suplentes:</strong> {benchPlayers.length}/{BENCH_SIZE}</div>
+                            <div className="p-2 rounded bg-gray-50"><strong>Presupuesto:</strong> ${totalCost}M</div>
                             <div className="p-2 rounded" style={{ background: CU.orange + '10' }}>
-                                <strong>Captain:</strong> {playersMap[captainId]?.full_name || '—'}
+                                <strong>Capitán:</strong> {playersMap[captainId]?.full_name || '—'}
                             </div>
                         </div>
-                        {phaseLock?.lock_time && (
-                            <div className="rounded-lg px-3 py-2.5 space-y-1" style={{ background: CU.orange + '12', border: `1px solid ${CU.orange}40` }}>
-                                <p className="text-xs" style={{ color: '#6b4f00' }}>
-                                    You can still make changes until <strong>{new Date(phaseLock.lock_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>. After that, your squad will be locked for this phase.
-                                </p>
-                                {lockCountdown && (
-                                    <p className="text-xs font-bold" style={{ color: CU.orange }}>
-                                        ⏱️ Transfer window closes in {lockCountdown}
-                                    </p>
-                                )}
-                            </div>
-                        )}
+                        <p className="text-xs" style={{ color: '#9ca3af' }}>Podés editar tu equipo hasta que se bloquee la fecha.</p>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowConfirmFinalize(false)} disabled={saving}>Cancel</Button>
-                        <Button
-                            onClick={handleFinalize}
-                            disabled={saving}
-                            style={{ background: CU.magenta, color: 'white', fontFamily: "'Raleway', sans-serif", fontWeight: 700 }}
-                        >
-                            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : 'Save Squad ✓'}
+                        <Button variant="outline" onClick={() => setShowConfirm(false)} disabled={saving}>Cancelar</Button>
+                        <Button onClick={handleFinalize} disabled={saving} style={{ background: CU.magenta, color: 'white', fontWeight: 700 }}>
+                            {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Guardando...</> : 'Confirmar ✓'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
