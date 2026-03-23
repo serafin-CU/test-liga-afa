@@ -474,7 +474,7 @@ export default function ProdePredictions() {
                                     const predicted = phaseMatches.filter(m => predictionsMap[m.id]).length;
                                     return (
                                         <SelectItem key={phase} value={phase}>
-                                            {PHASE_LABELS[phase] || phase} ({predicted}/{phaseMatches.length})
+                                            {getPhaseLabel(phase, phaseMatches)} ({predicted}/{phaseMatches.length})
                                         </SelectItem>
                                     );
                                 })}

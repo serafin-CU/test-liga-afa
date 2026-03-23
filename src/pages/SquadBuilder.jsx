@@ -470,7 +470,7 @@ export default function SquadBuilder() {
                             🏟️ Squad Builder
                         </h1>
                         <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>
-                            Build your UnityCup XI · 11 starters + 3 bench · Budget: ${BUDGET_CAP}M · Formation: 4-3-3
+                            Armá tu equipo para el Apertura · 11 titulares + 3 suplentes · Presupuesto: ${BUDGET_CAP}M · Formación: 4-3-3
                         </p>
                         {/* Transfer window countdown — only show when not locked */}
                         {phaseLock && !phaseLock.is_locked && lockCountdown && (
