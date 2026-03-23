@@ -12,47 +12,30 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
  * - FINAL: free=5
  */
 
-const PHASE_ORDER = ['PRE_TOURNAMENT', 'GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
+const PHASE_ORDER = ['PRE_TOURNAMENT', 'APERTURA_ZONE', 'APERTURA_R16', 'APERTURA_QF', 'APERTURA_SF', 'APERTURA_FINAL'];
 
-const KNOCKOUT_PHASES = ['ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
+const KNOCKOUT_PHASES = ['APERTURA_R16', 'APERTURA_QF', 'APERTURA_SF', 'APERTURA_FINAL'];
 
 const TRANSFER_RULES = {
-    'ROUND_OF_32': {
-        free_transfers: 2,
-        max_allowed_transfers: 11,
-        tiers: [
-            { max: 5, penalty: -3 },  // transfers 3-5: -3 each
-            { max: 7, penalty: -4 }   // transfers 6-7: -4 each
-        ]
-    },
-    'ROUND_OF_16': {
+    'APERTURA_R16': {
         free_transfers: 3,
-        max_allowed_transfers: 11,
-        tiers: [
-            { max: 6, penalty: -2 },  // transfers 4-6: -2 each
-            { max: 11, penalty: -3 }  // transfers 7-11: -3 each
-        ]
-    },
-    'QUARTERFINALS': {
-        free_transfers: 2,
-        max_allowed_transfers: 5,
-        tiers: [
-            { max: 5, penalty: -4 }  // transfers 3-5: -4 each (HARD CAP at 5)
-        ]
-    },
-    'SEMIFINALS': {
-        free_transfers: 2,
-        max_allowed_transfers: 5,
-        tiers: [
-            { max: 5, penalty: -5 }  // transfers 3-5: -5 each (HARD CAP at 5)
-        ]
-    },
-    'FINAL': {
-        free_transfers: 5,
         max_allowed_transfers: Infinity,
-        tiers: [
-            { max: Infinity, penalty: -7 }  // transfers 6+: -7 each
-        ]
+        tiers: []
+    },
+    'APERTURA_QF': {
+        free_transfers: 3,
+        max_allowed_transfers: Infinity,
+        tiers: []
+    },
+    'APERTURA_SF': {
+        free_transfers: 3,
+        max_allowed_transfers: Infinity,
+        tiers: []
+    },
+    'APERTURA_FINAL': {
+        free_transfers: 3,
+        max_allowed_transfers: Infinity,
+        tiers: []
     }
 };
 
@@ -273,7 +256,7 @@ async function calculateTransfers(base44, user_id, current_squad_id, current_pha
 
     const currentPhaseIndex = PHASE_ORDER.indexOf(current_phase);
     
-    if (currentPhaseIndex <= 3) {  // PRE_TOURNAMENT through GROUP_MD3
+    if (currentPhaseIndex <= 1) {  // PRE_TOURNAMENT through APERTURA_ZONE
         return {
             status: 'SUCCESS',
             transfers_count: 0,
@@ -444,8 +427,8 @@ async function applyTransfersAndBadges(base44, user_id, phase, forceTransfersCou
         console.warn('UNBREAKABLE_XI badge award failed (non-fatal):', e.message)
     );
 
-    // Award THE_ORIGINALS badge when FINAL phase is processed (fire-and-forget)
-    if (phase === 'FINAL') {
+    // Award THE_ORIGINALS badge when APERTURA_FINAL phase is processed (fire-and-forget)
+    if (phase === 'APERTURA_FINAL') {
         awardTheOriginalsBadge(base44, user_id).catch(e =>
             console.warn('THE_ORIGINALS badge award failed (non-fatal):', e.message)
         );
@@ -468,36 +451,35 @@ async function applyTransfersAndBadges(base44, user_id, phase, forceTransfersCou
 // ─── Badge Logic ───────────────────────────────────────────────────────────
 
 const KNOCKOUT_PHASE_PREV = {
-    'ROUND_OF_16': 'ROUND_OF_32',
-    'QUARTERFINALS': 'ROUND_OF_16',
-    'SEMIFINALS': 'QUARTERFINALS',
-    'FINAL': 'SEMIFINALS'
+    'APERTURA_QF': 'APERTURA_R16',
+    'APERTURA_SF': 'APERTURA_QF',
+    'APERTURA_FINAL': 'APERTURA_SF'
 };
 
 async function awardTheOriginalsBadge(base44, user_id) {
     const THRESHOLD = 9;
-    const BASE_PHASE = 'ROUND_OF_32';
-    const TARGET_PHASE = 'FINAL';
+    const BASE_PHASE = 'APERTURA_R16';
+    const TARGET_PHASE = 'APERTURA_FINAL';
 
-    const [finalSquads, r32Squads] = await Promise.all([
+    const [finalSquads, r16Squads] = await Promise.all([
         base44.asServiceRole.entities.FantasySquad.filter({ user_id, phase: TARGET_PHASE, status: 'FINAL' }),
         base44.asServiceRole.entities.FantasySquad.filter({ user_id, phase: BASE_PHASE, status: 'FINAL' })
     ]);
 
     if (finalSquads.length === 0) return { awarded: false, reason: 'NO_FINAL_SQUAD' };
-    if (r32Squads.length === 0) return { awarded: false, reason: 'NO_R32_SQUAD' };
+    if (r16Squads.length === 0) return { awarded: false, reason: 'NO_R16_SQUAD' };
 
-    const [finalPlayers, r32Players] = await Promise.all([
+    const [finalPlayers, r16Players] = await Promise.all([
         base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: finalSquads[0].id }),
-        base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: r32Squads[0].id })
+        base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: r16Squads[0].id })
     ]);
 
     const finalStarters = new Set(finalPlayers.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
-    const r32Starters = new Set(r32Players.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
+    const r16Starters = new Set(r16Players.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
 
     let keptCount = 0;
     for (const pid of finalStarters) {
-        if (r32Starters.has(pid)) keptCount++;
+        if (r16Starters.has(pid)) keptCount++;
     }
 
     if (keptCount < THRESHOLD) {

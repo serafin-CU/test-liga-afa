@@ -1,10 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
 const KNOCKOUT_PHASE_PREV = {
-    'ROUND_OF_16': 'ROUND_OF_32',
-    'QUARTERFINALS': 'ROUND_OF_16',
-    'SEMIFINALS': 'QUARTERFINALS',
-    'FINAL': 'SEMIFINALS'
+    'APERTURA_QF': 'APERTURA_R16',
+    'APERTURA_SF': 'APERTURA_QF',
+    'APERTURA_FINAL': 'APERTURA_SF'
 };
 
 const CORE_KEEPER_THRESHOLD = 8;
@@ -127,28 +126,28 @@ async function awardPerfectMatchdayBadge(base44, user_id, phase) {
 
 async function awardTheOriginalsBadge(base44, user_id) {
     const THRESHOLD = 9;
-    const BASE_PHASE = 'ROUND_OF_32';
-    const TARGET_PHASE = 'FINAL';
+    const BASE_PHASE = 'APERTURA_R16';
+    const TARGET_PHASE = 'APERTURA_FINAL';
 
-    const [finalSquads, r32Squads] = await Promise.all([
+    const [finalSquads, r16Squads] = await Promise.all([
         base44.asServiceRole.entities.FantasySquad.filter({ user_id, phase: TARGET_PHASE, status: 'FINAL' }),
         base44.asServiceRole.entities.FantasySquad.filter({ user_id, phase: BASE_PHASE, status: 'FINAL' })
     ]);
 
     if (finalSquads.length === 0) return { awarded: false, reason: 'NO_FINAL_SQUAD' };
-    if (r32Squads.length === 0) return { awarded: false, reason: 'NO_R32_SQUAD' };
+    if (r16Squads.length === 0) return { awarded: false, reason: 'NO_R16_SQUAD' };
 
-    const [finalPlayers, r32Players] = await Promise.all([
+    const [finalPlayers, r16Players] = await Promise.all([
         base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: finalSquads[0].id }),
-        base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: r32Squads[0].id })
+        base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: r16Squads[0].id })
     ]);
 
     const finalStarters = new Set(finalPlayers.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
-    const r32Starters = new Set(r32Players.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
+    const r16Starters = new Set(r16Players.filter(sp => sp.slot_type === 'STARTER').map(sp => sp.player_id));
 
     let keptCount = 0;
     for (const pid of finalStarters) {
-        if (r32Starters.has(pid)) keptCount++;
+        if (r16Starters.has(pid)) keptCount++;
     }
 
     if (keptCount < THRESHOLD) {

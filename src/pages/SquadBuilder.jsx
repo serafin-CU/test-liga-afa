@@ -28,14 +28,11 @@ const BUDGET_CAP = 150;
 const TOTAL_STARTERS = 11;
 
 const PHASE_OPTIONS = [
-    { value: 'GROUP_MD1', label: 'Group Stage — Matchday 1' },
-    { value: 'GROUP_MD2', label: 'Group Stage — Matchday 2' },
-    { value: 'GROUP_MD3', label: 'Group Stage — Matchday 3' },
-    { value: 'ROUND_OF_32', label: 'Round of 32' },
-    { value: 'ROUND_OF_16', label: 'Round of 16' },
-    { value: 'QUARTERFINALS', label: 'Quarterfinals' },
-    { value: 'SEMIFINALS', label: 'Semifinals' },
-    { value: 'FINAL', label: 'The Final 🏆' },
+    { value: 'APERTURA_ZONE', label: 'Apertura — Fase de Zonas' },
+    { value: 'APERTURA_R16', label: 'Apertura — Octavos de Final' },
+    { value: 'APERTURA_QF', label: 'Apertura — Cuartos de Final' },
+    { value: 'APERTURA_SF', label: 'Apertura — Semifinales' },
+    { value: 'APERTURA_FINAL', label: 'Apertura — Final' },
 ];
 
 /* ── Slot component (empty or filled) ── */
@@ -151,7 +148,7 @@ export default function SquadBuilder() {
     const queryClient = useQueryClient();
 
     // State
-    const [phase, setPhase] = useState('GROUP_MD1');
+    const [phase, setPhase] = useState('APERTURA_ZONE');
     const [starters, setStarters] = useState([]);
     const [benchPlayers, setBench] = useState([]);
     const [captainId, setCaptainId] = useState(null);
