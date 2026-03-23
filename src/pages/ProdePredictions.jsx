@@ -20,17 +20,24 @@ const CU = {
 };
 
 const PHASE_LABELS = {
-    GROUP_MD1: 'Group Stage — Matchday 1',
-    GROUP_MD2: 'Group Stage — Matchday 2',
-    GROUP_MD3: 'Group Stage — Matchday 3',
-    ROUND_OF_32: 'Round of 32',
-    ROUND_OF_16: 'Round of 16',
-    QUARTERFINALS: 'Quarterfinals',
-    SEMIFINALS: 'Semifinals',
-    FINAL: 'Final'
+    APERTURA_ZONE: 'Fase de Zonas',
+    APERTURA_R16: 'Octavos de Final',
+    APERTURA_QF: 'Cuartos de Final',
+    APERTURA_SF: 'Semifinales',
+    APERTURA_FINAL: 'Final',
 };
 
-const PHASE_ORDER = ['GROUP_MD1', 'GROUP_MD2', 'GROUP_MD3', 'ROUND_OF_32', 'ROUND_OF_16', 'QUARTERFINALS', 'SEMIFINALS', 'FINAL'];
+// Dynamic matchday label from venue field or fallback
+function getPhaseLabel(phase, matches) {
+    if (phase === 'APERTURA_ZONE' && matches?.length > 0) {
+        const venue = matches[0]?.venue || '';
+        const match = venue.match(/Fecha (\d+)/i);
+        if (match) return `Fecha ${match[1]}`;
+    }
+    return PHASE_LABELS[phase] || phase;
+}
+
+const PHASE_ORDER = ['APERTURA_ZONE', 'APERTURA_R16', 'APERTURA_QF', 'APERTURA_SF', 'APERTURA_FINAL'];
 
 /* ── Google Fonts loader ─────────────────────────────────── */
 function FontLoader() {

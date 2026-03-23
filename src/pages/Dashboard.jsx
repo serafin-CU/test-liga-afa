@@ -248,7 +248,7 @@ export default function Dashboard() {
                     Welcome{currentUser?.full_name ? `, ${currentUser.full_name}` : ''}
                 </h1>
                 <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>
-                    Your UnityCup overview
+                    Your Liga AFA overview
                 </p>
             </div>
 

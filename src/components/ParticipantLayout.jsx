@@ -39,8 +39,8 @@ export default function ParticipantLayout({ children, currentPageName }) {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-8">
                             <Link to="/Dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white', lineHeight: 1 }}>⚽ UnityCup</span>
-                                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: CU.orange, lineHeight: 1 }}>FIFA World Cup 2026</span>
+                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white', lineHeight: 1 }}>⚽ Liga AFA Test</span>
+                                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: CU.orange, lineHeight: 1 }}>Torneo Apertura 2026</span>
                             </Link>
                             <div className="hidden md:flex items-center gap-1">
                                 {navItems.map(item => {

@@ -172,7 +172,7 @@ export default function Leaderboard() {
                             ⚽ Leaderboard
                         </h1>
                         <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-                            UnityCup: FIFA World Cup 2026 Standings
+                            Liga AFA — Apertura 2026
                         </p>
                     </div>
                 </div>
