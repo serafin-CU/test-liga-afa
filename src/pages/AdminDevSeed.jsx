@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle, Trash2, Database, ArrowRight, AlertCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle, Trash2, Database, ArrowRight, AlertCircle, RotateCcw, Loader2, Shield } from 'lucide-react';
 
 export default function AdminDevSeed() {
     const [seeding, setSeeding] = useState(false);
@@ -11,6 +11,12 @@ export default function AdminDevSeed() {
     const [resetting, setResetting] = useState(false);
     const [hasDevSeed, setHasDevSeed] = useState(false);
     const [summary, setSummary] = useState(null);
+
+    // Liga AFA Seed state
+    const [ligaSeeding, setLigaSeeding] = useState(false);
+    const [ligaSummary, setLigaSummary] = useState(null);
+    const [seedingPromiedos, setSeedingPromiedos] = useState(false);
+    const [promiedosSummary, setPromiedosSummary] = useState(null);
 
     useEffect(() => {
         checkDevSeed();
