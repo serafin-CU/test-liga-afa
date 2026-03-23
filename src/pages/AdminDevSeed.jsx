@@ -188,41 +188,43 @@ export default function AdminDevSeed() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* Step 1: Delete */}
-                    <div className="border border-blue-200 rounded-lg p-3 space-y-2">
-                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Paso 1 — Borrar datos existentes</p>
-                        <Button onClick={deleteAllLigaData} disabled={ligaDeleting} variant="outline" className="w-full sm:w-auto border-red-400 text-red-700 hover:bg-red-50">
-                            {ligaDeleting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Borrando...</> : <><Trash2 className="w-4 h-4 mr-2" />Delete All Teams / Players / Matches</>}
+                    <div className="space-y-3">
+                        <Button
+                            onClick={seedLigaAfa}
+                            disabled={ligaStep === 'wiping' || ligaStep === 'seeding'}
+                            className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white"
+                        >
+                            {(ligaStep === 'wiping' || ligaStep === 'seeding')
+                                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{ligaProgress}</>
+                                : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
                         </Button>
-                        <p className="text-xs text-blue-700">Borra todos los equipos, jugadores y partidos. Chunk 50, sin delay.</p>
-                        {ligaDeleteSummary && (
-                            <div className={`p-2 rounded text-xs flex items-start gap-2 ${ligaDeleteSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {ligaDeleteSummary.success ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />}
-                                <div>
-                                    <div className="font-semibold">{ligaDeleteSummary.message}</div>
-                                    {ligaDeleteSummary.counts && <div>Teams: {ligaDeleteSummary.counts.teams} · Players: {ligaDeleteSummary.counts.players} · Matches: {ligaDeleteSummary.counts.matches}</div>}
-                                </div>
+                        <p className="text-sm text-blue-700">
+                            Corre 2 pasos automáticamente: borra datos existentes y crea 30 equipos, 420+ jugadores y 30 partidos.
+                        </p>
+
+                        {ligaStep === 'wiping' || ligaStep === 'seeding' ? (
+                            <div className="p-3 bg-blue-100 text-blue-800 rounded text-sm flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                <span>{ligaProgress}</span>
                             </div>
-                        )}
-                    </div>
-                    {/* Step 2: Seed */}
-                    <div className="border border-blue-200 rounded-lg p-3 space-y-2">
-                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Paso 2 — Crear datos Liga AFA</p>
-                        <Button onClick={seedLigaAfa} disabled={ligaSeeding} className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white">
-                            {ligaSeeding ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Seeding...</> : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
-                        </Button>
-                        <p className="text-xs text-blue-700">Crea 30 equipos, 420+ jugadores y 30 partidos. Chunk 200 para jugadores.</p>
+                        ) : null}
+
                         {ligaSummary && (
-                            <div className={`p-2 rounded text-xs flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {ligaSummary.success ? <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" /> : <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />}
-                                <div>
-                                    <div className="font-semibold">{ligaSummary.message}</div>
-                                    {ligaSummary.counts && (
-                                        <div className="mt-1 space-y-0.5">
-                                            {ligaSummary.counts.teams_created !== undefined && <div>• Teams: {ligaSummary.counts.teams_created}</div>}
-                                            {ligaSummary.counts.players_created !== undefined && <div>• Players: {ligaSummary.counts.players_created}</div>}
-                                            {ligaSummary.counts.matches_created !== undefined && <div>• Matches: {ligaSummary.counts.matches_created}</div>}
-                                        </div>
+                            <div className={`p-3 rounded text-sm flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {ligaSummary.success ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                                <div className="space-y-1">
+                                    {ligaSummary.success ? (
+                                        <>
+                                            <div className="font-semibold">¡Seed completado!</div>
+                                            {ligaSummary.deleted && <div className="text-xs">Borrado — Teams: {ligaSummary.deleted.teams} · Players: {ligaSummary.deleted.players} · Matches: {ligaSummary.deleted.matches}</div>}
+                                            {ligaSummary.counts && (
+                                                <div className="text-xs">
+                                                    Creado — Teams: {ligaSummary.counts.teams_created} · Players: {ligaSummary.counts.players_created} · Matches: {ligaSummary.counts.matches_created}
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="font-semibold">Error: {ligaSummary.message}</div>
                                     )}
                                 </div>
                             </div>
