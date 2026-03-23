@@ -325,8 +325,11 @@ export default function SquadManagement() {
                 <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, marginBottom: '24px' }}>My Squad</h1>
                 <div className="rounded-xl p-10 text-center space-y-4" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
                     <Users className="w-16 h-16 mx-auto" style={{ color: '#d1d5db' }} />
-                    <div style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280' }}>You don't have an active squad yet</div>
-                    <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#9ca3af' }}>Contact an administrator to set up your fantasy squad</p>
+                    <div style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', fontWeight: 600 }}>Todavía no armaste tu equipo</div>
+                    <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#9ca3af' }}>Elegí jugadores y armá tu equipo fantasy para el Apertura</p>
+                    <a href="/SquadBuilder" style={{ display: 'inline-block', marginTop: '12px', background: '#AA0061', color: 'white', fontFamily: "'Raleway', sans-serif", fontWeight: 700, padding: '10px 24px', borderRadius: '8px', textDecoration: 'none' }}>
+                        Armar Equipo →
+                    </a>
                 </div>
             </div>
         );
@@ -338,7 +341,7 @@ export default function SquadManagement() {
             {/* Header */}
             <div className="mb-6">
                 <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>🏟️ My Squad</h1>
-                <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Build your World Cup XI</p>
+                <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Tu equipo del Apertura</p>
                 <BadgePills userId={currentUser.id} currentPhase={activeSquad?.phase} />
             </div>
 

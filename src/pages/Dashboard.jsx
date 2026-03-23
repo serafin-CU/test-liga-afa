@@ -245,7 +245,7 @@ export default function Dashboard() {
             {/* Header */}
             <div>
                 <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, margin: 0 }}>
-                    Welcome{currentUser?.full_name ? `, ${currentUser.full_name}` : ''}
+                    Hola, {currentUser?.display_name || currentUser?.full_name || currentUser?.email || ''}
                 </h1>
                 <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>
                     Torneo Apertura 2026

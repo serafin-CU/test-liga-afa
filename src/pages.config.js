@@ -15,7 +15,6 @@ import SquadBuilder from './pages/SquadBuilder';
 import Leaderboard from './pages/Leaderboard';
 import AlbaChat from './pages/AlbaChat';
 import Profile from './pages/Profile';
-import FAFOChat from './pages/FAFOChat';
 import __Layout from './Layout.jsx';
 
 
@@ -37,7 +36,6 @@ export const PAGES = {
     "Leaderboard": Leaderboard,
     "AlbaChat": AlbaChat,
     "Profile": Profile,
-    "FAFOChat": FAFOChat,
 }
 
 export const pagesConfig = {

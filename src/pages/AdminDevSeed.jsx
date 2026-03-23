@@ -302,7 +302,7 @@ export default function AdminDevSeed() {
                     </CardHeader>
                     <CardContent className="text-sm space-y-2">
                         <div><strong>AppConfig:</strong> Ensures config row exists (tournament +60 days)</div>
-                        <div><strong>DataSources:</strong> FIFA and WIKIPEDIA (with permissive regex for dev)</div>
+                        <div><strong>DataSources:</strong> Promiedos (with permissive regex for dev)</div>
                         <div><strong>Teams:</strong> USA (fifa_code=USA) and ARG (fifa_code=ARG)</div>
                         <div><strong>Players:</strong> 4 per team (GK, DEF, MID, FWD) with valid prices</div>
                         <div><strong>Matches:</strong> 2 matches (one +4h future, one -6h past for testing)</div>

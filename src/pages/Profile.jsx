@@ -93,7 +93,7 @@ export default function Profile() {
                         Your Profile
                     </h1>
                     <p className="text-gray-600 mt-1" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                        Manage your UnityCup account settings
+                        Tu perfil de Liga AFA
                     </p>
                 </div>
 
