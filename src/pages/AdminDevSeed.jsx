@@ -13,6 +13,8 @@ export default function AdminDevSeed() {
     const [summary, setSummary] = useState(null);
 
     // Liga AFA Seed state
+    const [ligaDeleting, setLigaDeleting] = useState(false);
+    const [ligaDeleteSummary, setLigaDeleteSummary] = useState(null);
     const [ligaSeeding, setLigaSeeding] = useState(false);
     const [ligaSummary, setLigaSummary] = useState(null);
     const [seedingPromiedos, setSeedingPromiedos] = useState(false);
@@ -129,15 +131,28 @@ export default function AdminDevSeed() {
         setResetting(false);
     };
 
+    const deleteAllLigaData = async () => {
+        if (!confirm('Delete ALL teams, players and matches? Run this before re-seeding.')) return;
+        setLigaDeleting(true);
+        setLigaDeleteSummary(null);
+        try {
+            const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'delete_all_data' });
+            setLigaDeleteSummary({ success: response.data.success, message: response.data.message, counts: response.data.deleted });
+        } catch (error) {
+            setLigaDeleteSummary({ success: false, message: 'Delete failed: ' + (error.response?.data?.error || error.message) });
+        }
+        setLigaDeleting(false);
+    };
+
     const seedLigaAfa = async () => {
-        if (!confirm('This will delete all existing teams, players and matches, and create 30 Liga AFA teams with 420 players and 30 matches. Continue?')) return;
+        if (!confirm('Create 30 Liga AFA teams, 420+ players, and 30 matches? (Run Delete All first if re-seeding.)')) return;
         setLigaSeeding(true);
         setLigaSummary(null);
         try {
             const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
             setLigaSummary({ success: response.data.success, message: response.data.message, counts: response.data.summary });
         } catch (error) {
-            setLigaSummary({ success: false, message: 'Seed failed: ' + error.message });
+            setLigaSummary({ success: false, message: 'Seed failed: ' + (error.response?.data?.error || error.message) });
         }
         setLigaSeeding(false);
     };
