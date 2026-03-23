@@ -428,7 +428,7 @@ export default function SquadManagement() {
 
             {/* Confirm captain dialog */}
             <Dialog open={!!confirmCaptainDialog} onOpenChange={(open) => !open && setConfirmCaptainDialog(null)}>
-                <DialogContent>
+                <DialogContent className="max-w-[95vw] sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>Confirm Captain Selection</DialogTitle>
                     </DialogHeader>

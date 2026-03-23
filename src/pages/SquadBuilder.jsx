@@ -538,7 +538,7 @@ export default function SquadBuilder() {
 
             {/* Confirm dialog */}
             <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-                <DialogContent>
+                <DialogContent className="max-w-[95vw] sm:max-w-md">
                     <DialogHeader><DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>¿Confirmar equipo?</DialogTitle></DialogHeader>
                     <div className="space-y-2 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
                         <p>Tu equipo quedará guardado para el <strong>Apertura — Fase de Zonas</strong>.</p>
