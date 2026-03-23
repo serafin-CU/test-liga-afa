@@ -32,20 +32,54 @@ function getMatchdayLabel(match) {
 }
 
 function ScoreStepper({ value, onChange, disabled }) {
+    const [editing, setEditing] = useState(false);
+    const [inputVal, setInputVal] = useState('');
+    const inputRef = React.useRef(null);
+
     const numVal = value === '' || value === null || value === undefined ? null : Number(value);
 
     const decrement = () => { if (!disabled && numVal !== null && numVal > 0) onChange(numVal - 1); };
     const increment = () => { if (!disabled) onChange(numVal === null ? 0 : Math.min(15, numVal + 1)); };
+
+    const startEditing = () => {
+        if (disabled) return;
+        setInputVal(numVal !== null ? String(numVal) : '');
+        setEditing(true);
+        setTimeout(() => inputRef.current?.select(), 0);
+    };
+
+    const commitEdit = () => {
+        const parsed = parseInt(inputVal, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 15) onChange(parsed);
+        else if (inputVal === '' && numVal === null) { /* keep null */ }
+        setEditing(false);
+    };
 
     return (
         <div className="flex items-center" style={{ opacity: disabled ? 0.4 : 1 }}>
             <button onClick={decrement} disabled={disabled || numVal === null || numVal <= 0}
                 className="w-8 h-10 flex items-center justify-center rounded-l-lg text-lg font-bold"
                 style={{ background: disabled ? '#e5e7eb' : CU.charcoal, color: 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>−</button>
-            <div className="w-12 h-10 flex items-center justify-center text-xl font-bold border-t border-b"
-                style={{ fontFamily: "'DM Serif Display', serif", borderColor: '#e5e7eb', color: numVal !== null ? CU.charcoal : '#ccc', background: 'white' }}>
-                {numVal !== null ? numVal : '–'}
-            </div>
+            {editing ? (
+                <input
+                    ref={inputRef}
+                    type="number" min={0} max={15}
+                    value={inputVal}
+                    onChange={e => setInputVal(e.target.value)}
+                    onBlur={commitEdit}
+                    onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(false); }}
+                    className="w-12 h-10 text-center text-xl font-bold border-t border-b outline-none"
+                    style={{ fontFamily: "'DM Serif Display', serif", borderColor: CU.orange, color: CU.charcoal, background: 'white' }}
+                />
+            ) : (
+                <div
+                    onClick={startEditing}
+                    className="w-12 h-10 flex items-center justify-center text-xl font-bold border-t border-b"
+                    style={{ fontFamily: "'DM Serif Display', serif", borderColor: '#e5e7eb', color: numVal !== null ? CU.charcoal : '#ccc', background: 'white', cursor: disabled ? 'default' : 'text' }}
+                    title={disabled ? '' : 'Click to type score'}>
+                    {numVal !== null ? numVal : '–'}
+                </div>
+            )}
             <button onClick={increment} disabled={disabled}
                 className="w-8 h-10 flex items-center justify-center rounded-r-lg text-lg font-bold"
                 style={{ background: disabled ? '#e5e7eb' : CU.charcoal, color: 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>+</button>
@@ -319,7 +353,8 @@ export default function ProdePredictions() {
 
                         <div className="space-y-3">
                             {currentMatches.map(match => {
-                                const isLocked = new Date(match.kickoff_at) <= now || match.status === 'FINAL';
+                                // TEST MODE: Allow late predictions (7 day grace period)
+                    const isLocked = match.status === 'FINAL' || new Date(match.kickoff_at).getTime() + 7 * 24 * 60 * 60 * 1000 < Date.now();
                                 return (
                                     <MatchRow key={match.id} match={match} teams={teamsMap}
                                         localPrediction={localEdits[match.id]} savedPrediction={predictionsMap[match.id]}
