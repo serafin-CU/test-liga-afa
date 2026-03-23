@@ -59,10 +59,7 @@ function ScoreStepper({ value, onChange, disabled }) {
         <div className="flex items-center" style={{ opacity: disabled ? 0.4 : 1 }}>
             <button onClick={decrement} disabled={disabled || numVal === null || numVal <= 0}
                 className="flex items-center justify-center rounded-l-lg text-lg font-bold"
-                style={{ width: '44px', height: '44px', flexShrink: 0, ...(disabled ? { background: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed' } : { background: CU.charcoal, color: 'white', cursor: 'pointer' }) }}
-                onMouseDown={e => e.preventDefault()}
-                {...{ style: { width: '44px', height: '44px', flexShrink: 0, background: (disabled || numVal === null || numVal <= 0) ? '#e5e7eb' : CU.charcoal, color: (disabled || numVal === null || numVal <= 0) ? '#9ca3af' : 'white', cursor: (disabled || numVal === null || numVal <= 0) ? 'not-allowed' : 'pointer' } }}
-                style={{ background: disabled ? '#e5e7eb' : CU.charcoal, color: 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>−</button>
+                style={{ width: '44px', height: '44px', flexShrink: 0, background: (disabled || numVal === null || numVal <= 0) ? '#e5e7eb' : CU.charcoal, color: (disabled || numVal === null || numVal <= 0) ? '#9ca3af' : 'white', cursor: (disabled || numVal === null || numVal <= 0) ? 'not-allowed' : 'pointer' }}>−</button>
             {editing ? (
                 <input
                     ref={inputRef}
@@ -84,8 +81,8 @@ function ScoreStepper({ value, onChange, disabled }) {
                 </div>
             )}
             <button onClick={increment} disabled={disabled}
-                className="w-8 h-10 flex items-center justify-center rounded-r-lg text-lg font-bold"
-                style={{ background: disabled ? '#e5e7eb' : CU.charcoal, color: 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>+</button>
+                className="flex items-center justify-center rounded-r-lg text-lg font-bold"
+                style={{ width: '44px', height: '44px', flexShrink: 0, background: disabled ? '#e5e7eb' : CU.charcoal, color: disabled ? '#9ca3af' : 'white', cursor: disabled ? 'not-allowed' : 'pointer' }}>+</button>
         </div>
     );
 }
