@@ -333,7 +333,7 @@ export default function SquadManagement() {
     }
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
+        <div className="p-3 sm:p-6 md:p-8 max-w-6xl mx-auto pb-24">
             <WorldCupBanner compact />
             {/* Header */}
             <div className="mb-6">
@@ -377,7 +377,7 @@ export default function SquadManagement() {
             )}
 
             {/* Squad info cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 {[
                     { label: 'Budget Used', value: `$${activeSquad.total_cost}M / $${activeSquad.budget_cap}M`, accent: CU.orange },
                     { label: 'Starters', value: `${starters.length} / 11`, accent: CU.blue },
