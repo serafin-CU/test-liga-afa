@@ -417,7 +417,7 @@ export default function SquadBuilder() {
 
     return (
         <>
-            <div className="max-w-6xl mx-auto p-3 sm:p-5 pb-28">
+            <div className="max-w-6xl mx-auto p-3 sm:p-5 pb-44">
                 {/* Header */}
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>⚽ Armá tu equipo</h1>
@@ -497,7 +497,7 @@ export default function SquadBuilder() {
                                 })}
                             </div>
                         </div>
-                        <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
+                        <div className="overflow-y-auto" style={{ maxHeight: 'min(600px, 50vh)' }}>
                             {filteredPlayers.length === 0 ? (
                                 <div className="p-6 text-center text-sm" style={{ color: '#9ca3af' }}>No hay jugadores con ese filtro</div>
                             ) : filteredPlayers.map(player => (
@@ -512,7 +512,7 @@ export default function SquadBuilder() {
             {/* Sticky finalize bar */}
             {isSquadComplete && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-6xl mx-auto px-4 pb-4 pt-3">
+                    <div className="max-w-6xl mx-auto px-4 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)' }}>
                         <button onClick={() => setShowConfirm(true)}
                             className="w-full h-14 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
                             style={{ background: CU.magenta, fontFamily: "'Raleway', sans-serif" }}>
@@ -524,7 +524,7 @@ export default function SquadBuilder() {
 
             {!isSquadComplete && (starters.length > 0 || benchPlayers.length > 0) && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-6xl mx-auto px-4 pb-4 pt-3">
+                    <div className="max-w-6xl mx-auto px-4 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)' }}>
                         <div className="w-full h-11 rounded-xl flex items-center justify-center gap-3 text-sm"
                              style={{ background: CU.charcoal, fontFamily: "'Raleway', sans-serif", color: 'white' }}>
                             {!startersComplete && <span>⚽ {starters.length}/{TOTAL_STARTERS} titulares</span>}
