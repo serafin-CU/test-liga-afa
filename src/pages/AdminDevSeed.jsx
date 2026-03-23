@@ -135,7 +135,7 @@ export default function AdminDevSeed() {
         setLigaSummary(null);
         try {
             const response = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
-            setLigaSummary({ success: response.data.success, message: response.data.message, counts: response.data.counts });
+            setLigaSummary({ success: response.data.success, message: response.data.message, counts: response.data.summary });
         } catch (error) {
             setLigaSummary({ success: false, message: 'Seed failed: ' + error.message });
         }
