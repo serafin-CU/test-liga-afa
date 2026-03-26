@@ -649,18 +649,16 @@ Deno.serve(async (req) => {
             console.log(`Deleting ${existingTeams.length} teams, ${existingPlayers.length} players, ${existingMatches.length} matches...`);
 
             async function deleteInChunks(entity, items) {
-                for (let i = 0; i < items.length; i += 50) {
-                    const chunk = items.slice(i, i + 50);
+                for (let i = 0; i < items.length; i += 10) {
+                    const chunk = items.slice(i, i + 10);
                     await Promise.all(chunk.map(x => entity.delete(x.id)));
-                    if (i + 50 < items.length) await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, 800));
                 }
             }
 
-            await Promise.all([
-                deleteInChunks(base44.asServiceRole.entities.Match, existingMatches),
-                deleteInChunks(base44.asServiceRole.entities.Player, existingPlayers),
-                deleteInChunks(base44.asServiceRole.entities.Team, existingTeams),
-            ]);
+            await deleteInChunks(base44.asServiceRole.entities.Match, existingMatches);
+            await deleteInChunks(base44.asServiceRole.entities.Player, existingPlayers);
+            await deleteInChunks(base44.asServiceRole.entities.Team, existingTeams);
 
             return Response.json({
                 success: true,
@@ -702,10 +700,11 @@ Deno.serve(async (req) => {
             }
 
             let players_created = 0;
-            for (let i = 0; i < allPlayerData.length; i += 200) {
-                const chunk = allPlayerData.slice(i, i + 200);
+            for (let i = 0; i < allPlayerData.length; i += 25) {
+                const chunk = allPlayerData.slice(i, i + 25);
                 const created = await base44.asServiceRole.entities.Player.bulkCreate(chunk);
                 players_created += created.length;
+                await new Promise(r => setTimeout(r, 800));
             }
             console.log(`Created ${players_created} players`);
 
@@ -728,8 +727,10 @@ Deno.serve(async (req) => {
                 venue: 'Fecha 11',
             }));
 
-            const allMatchData = [...fecha10Matches, ...fecha11Matches];
-            const createdMatches = await base44.asServiceRole.entities.Match.bulkCreate(allMatchData);
+            const createdF10 = await base44.asServiceRole.entities.Match.bulkCreate(fecha10Matches);
+            await new Promise(r => setTimeout(r, 800));
+            const createdF11 = await base44.asServiceRole.entities.Match.bulkCreate(fecha11Matches);
+            const createdMatches = [...createdF10, ...createdF11];
             console.log(`Created ${createdMatches.length} matches`);
 
             // ── 4. Update AppConfig ──
