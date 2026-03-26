@@ -13,9 +13,10 @@ export default function AdminDevSeed() {
     const [summary, setSummary] = useState(null);
 
     // Liga AFA Seed state
-    const [ligaStep, setLigaStep] = useState(null); // null | 'wiping' | 'seeding' | 'done' | 'error'
+    const [ligaRunning, setLigaRunning] = useState(false);
     const [ligaProgress, setLigaProgress] = useState('');
     const [ligaSummary, setLigaSummary] = useState(null);
+    const [stepResults, setStepResults] = useState({});
     const [seedingPromiedos, setSeedingPromiedos] = useState(false);
     const [promiedosSummary, setPromiedosSummary] = useState(null);
 
@@ -130,31 +131,65 @@ export default function AdminDevSeed() {
         setResetting(false);
     };
 
+    const invoke = (action, extra = {}) =>
+        base44.functions.invoke('ligaAfaSeedService', { action, ...extra });
+
     const seedLigaAfa = async () => {
-        if (!confirm('This will wipe all existing teams/players/matches and re-seed Liga AFA data. Continue?')) return;
-        setLigaStep('wiping');
-        setLigaProgress('Paso 1/2: Borrando datos existentes...');
+        if (!confirm('Esto borrará todos los datos existentes y re-seedeará Liga AFA. Tarda ~2-3 minutos. ¿Continuar?')) return;
+        setLigaRunning(true);
         setLigaSummary(null);
+        setStepResults({});
+        const results = {};
         try {
-            const wipeRes = await base44.functions.invoke('ligaAfaSeedService', { action: 'wipe_data' });
-            const deleted = wipeRes.data.deleted;
+            // Step 1: Wipe
+            setLigaProgress('Paso 1/4: Borrando datos existentes...');
+            const wipeRes = await invoke('wipe_data');
+            results.wipe = wipeRes.data;
+            setStepResults({ ...results });
 
-            setLigaStep('seeding');
-            setLigaProgress('Paso 2/2: Creando equipos, jugadores y partidos...');
+            // Step 2: Seed teams
+            setLigaProgress('Paso 2/4: Creando 30 equipos...');
+            const teamsRes = await invoke('seed_teams');
+            results.teams = teamsRes.data;
+            setStepResults({ ...results });
 
-            const seedRes = await base44.functions.invoke('ligaAfaSeedService', { action: 'seed_teams_and_matches' });
-            setLigaStep('done');
+            // Step 3: Seed players (6 batches)
+            let totalPlayers = 0;
+            for (let b = 0; b <= 5; b++) {
+                setLigaProgress(`Paso 3/4: Creando jugadores... (batch ${b + 1}/6)`);
+                const pRes = await invoke('seed_players_batch', { batch: b });
+                totalPlayers += pRes.data.players_created || 0;
+            }
+            results.players = { players_created: totalPlayers };
+            setStepResults({ ...results });
+
+            // Step 4: Seed matches
+            setLigaProgress('Paso 4/4: Creando partidos...');
+            const matchRes = await invoke('seed_matches');
+            results.matches = matchRes.data;
+            setStepResults({ ...results });
+
             setLigaProgress('');
-            setLigaSummary({
-                success: true,
-                deleted,
-                counts: seedRes.data.summary,
-            });
+            setLigaSummary({ success: true, results });
         } catch (error) {
-            setLigaStep('error');
             setLigaProgress('');
-            setLigaSummary({ success: false, message: (error.response?.data?.error || error.message) });
+            setLigaSummary({ success: false, message: error.response?.data?.error || error.message, results });
         }
+        setLigaRunning(false);
+    };
+
+    const runSingleStep = async (action, label, extra = {}) => {
+        setLigaRunning(true);
+        setLigaProgress(label);
+        try {
+            const res = await invoke(action, extra);
+            setStepResults(prev => ({ ...prev, [action]: res.data }));
+            setLigaSummary({ success: true, singleStep: label, results: res.data });
+        } catch (error) {
+            setLigaSummary({ success: false, message: error.response?.data?.error || error.message });
+        }
+        setLigaProgress('');
+        setLigaRunning(false);
     };
 
     const seedPromiedos = async () => {
@@ -188,48 +223,75 @@ export default function AdminDevSeed() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {/* Main "run all" button */}
                     <div className="space-y-3">
                         <Button
                             onClick={seedLigaAfa}
-                            disabled={ligaStep === 'wiping' || ligaStep === 'seeding'}
+                            disabled={ligaRunning}
                             className="w-full sm:w-auto bg-blue-700 hover:bg-blue-800 text-white"
                         >
-                            {(ligaStep === 'wiping' || ligaStep === 'seeding')
-                                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{ligaProgress}</>
-                                : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data</>}
+                            {ligaRunning
+                                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{ligaProgress || 'Corriendo...'}</>
+                                : <><Database className="w-4 h-4 mr-2" />Seed Liga AFA Data (4 pasos)</>}
                         </Button>
-                        <p className="text-sm text-blue-700">
-                            Corre 2 pasos automáticamente: borra datos existentes y crea 30 equipos, 420+ jugadores y 30 partidos.
-                        </p>
-
-                        {ligaStep === 'wiping' || ligaStep === 'seeding' ? (
-                            <div className="p-3 bg-blue-100 text-blue-800 rounded text-sm flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                                <span>{ligaProgress}</span>
-                            </div>
-                        ) : null}
-
-                        {ligaSummary && (
-                            <div className={`p-3 rounded text-sm flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {ligaSummary.success ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
-                                <div className="space-y-1">
-                                    {ligaSummary.success ? (
-                                        <>
-                                            <div className="font-semibold">¡Seed completado!</div>
-                                            {ligaSummary.deleted && <div className="text-xs">Borrado — Teams: {ligaSummary.deleted.teams} · Players: {ligaSummary.deleted.players} · Matches: {ligaSummary.deleted.matches}</div>}
-                                            {ligaSummary.counts && (
-                                                <div className="text-xs">
-                                                    Creado — Teams: {ligaSummary.counts.teams_created} · Players: {ligaSummary.counts.players_created} · Matches: {ligaSummary.counts.matches_created}
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="font-semibold">Error: {ligaSummary.message}</div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <p className="text-sm text-blue-700">Corre 4 pasos automáticos: borra, crea equipos, jugadores (6 batches), partidos. ~2-3 min.</p>
                     </div>
+
+                    {/* Individual step buttons */}
+                    <div className="border border-blue-200 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Pasos individuales (si falla uno)</p>
+                        <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" disabled={ligaRunning} onClick={() => runSingleStep('wipe_data', 'Borrando...')} className="border-red-300 text-red-700 hover:bg-red-50 text-xs">
+                                1. Borrar datos
+                            </Button>
+                            <Button size="sm" variant="outline" disabled={ligaRunning} onClick={() => runSingleStep('seed_teams', 'Creando equipos...')} className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs">
+                                2. Crear equipos
+                            </Button>
+                            {[0,1,2,3,4,5].map(b => (
+                                <Button key={b} size="sm" variant="outline" disabled={ligaRunning} onClick={() => runSingleStep('seed_players_batch', `Jugadores batch ${b+1}/6...`, { batch: b })} className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs">
+                                    3.{b+1} Players B{b}
+                                </Button>
+                            ))}
+                            <Button size="sm" variant="outline" disabled={ligaRunning} onClick={() => runSingleStep('seed_matches', 'Creando partidos...')} className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs">
+                                4. Crear partidos
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Progress indicator */}
+                    {ligaRunning && ligaProgress && (
+                        <div className="p-3 bg-blue-100 text-blue-800 rounded text-sm flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                            <span>{ligaProgress}</span>
+                        </div>
+                    )}
+
+                    {/* Result summary */}
+                    {ligaSummary && (
+                        <div className={`p-3 rounded text-sm flex items-start gap-2 ${ligaSummary.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {ligaSummary.success ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                            <div className="space-y-1">
+                                {ligaSummary.success ? (
+                                    <>
+                                        <div className="font-semibold">{ligaSummary.singleStep ? `✅ ${ligaSummary.singleStep} completado` : '✅ Seed completado!'}</div>
+                                        {ligaSummary.results?.wipe && <div className="text-xs">Borrado — Teams: {ligaSummary.results.wipe.deleted?.teams} · Players: {ligaSummary.results.wipe.deleted?.players} · Matches: {ligaSummary.results.wipe.deleted?.matches}</div>}
+                                        {ligaSummary.results?.teams && <div className="text-xs">Equipos creados: {ligaSummary.results.teams.teams_created}</div>}
+                                        {ligaSummary.results?.players && <div className="text-xs">Jugadores creados: {ligaSummary.results.players.players_created}</div>}
+                                        {ligaSummary.results?.matches && <div className="text-xs">Partidos creados: {ligaSummary.results.matches.matches_created}</div>}
+                                        {ligaSummary.singleStep && <div className="text-xs mt-1">{JSON.stringify(ligaSummary.results)}</div>}
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="font-semibold">Error: {ligaSummary.message}</div>
+                                        {ligaSummary.results && Object.keys(ligaSummary.results).length > 0 && (
+                                            <div className="text-xs">Completado hasta: {Object.keys(ligaSummary.results).join(' → ')}</div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    
                     <div>
                         <Button onClick={seedPromiedos} disabled={seedingPromiedos} variant="outline" className="w-full sm:w-auto border-blue-400 text-blue-800 hover:bg-blue-100">
                             {seedingPromiedos ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : <><Database className="w-4 h-4 mr-2" />Seed Promiedos Data Source</>}

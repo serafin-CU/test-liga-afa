@@ -625,6 +625,18 @@ const PLAYERS_BY_CODE = {
     ],
 };
 
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+// ALL_TEAMS split into 6 batches of 5 for seed_players_batch
+const TEAM_BATCHES = [
+    ALL_TEAMS.slice(0, 5),
+    ALL_TEAMS.slice(5, 10),
+    ALL_TEAMS.slice(10, 15),
+    ALL_TEAMS.slice(15, 20),
+    ALL_TEAMS.slice(20, 25),
+    ALL_TEAMS.slice(25, 30),
+];
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -635,105 +647,61 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json();
-        const { action } = body;
+        const { action, batch } = body;
 
         // ── ACTION: wipe_data ──
-        // Deletes teams, players, matches in fast parallel chunks. Run this first.
+        // Deletes all matches, players, teams one-by-one with pauses.
         if (action === 'wipe_data') {
-            console.log('Fetching existing data counts...');
-            const [existingTeams, existingPlayers, existingMatches] = await Promise.all([
-                base44.asServiceRole.entities.Team.list(),
-                base44.asServiceRole.entities.Player.list(),
+            const [existingMatches, existingPlayers, existingTeams] = await Promise.all([
                 base44.asServiceRole.entities.Match.list(),
+                base44.asServiceRole.entities.Player.list(),
+                base44.asServiceRole.entities.Team.list(),
             ]);
-            console.log(`Deleting ${existingTeams.length} teams, ${existingPlayers.length} players, ${existingMatches.length} matches...`);
+            console.log(`Wiping: ${existingMatches.length} matches, ${existingPlayers.length} players, ${existingTeams.length} teams`);
 
-            async function deleteInChunks(entity, items) {
-                for (let i = 0; i < items.length; i += 10) {
-                    const chunk = items.slice(i, i + 10);
-                    await Promise.all(chunk.map(x => entity.delete(x.id)));
-                    await new Promise(r => setTimeout(r, 800));
-                }
+            let i = 0;
+            for (const m of existingMatches) {
+                await base44.asServiceRole.entities.Match.delete(m.id);
+                i++;
+                if (i % 5 === 0) await wait(1000);
             }
-
-            await deleteInChunks(base44.asServiceRole.entities.Match, existingMatches);
-            await deleteInChunks(base44.asServiceRole.entities.Player, existingPlayers);
-            await deleteInChunks(base44.asServiceRole.entities.Team, existingTeams);
+            i = 0;
+            for (const p of existingPlayers) {
+                await base44.asServiceRole.entities.Player.delete(p.id);
+                i++;
+                if (i % 5 === 0) await wait(1000);
+            }
+            i = 0;
+            for (const t of existingTeams) {
+                await base44.asServiceRole.entities.Team.delete(t.id);
+                i++;
+                if (i % 5 === 0) await wait(1000);
+            }
 
             return Response.json({
                 success: true,
-                message: 'All data deleted',
-                deleted: {
-                    teams: existingTeams.length,
-                    players: existingPlayers.length,
-                    matches: existingMatches.length,
-                }
+                message: 'All data wiped',
+                deleted: { teams: existingTeams.length, players: existingPlayers.length, matches: existingMatches.length },
             });
         }
 
-        // ── ACTION: seed_teams_and_matches ──
-        // Creates teams, players, matches, updates AppConfig. Run AFTER delete_all_data.
-        if (action === 'seed_teams_and_matches') {
-            // ── 1. Create teams ──
-            console.log('Creating 30 Liga AFA teams...');
-            const teamData = ALL_TEAMS.map(t => ({
-                name: t.name,
-                fifa_code: t.code,
-                is_qualified: true,
-                group_code: t.group,
-            }));
-            const createdTeams = await base44.asServiceRole.entities.Team.bulkCreate(teamData);
-            const teamMap = {};
-            for (const t of createdTeams) teamMap[t.fifa_code] = t;
-            console.log(`Created ${createdTeams.length} teams`);
-
-            // ── 2. Create players ──
-            console.log('Creating players...');
-            const allPlayerData = [];
+        // ── ACTION: seed_teams ──
+        // Creates 30 teams one-by-one with 300ms delay each.
+        if (action === 'seed_teams') {
+            console.log('Creating 30 Liga AFA teams one by one...');
+            const created = [];
             for (const t of ALL_TEAMS) {
-                const teamId = teamMap[t.code]?.id;
-                if (!teamId) continue;
-                const players = PLAYERS_BY_CODE[t.code] || [];
-                for (const [full_name, position, price] of players) {
-                    allPlayerData.push({ full_name, team_id: teamId, position, price, is_active: true });
-                }
+                const team = await base44.asServiceRole.entities.Team.create({
+                    name: t.name,
+                    fifa_code: t.code,
+                    is_qualified: true,
+                    group_code: t.group,
+                });
+                created.push(team);
+                await wait(300);
             }
 
-            let players_created = 0;
-            for (let i = 0; i < allPlayerData.length; i += 25) {
-                const chunk = allPlayerData.slice(i, i + 25);
-                const created = await base44.asServiceRole.entities.Player.bulkCreate(chunk);
-                players_created += created.length;
-                await new Promise(r => setTimeout(r, 800));
-            }
-            console.log(`Created ${players_created} players`);
-
-            // ── 3. Create matches ──
-            console.log('Creating matches...');
-            const fecha10Matches = FECHA_10.map(([home, away, kickoff]) => ({
-                phase: 'APERTURA_ZONE',
-                kickoff_at: kickoff,
-                home_team_id: teamMap[home].id,
-                away_team_id: teamMap[away].id,
-                status: 'SCHEDULED',
-                venue: 'Fecha 10',
-            }));
-            const fecha11Matches = FECHA_11.map(([home, away, kickoff]) => ({
-                phase: 'APERTURA_ZONE',
-                kickoff_at: kickoff,
-                home_team_id: teamMap[home].id,
-                away_team_id: teamMap[away].id,
-                status: 'SCHEDULED',
-                venue: 'Fecha 11',
-            }));
-
-            const createdF10 = await base44.asServiceRole.entities.Match.bulkCreate(fecha10Matches);
-            await new Promise(r => setTimeout(r, 800));
-            const createdF11 = await base44.asServiceRole.entities.Match.bulkCreate(fecha11Matches);
-            const createdMatches = [...createdF10, ...createdF11];
-            console.log(`Created ${createdMatches.length} matches`);
-
-            // ── 4. Update AppConfig ──
+            // Update AppConfig
             const configs = await base44.asServiceRole.entities.AppConfig.list();
             const configData = {
                 tournament_start_at: '2026-04-05T16:00:00Z',
@@ -747,20 +715,73 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.AppConfig.create(configData);
             }
 
-            return Response.json({
-                success: true,
-                message: 'Liga AFA Apertura data seeded successfully',
-                summary: {
-                    teams_created: createdTeams.length,
-                    players_created,
-                    matches_created: createdMatches.length,
-                    fecha_10_matches: fecha10Matches.length,
-                    fecha_11_matches: fecha11Matches.length,
-                },
-            });
+            return Response.json({ success: true, teams_created: created.length });
         }
 
-        return Response.json({ error: 'Invalid action. Use wipe_data or seed_teams_and_matches' }, { status: 400 });
+        // ── ACTION: seed_players_batch ──
+        // Creates players for 5 teams (batch 0-5). Each player individually, 500ms every 3 players.
+        if (action === 'seed_players_batch') {
+            const batchIndex = typeof batch === 'number' ? batch : parseInt(batch, 10);
+            if (isNaN(batchIndex) || batchIndex < 0 || batchIndex > 5) {
+                return Response.json({ error: 'batch must be 0-5' }, { status: 400 });
+            }
+
+            // Fetch existing teams to build teamMap
+            const allTeams = await base44.asServiceRole.entities.Team.list();
+            const teamMap = {};
+            for (const t of allTeams) teamMap[t.fifa_code] = t;
+
+            const teamsInBatch = TEAM_BATCHES[batchIndex];
+            let players_created = 0;
+            let playerCount = 0;
+
+            for (const t of teamsInBatch) {
+                const teamId = teamMap[t.code]?.id;
+                if (!teamId) { console.log(`Team not found: ${t.code}`); continue; }
+                const players = PLAYERS_BY_CODE[t.code] || [];
+                for (const [full_name, position, price] of players) {
+                    await base44.asServiceRole.entities.Player.create({ full_name, team_id: teamId, position, price, is_active: true });
+                    players_created++;
+                    playerCount++;
+                    if (playerCount % 3 === 0) await wait(500);
+                }
+                await wait(500);
+            }
+
+            return Response.json({ success: true, batch: batchIndex, players_created });
+        }
+
+        // ── ACTION: seed_matches ──
+        // Creates 30 matches one-by-one with 300ms delay each.
+        if (action === 'seed_matches') {
+            const allTeams = await base44.asServiceRole.entities.Team.list();
+            const teamMap = {};
+            for (const t of allTeams) teamMap[t.fifa_code] = t;
+
+            const allMatches = [
+                ...FECHA_10.map(([home, away, kickoff]) => ({ home, away, kickoff, venue: 'Fecha 10' })),
+                ...FECHA_11.map(([home, away, kickoff]) => ({ home, away, kickoff, venue: 'Fecha 11' })),
+            ];
+
+            let matches_created = 0;
+            for (const { home, away, kickoff, venue } of allMatches) {
+                if (!teamMap[home] || !teamMap[away]) { console.log(`Teams not found: ${home} vs ${away}`); continue; }
+                await base44.asServiceRole.entities.Match.create({
+                    phase: 'APERTURA_ZONE',
+                    kickoff_at: kickoff,
+                    home_team_id: teamMap[home].id,
+                    away_team_id: teamMap[away].id,
+                    status: 'SCHEDULED',
+                    venue,
+                });
+                matches_created++;
+                await wait(300);
+            }
+
+            return Response.json({ success: true, matches_created });
+        }
+
+        return Response.json({ error: 'Invalid action. Use wipe_data, seed_teams, seed_players_batch, or seed_matches' }, { status: 400 });
 
     } catch (error) {
         console.error('ligaAfaSeedService error:', error);
