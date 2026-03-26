@@ -120,74 +120,96 @@ function Step2({ department, setDepartment, onNext, onSkip }) {
 
 function Step3({ preferredTeamId, setPreferredTeamId, onNext, onSkip }) {
     const [search, setSearch] = useState('');
-    const { data: teams = [] } = useQuery({
+    const { data: teams = [], isLoading } = useQuery({
         queryKey: ['teams'],
         queryFn: () => base44.entities.Team.list()
     });
 
     const filtered = teams.filter(t =>
         t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.fifa_code.toLowerCase().includes(search.toLowerCase())
+        (t.fifa_code || '').toLowerCase().includes(search.toLowerCase())
     );
 
     return (
-        <div className="max-w-2xl w-full max-h-[600px] flex flex-col">
+        <div className="max-w-2xl w-full flex flex-col" style={{ maxHeight: '80vh' }}>
             <h1 className="text-4xl font-bold text-white mb-2 text-center" style={{ fontFamily: "'DM Serif Display', serif" }}>
                 ¿De qué equipo sos? 🇦🇷
             </h1>
             <p className="text-white/60 text-center mb-6" style={{ fontFamily: "'Raleway', sans-serif" }}>
                 Solo para el honor — no afecta tu equipo Fantasy
             </p>
-            
-            <div className="mb-6 flex gap-2">
-                <Search className="w-5 h-5 text-white/40 flex-shrink-0" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search teams..."
-                    className="flex-1 px-4 py-2 rounded-lg text-sm border-2"
-                    style={{
-                        fontFamily: "'Raleway', sans-serif",
-                        borderColor: CU.orange,
-                        background: 'white',
-                        color: CU.charcoal
-                    }}
-                />
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8 overflow-y-auto">
-                {filtered.map((team) => (
-                    <button
-                        key={team.id}
-                        onClick={() => setPreferredTeamId(team.id)}
-                        className="px-3 py-3 rounded-xl font-semibold text-sm transition-all text-center"
-                        style={{
-                            fontFamily: "'Raleway', sans-serif",
-                            background: preferredTeamId === team.id ? CU.orange + '33' : 'rgba(255,255,255,0.1)',
-                            color: 'white',
-                            border: preferredTeamId === team.id ? `2px solid ${CU.orange}` : '2px solid rgba(255,255,255,0.2)',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <div>{team.fifa_code}</div>
-                        <div className="text-xs mt-1 opacity-80">{team.name}</div>
-                    </button>
-                ))}
-            </div>
-            
+
+            {isLoading ? (
+                <div className="flex-1 flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                </div>
+            ) : teams.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center">
+                    <p className="text-white/60 mb-2" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                        No hay equipos disponibles todavía.
+                    </p>
+                    <p className="text-white/40 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                        Podés continuar y elegirlo más tarde desde tu perfil.
+                    </p>
+                </div>
+            ) : (
+                <>
+                    <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${CU.orange}40` }}>
+                        <Search className="w-4 h-4 text-white/40 flex-shrink-0" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Buscar equipo..."
+                            className="flex-1 bg-transparent text-white text-sm outline-none placeholder-white/40"
+                            style={{ fontFamily: "'Raleway', sans-serif" }}
+                        />
+                        {search && (
+                            <button onClick={() => setSearch('')} className="text-white/40 hover:text-white">
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 overflow-y-auto flex-1 pr-1">
+                        {filtered.map((team) => (
+                            <button
+                                key={team.id}
+                                onClick={() => setPreferredTeamId(team.id)}
+                                className="px-3 py-3 rounded-xl font-semibold text-sm transition-all text-center"
+                                style={{
+                                    fontFamily: "'Raleway', sans-serif",
+                                    background: preferredTeamId === team.id ? CU.orange + '33' : 'rgba(255,255,255,0.1)',
+                                    color: 'white',
+                                    border: preferredTeamId === team.id ? `2px solid ${CU.orange}` : '2px solid rgba(255,255,255,0.2)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <div className="font-bold">{team.fifa_code}</div>
+                                <div className="text-xs mt-1 opacity-80 leading-tight">{team.name}</div>
+                            </button>
+                        ))}
+                        {filtered.length === 0 && (
+                            <div className="col-span-3 text-center text-white/40 py-8" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                                No se encontraron equipos
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+
             <button
                 onClick={onNext}
-                disabled={!preferredTeamId}
-                className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity"
+                disabled={!preferredTeamId && teams.length > 0}
+                className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity mt-2"
                 style={{
                     fontFamily: "'Raleway', sans-serif",
-                    background: preferredTeamId ? CU.magenta : '#9ca3af',
-                    opacity: preferredTeamId ? 1 : 0.6,
-                    cursor: preferredTeamId ? 'pointer' : 'not-allowed'
+                    background: (preferredTeamId || teams.length === 0) ? CU.magenta : '#9ca3af',
+                    opacity: (preferredTeamId || teams.length === 0) ? 1 : 0.6,
+                    cursor: (preferredTeamId || teams.length === 0) ? 'pointer' : 'not-allowed'
                 }}
             >
-                Next <ChevronRight className="w-4 h-4" />
+                {teams.length === 0 ? 'Continuar sin elegir' : 'Next'} <ChevronRight className="w-4 h-4" />
             </button>
         </div>
     );
