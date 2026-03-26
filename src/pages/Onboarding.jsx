@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useNavigate } from 'react-router-dom';
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Search, Upload, X } from 'lucide-react';
 
@@ -295,7 +295,6 @@ function Step4({ avatarUrl, setAvatarUrl, onNext, onSkip }) {
 }
 
 function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
-    const navigate = useNavigate();
     const { data: team } = useQuery({
         queryKey: ['team', preferredTeamId],
         queryFn: () => preferredTeamId ? base44.entities.Team.get(preferredTeamId) : null,
@@ -336,7 +335,7 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
             
             <div className="space-y-3">
                 <button
-                    onClick={() => navigate('/ProdePredictions')}
+                    onClick={() => { window.location.href = '/ProdePredictions'; }}
                     className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity"
                     style={{
                         fontFamily: "'Raleway', sans-serif",
@@ -344,11 +343,11 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
                         cursor: 'pointer'
                     }}
                 >
-                    Start Predicting <ChevronRight className="w-4 h-4" />
+                    Empezar a Predecir <ChevronRight className="w-4 h-4" />
                 </button>
                 
                 <button
-                    onClick={() => navigate('/SquadBuilder')}
+                    onClick={() => { window.location.href = '/SquadBuilder'; }}
                     className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity"
                     style={{
                         fontFamily: "'Raleway', sans-serif",
@@ -356,7 +355,7 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
                         cursor: 'pointer'
                     }}
                 >
-                    Build My Squad <ChevronRight className="w-4 h-4" />
+                    Armar Mi Equipo <ChevronRight className="w-4 h-4" />
                 </button>
             </div>
         </div>
@@ -364,7 +363,6 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
 }
 
 export default function Onboarding() {
-    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [step, setStep] = useState(0);
     const [displayName, setDisplayName] = useState('');
@@ -419,7 +417,7 @@ export default function Onboarding() {
                 avatar_url: avatarUrl || '',
                 onboarding_completed: true
             });
-            navigate('/');
+            window.location.href = '/Dashboard';
         } catch (err) {
             console.error('Skip failed:', err);
         } finally {
