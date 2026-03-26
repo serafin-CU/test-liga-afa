@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Shield, Users, AlertCircle, Loader2, Award } from 'lucide-react';
+import { Shield, Users, AlertCircle, Loader2, Award, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
+import SquadBuilder from './SquadBuilder';
 
 const CU = {
     orange: '#FFB81C',
@@ -133,8 +134,35 @@ function BadgesSection({ userId, currentPhase }) {
     );
 }
 
+function TabBar({ activeTab, setActiveTab }) {
+    return (
+        <div className="flex border-b sticky top-0 z-10" style={{ background: 'white', borderColor: '#e5e7eb' }}>
+            {[
+                { key: 'squad', label: '🏟️ Mi Equipo' },
+                { key: 'builder', label: '⚙️ Armar Equipo' },
+            ].map(tab => (
+                <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className="flex-1 py-3 text-sm font-semibold transition-colors"
+                    style={{
+                        fontFamily: "'Raleway', sans-serif",
+                        color: activeTab === tab.key ? CU.magenta : '#6b7280',
+                        borderBottom: activeTab === tab.key ? `2px solid ${CU.magenta}` : '2px solid transparent',
+                        background: 'none',
+                        cursor: 'pointer',
+                    }}
+                >
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 export default function SquadManagement() {
     const [confirmCaptainDialog, setConfirmCaptainDialog] = useState(null);
+    const [activeTab, setActiveTab] = useState(null); // null = auto-detect after data loads
     const queryClient = useQueryClient();
 
     const { data: currentUser, isLoading: userLoading } = useQuery({
@@ -319,29 +347,52 @@ export default function SquadManagement() {
         );
     }
 
+    // Determine effective tab: default to builder if no squad
+    const effectiveTab = activeTab ?? (!activeSquad ? 'builder' : 'squad');
+
     if (!activeSquad) {
         return (
-            <div className="p-8 max-w-4xl mx-auto">
-                <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal, marginBottom: '24px' }}>My Squad</h1>
-                <div className="rounded-xl p-10 text-center space-y-4" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
-                    <Users className="w-16 h-16 mx-auto" style={{ color: '#d1d5db' }} />
-                    <div style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', fontWeight: 600 }}>Todavía no armaste tu equipo</div>
-                    <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#9ca3af' }}>Elegí jugadores y armá tu equipo fantasy para el Apertura</p>
-                    <a href="/SquadBuilder" style={{ display: 'inline-block', marginTop: '12px', background: '#AA0061', color: 'white', fontFamily: "'Raleway', sans-serif", fontWeight: 700, padding: '10px 24px', borderRadius: '8px', textDecoration: 'none' }}>
-                        Armar Equipo →
-                    </a>
+            <div className="max-w-6xl mx-auto">
+                <TabBar activeTab={effectiveTab} setActiveTab={setActiveTab} />
+                <div className="px-3 sm:px-6 md:px-8 pb-6">
+                    <div className="mb-4 p-3 rounded-xl text-center text-sm font-semibold"
+                         style={{ background: CU.orange + '18', border: `1px solid ${CU.orange}40`, fontFamily: "'Raleway', sans-serif", color: '#9a6e00' }}>
+                        Todavía no armaste tu equipo — ¡empezá acá!
+                    </div>
+                    <SquadBuilder />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="p-3 sm:p-6 md:p-8 max-w-6xl mx-auto pb-24">
+        <div className="max-w-6xl mx-auto pb-24">
+            <TabBar activeTab={effectiveTab} setActiveTab={setActiveTab} />
+
+            {effectiveTab === 'builder' && (
+                <SquadBuilder onSquadSaved={() => setActiveTab('squad')} />
+            )}
+
+            {effectiveTab === 'squad' && (
+            <div className="p-3 sm:p-6 md:p-8">
             <WorldCupBanner compact />
             {/* Header */}
             <div className="mb-6">
-                <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>🏟️ My Squad</h1>
-                <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Tu equipo del Apertura</p>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                        <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: '2rem', color: CU.charcoal }}>🏟️ Mi Equipo</h1>
+                        <p style={{ fontFamily: "'Raleway', sans-serif", color: '#6b7280', marginTop: '4px' }}>Tu equipo del Apertura</p>
+                    </div>
+                    {!isPhaseLocked && (
+                        <button
+                            onClick={() => setActiveTab('builder')}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                            style={{ background: CU.charcoal, color: 'white', fontFamily: "'Raleway', sans-serif", cursor: 'pointer' }}
+                        >
+                            <Edit2 className="w-4 h-4" /> Editar Equipo
+                        </button>
+                    )}
+                </div>
                 <BadgePills userId={currentUser.id} currentPhase={activeSquad?.phase} />
             </div>
 
@@ -459,6 +510,8 @@ export default function SquadManagement() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            </div>
+            )}
         </div>
     );
 }
