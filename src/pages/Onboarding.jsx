@@ -414,7 +414,7 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
     });
 
     return (
-        <div className="max-w-md w-full overflow-y-auto" style={{ maxHeight: '85vh' }}>
+        <div className="max-w-md w-full">
             <div className="text-center mb-6">
                 <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
                     ¡Ya estás! 🎉
@@ -526,14 +526,15 @@ export default function Onboarding() {
 
     return (
         <div
-            className="fixed inset-0 flex flex-col items-center justify-center p-4"
+            className="fixed inset-0 overflow-y-auto"
             style={{ background: CU.charcoal, fontFamily: "'Raleway', sans-serif", zIndex: 9999 }}
         >
+            <div className="min-h-full flex flex-col items-center justify-center p-4 py-16">
             {/* Skip button */}
             <button
                 onClick={handleSkip}
                 disabled={saving}
-                className="absolute top-6 right-6 text-white/60 hover:text-white transition"
+                className="fixed top-6 right-6 text-white/60 hover:text-white transition"
                 style={{ fontFamily: "'Raleway', sans-serif", cursor: saving ? 'not-allowed' : 'pointer' }}
             >
                 Skip
@@ -585,6 +586,7 @@ export default function Onboarding() {
                     avatarUrl={avatarUrl}
                 />
             )}
+            </div>
         </div>
     );
 }
