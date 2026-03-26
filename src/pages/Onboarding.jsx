@@ -414,7 +414,7 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
     });
 
     return (
-        <div className="max-w-md w-full">
+        <div className="max-w-md w-full overflow-y-auto" style={{ maxHeight: '85vh' }}>
             <div className="text-center mb-6">
                 <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
                     ¡Ya estás! 🎉
@@ -436,7 +436,7 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
                 Tocá para ver cómo funciona cada modo:
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-3 pb-8">
                 <GameCard
                     emoji="⚽"
                     title="Prode — Predicciones"
