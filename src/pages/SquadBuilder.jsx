@@ -331,18 +331,48 @@ export default function SquadBuilder() {
         return null;
     }, [positionCounts]);
 
+    // Which bench positions are still needed
+    const neededBenchPositions = useMemo(() => {
+        // Bench must have exactly 1 of each: GK, DEF, MID, FWD
+        const covered = new Set(benchPlayers.map(id => playersMap[id]?.position).filter(Boolean));
+        return ['GK', 'DEF', 'MID', 'FWD'].filter(pos => !covered.has(pos));
+    }, [benchPlayers, playersMap]);
+
     // Player pool
     const filteredPlayers = useMemo(() => {
         let pool = allPlayers.filter(p => p.is_active !== false);
-        const activeFilter = posFilter !== 'ALL' ? posFilter : nextNeededPos;
-        if (activeFilter && !startersComplete) pool = pool.filter(p => p.position === activeFilter);
+
+        // Position filter
+        if (startersComplete) {
+            // Bench mode: only show needed bench positions (or user's manual filter)
+            const activeFilter = posFilter !== 'ALL' ? posFilter : null;
+            if (activeFilter) {
+                pool = pool.filter(p => p.position === activeFilter);
+            } else {
+                pool = pool.filter(p => neededBenchPositions.includes(p.position));
+            }
+        } else {
+            const activeFilter = posFilter !== 'ALL' ? posFilter : nextNeededPos;
+            if (activeFilter) pool = pool.filter(p => p.position === activeFilter);
+        }
+
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             pool = pool.filter(p => p.full_name?.toLowerCase().includes(q) || teamsMap[p.team_id]?.name?.toLowerCase().includes(q));
         }
+
+        // In bench mode: sort affordable first, unaffordable greyed at bottom
+        if (startersComplete) {
+            const affordable = pool.filter(p => p.price <= remainingBudget || squadPlayerIds.has(p.id));
+            const unaffordable = pool.filter(p => p.price > remainingBudget && !squadPlayerIds.has(p.id));
+            affordable.sort((a, b) => (b.price || 0) - (a.price || 0));
+            unaffordable.sort((a, b) => (b.price || 0) - (a.price || 0));
+            return [...affordable, ...unaffordable];
+        }
+
         pool.sort((a, b) => (b.price || 0) - (a.price || 0));
         return pool;
-    }, [allPlayers, posFilter, searchQuery, teamsMap, nextNeededPos, startersComplete]);
+    }, [allPlayers, posFilter, searchQuery, teamsMap, nextNeededPos, startersComplete, remainingBudget, squadPlayerIds, neededBenchPositions]);
 
     // Add player
     const handleAddPlayer = useCallback((player) => {
@@ -426,6 +456,17 @@ export default function SquadBuilder() {
                     </p>
                 </div>
 
+                {/* Captain reminder banner — prominent, at top */}
+                {startersComplete && !hasCaptain && (
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
+                         style={{ background: CU.orange, fontFamily: "'Raleway', sans-serif" }}>
+                        <Star className="w-5 h-5 text-white shrink-0" />
+                        <span className="text-sm font-bold text-white">
+                            ¡No olvidés elegir capitán! Pasá el mouse sobre un titular y tocá ☆ (el capitán suma el doble de puntos)
+                        </span>
+                    </div>
+                )}
+
                 {/* Budget bar */}
                 <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ background: 'white', border: '1px solid #e5e7eb' }}>
                     <div className="flex-1">
@@ -459,20 +500,20 @@ export default function SquadBuilder() {
                         />
                         <BenchRow benchPlayers={benchPlayers} playersMap={playersMap} teamsMap={teamsMap} onRemove={handleRemovePlayer} />
 
-                        {/* Captain reminder */}
-                        {startersComplete && !hasCaptain && (
-                            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: CU.orange + '15', border: `1px solid ${CU.orange}30` }}>
-                                <Star className="w-4 h-4" style={{ color: CU.orange }} />
-                                <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: '#9a6e00' }}>
-                                    Pasá el mouse sobre un titular y tocá ☆ para elegir capitán (2× puntos)
-                                </span>
-                            </div>
-                        )}
+
                     </div>
 
                     {/* RIGHT: Player pool (2/5 width) */}
                     <div className="lg:col-span-2 rounded-xl overflow-hidden" style={{ border: '1px solid #e5e7eb', background: 'white' }}>
                         <div className="px-3 py-2.5" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            {startersComplete && !benchComplete && (
+                                <div className="mb-2.5 px-3 py-2 rounded-lg text-xs font-semibold"
+                                     style={{ background: CU.blue + '12', border: `1px solid ${CU.blue}30`, color: CU.blue, fontFamily: "'Raleway', sans-serif", lineHeight: '1.4' }}>
+                                    Elegí {neededBenchPositions.map(p => POS_MAP[p].label).join(', ')} para suplentes
+                                    {' · '}
+                                    <span style={{ fontWeight: 800 }}>${remainingBudget}M disponible</span>
+                                </div>
+                            )}
                             <div className="flex items-center justify-between mb-2">
                                 <span className="font-semibold text-sm" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>Jugadores</span>
                                 <span className="text-xs" style={{ color: '#9ca3af' }}>{filteredPlayers.length}</span>
