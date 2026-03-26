@@ -337,30 +337,47 @@ function GameCard({ emoji, title, description, preview, buttonLabel, buttonBg, h
 
 function ProdePreview() {
     return (
-        <div className="flex items-center justify-between text-white text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
-            <div className="text-center">
-                <div className="font-bold text-base">BOC</div>
-                <div className="text-white/50 text-xs">Boca</div>
+        <div className="space-y-3" style={{ fontFamily: "'Raleway', sans-serif" }}>
+            {/* Match result */}
+            <div className="flex items-center justify-between text-white text-sm">
+                <div className="text-center">
+                    <div className="font-bold text-base">RIV</div>
+                    <div className="text-white/50 text-xs">River</div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>3</div>
+                    <div className="text-white/40 text-xs">×</div>
+                    <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>1</div>
+                </div>
+                <div className="text-center">
+                    <div className="font-bold text-base">BOC</div>
+                    <div className="text-white/50 text-xs">Boca</div>
+                </div>
             </div>
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>2</div>
-                <div className="text-white/40 text-xs">×</div>
-                <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>1</div>
-            </div>
-            <div className="text-center">
-                <div className="font-bold text-base">RIV</div>
-                <div className="text-white/50 text-xs">River</div>
+            {/* Demo tour steps */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-wide font-semibold">Cómo funciona:</p>
+                {[
+                    { icon: '1️⃣', text: 'Ingresá el marcador exacto que predecís para cada partido.' },
+                    { icon: '2️⃣', text: 'Guardá antes del inicio del partido — después no podés editar.' },
+                    { icon: '3️⃣', text: 'Exacto = 5 pts · Ganador correcto = 3 pts · Empate correcto = 3 pts.' },
+                ].map((s, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-white/70">
+                        <span>{s.icon}</span>
+                        <span style={{ fontFamily: "'Raleway', sans-serif" }}>{s.text}</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
 }
 
 function FantasyPreview() {
-    const players = ['Marchesín', 'Di María', 'Carboni', 'Martínez A.', 'Driussi'];
+    const players = ['Armani', 'Meza', 'Carboni', 'Borja', 'Colidio'];
     return (
         <div className="space-y-2" style={{ fontFamily: "'Raleway', sans-serif" }}>
             <div className="text-white/50 text-xs text-center mb-2">Formación 4-3-3 · $150M presupuesto</div>
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex flex-wrap gap-2 justify-center mb-2">
                 {players.map(p => (
                     <span key={p} className="px-2 py-1 rounded-full text-xs text-white font-semibold" style={{ background: 'rgba(255,184,28,0.2)', border: '1px solid rgba(255,184,28,0.4)' }}>
                         {p}
@@ -369,6 +386,21 @@ function FantasyPreview() {
                 <span className="px-2 py-1 rounded-full text-xs text-white/40" style={{ border: '1px dashed rgba(255,255,255,0.2)' }}>
                     +10 más...
                 </span>
+            </div>
+            {/* Demo tour steps */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+                <p className="text-white/40 text-xs uppercase tracking-wide font-semibold">Cómo funciona:</p>
+                {[
+                    { icon: '1️⃣', text: 'Elegí 15 jugadores (11 titulares + 4 suplentes) con un presupuesto de $150M.' },
+                    { icon: '2️⃣', text: 'Elegí un capitán — sus puntos cuentan el doble cada jornada.' },
+                    { icon: '3️⃣', text: 'Los jugadores suman puntos por goles, minutos jugados, clean sheets y más.' },
+                    { icon: '🔁', text: 'Podés hacer cambios entre fechas. En fases eliminatorias, cada cambio tiene penalización.' },
+                ].map((s, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-white/70">
+                        <span>{s.icon}</span>
+                        <span style={{ fontFamily: "'Raleway', sans-serif" }}>{s.text}</span>
+                    </div>
+                ))}
             </div>
         </div>
     );
