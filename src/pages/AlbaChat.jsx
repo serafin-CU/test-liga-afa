@@ -13,11 +13,11 @@ const ALBA_FAQ = {
     
     responses: [
         {
-            triggers: ['score', 'points', 'scoring', 'how do points work', 'puntos', 'puntaje', 'como se puntua'],
+            triggers: ['score', 'points', 'scoring', 'how do points work', 'puntos', 'puntaje', 'como se puntua', 'puntua', 'punto', 'cuanto', 'cuantos puntos', 'exacto', 'ganador'],
             response: "📊 El Liga AFA Test tiene dos modos:\n\n**Prode (Predicciones):**\n• Resultado exacto = 5 pts\n• Ganador correcto = 3 pts\n\n**Fantasy:**\n• Gol de DL = 5 pts\n• Gol de MED = 6 pts\n• Gol de DEF/GK = 7 pts\n• 60+ minutos jugados = 2 pts\n• 1-59 minutos = 1 pt\n• Tarjeta amarilla = -1 pt\n• Tarjeta roja = -3 pts\n• ¡El capitán gana 2x puntos!"
         },
         {
-            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build', 'equipo', 'jugadores', 'armar'],
+            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build', 'equipo', 'jugadores', 'armar', 'plantel', 'formacion', 'presupuesto', 'precio'],
             response: "⚽ Tu equipo fantasy necesita:\n• 11 titulares (1 GK, 4 DEF, 3 MED, 3 DL)\n• 3 jugadores en el banco\n• 1 capitán (gana 2x puntos)\n• Presupuesto: $150M total\n\nFormación fija en 4-3-3. ¡Andá a 'Build Squad' para armarlo!"
         },
         {
@@ -25,11 +25,11 @@ const ALBA_FAQ = {
             response: "🔄 ¡Las transferencias son GRATIS en este torneo!\n\nPodés editar tu equipo hasta 48 horas antes del primer partido de cada fase. Después de eso, tu equipo se bloquea.\n\nFijate en el countdown del Squad Builder para ver cuándo cierra la ventana."
         },
         {
-            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match', 'calendario', 'fecha', 'partido', 'cuando'],
+            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match', 'calendario', 'fecha', 'partido', 'cuando', 'proxima', 'proximo', 'abril', 'fecha 10', 'fecha 11'],
             response: "📅 Calendario del Apertura 2026:\n\n• Fecha 10: 5-7 de abril\n• Fecha 11: 12-14 de abril\n• Octavos de Final (Apertura R16): por confirmar\n• Cuartos de Final: por confirmar\n• Semifinales: por confirmar\n• Final: 24 de mayo 🏆\n\n30 equipos en 2 zonas (A y B) en la fase de grupos."
         },
         {
-            triggers: ['prode', 'predict', 'prediction', 'guess', 'predecir', 'pronostico'],
+            triggers: ['prode', 'predict', 'prediction', 'guess', 'predecir', 'pronostico', 'resultado', 'marcador', 'prediccion'],
             response: "🎯 ¡El Prode es el juego de predicciones!\n\nPor cada partido, predecí el marcador final (goles local vs visitante). Podés predecir todos los partidos que quieras y guardarlos de una.\n\nPuntaje: Resultado exacto = 5 pts, ganador/empate correcto = 3 pts.\n\n¡Andá a 'Prode' en el menú para empezar!"
         },
         {
@@ -45,7 +45,7 @@ const ALBA_FAQ = {
             response: "🇦🇷 30 equipos en 2 zonas:\n\n**Zona A:** Boca, Independiente, San Lorenzo, Vélez, Riestra, Talleres, Instituto, Platense, Estudiantes LP, Gimnasia Mza, Lanús, Newell's, Defensa, Central Córdoba, Unión\n\n**Zona B:** River, Racing, Huracán, Barracas, Belgrano, Estudiantes RC, Argentinos, Tigre, Gimnasia LP, Ind. Rivadavia, Banfield, Rosario Central, Aldosivi, Atlético Tucumán, Sarmiento"
         },
         {
-            triggers: ['rules', 'how to play', 'how does this work', 'help', 'what is this', 'explain', 'reglas', 'como se juega', 'ayuda'],
+            triggers: ['rules', 'how to play', 'how does this work', 'help', 'what is this', 'explain', 'reglas', 'como se juega', 'ayuda', 'como funciona', 'que es', 'explicame', 'como juego'],
             response: "🏆 ¡Bienvenido al Liga AFA Test — Apertura 2026!\n\nDos formas de jugar:\n\n1️⃣ **Prode** — Predecí los marcadores de los partidos. Exacto = 5 pts, ganador = 3 pts.\n2️⃣ **Fantasy** — Armá un equipo de 14 jugadores reales. Ganan puntos según el rendimiento real.\n\nAmbos modos tienen sus propios leaderboards. ¡Tu puntaje combinado determina el campeón!\n\n¿Necesitás ayuda con algo específico? ¡Preguntame sobre puntaje, equipos, transferencias o el calendario!"
         }
     ],
@@ -63,7 +63,7 @@ const QUICK_REPLIES = [
 ];
 
 function getAlbaResponse(userMessage) {
-    const lower = userMessage.toLowerCase();
+    const lower = userMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[¿?¡!]/g, '');
     
     for (const item of ALBA_FAQ.responses) {
         for (const trigger of item.triggers) {

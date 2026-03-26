@@ -11,11 +11,11 @@ const ALBA_FAQ = {
     welcome: (name) => `¡Hola${name ? ` ${name}` : ''}! 👋 Soy Alba, tu asistente del Liga AFA Test. Preguntame sobre reglas de puntaje, cómo armar tu equipo, el calendario del Apertura, ¡o cómo funciona el juego!`,
     responses: [
         {
-            triggers: ['score', 'points', 'scoring', 'how do points work', 'puntos', 'puntaje', 'como se puntua'],
+            triggers: ['score', 'points', 'scoring', 'how do points work', 'puntos', 'puntaje', 'como se puntua', 'puntua', 'punto', 'cuanto', 'cuantos puntos', 'exacto', 'ganador'],
             response: "📊 El Liga AFA Test tiene dos modos:\n\n**Prode:** Resultado exacto = 5 pts, ganador = 3 pts\n\n**Fantasy:** Gol DL=5pts, MED=6pts, DEF/GK=7pts\n60+ min=2pts, 1-59 min=1pt\nAmarilla=-1pt, Roja=-3pts\n¡Capitán gana 2x puntos!"
         },
         {
-            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build', 'equipo', 'jugadores', 'armar'],
+            triggers: ['squad', 'formation', 'team', 'players', 'how many', '4-3-3', 'build', 'equipo', 'jugadores', 'armar', 'plantel', 'formacion', 'presupuesto', 'precio'],
             response: "⚽ Tu equipo fantasy necesita:\n• 11 titulares (1 GK, 4 DEF, 3 MED, 3 DL)\n• 3 jugadores en el banco\n• 1 capitán (gana 2x puntos)\n• Presupuesto: $150M total\n\nFormación fija 4-3-3. ¡Andá a 'Mi Equipo' para armarlo!"
         },
         {
@@ -23,11 +23,11 @@ const ALBA_FAQ = {
             response: "🔄 ¡Las transferencias son GRATIS!\n\nPodés editar tu equipo hasta 48hs antes del primer partido de cada fase. Después se bloquea."
         },
         {
-            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match', 'calendario', 'fecha', 'partido', 'cuando'],
+            triggers: ['schedule', 'when', 'date', 'start', 'calendar', 'fixture', 'match', 'calendario', 'fecha', 'partido', 'cuando', 'proxima', 'proximo', 'abril', 'fecha 10', 'fecha 11'],
             response: "📅 Apertura 2026:\n\n• Fecha 10: 5-7 de abril\n• Fecha 11: 12-14 de abril\n• Octavos: por confirmar\n• Final: 24 de mayo 🏆\n\n30 equipos en 2 zonas (A y B)."
         },
         {
-            triggers: ['prode', 'predict', 'prediction', 'guess', 'predecir', 'pronostico'],
+            triggers: ['prode', 'predict', 'prediction', 'guess', 'predecir', 'pronostico', 'resultado', 'marcador', 'prediccion'],
             response: "🎯 ¡El Prode es el juego de predicciones!\n\nPredecí el marcador final de cada partido.\nResultado exacto = 5 pts\nGanador/empate correcto = 3 pts"
         },
         {
@@ -39,7 +39,7 @@ const ALBA_FAQ = {
             response: "⭐ ¡Tu Capitán gana el DOBLE de puntos!\n\nSolo titulares pueden ser capitán. Cambialo antes del cierre en Mi Equipo."
         },
         {
-            triggers: ['rules', 'how to play', 'help', 'explain', 'reglas', 'como se juega', 'ayuda'],
+            triggers: ['rules', 'how to play', 'help', 'explain', 'reglas', 'como se juega', 'ayuda', 'como funciona', 'que es', 'explicame', 'como juego'],
             response: "🏆 Liga AFA Test — Apertura 2026:\n\n1️⃣ Prode — Predecí marcadores (exacto=5pts, ganador=3pts)\n2️⃣ Fantasy — 14 jugadores reales, puntos según rendimiento\n\n¿Qué querés saber más?"
         }
     ],
@@ -55,7 +55,7 @@ const QUICK_REPLIES = [
 ];
 
 function getAlbaResponse(msg) {
-    const lower = msg.toLowerCase();
+    const lower = msg.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[¿?¡!]/g, '');
     for (const item of ALBA_FAQ.responses) {
         for (const trigger of item.triggers) {
             if (lower.includes(trigger)) return item.response;
