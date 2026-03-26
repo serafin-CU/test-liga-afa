@@ -294,6 +294,86 @@ function Step4({ avatarUrl, setAvatarUrl, onNext, onSkip }) {
     );
 }
 
+function GameCard({ emoji, title, description, preview, buttonLabel, buttonBg, href }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div
+            className="rounded-xl overflow-hidden transition-all"
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+        >
+            <button
+                className="w-full px-4 py-4 flex items-center justify-between text-left"
+                onClick={() => setOpen(o => !o)}
+            >
+                <span className="text-white font-bold text-lg" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                    {emoji} {title}
+                </span>
+                <span className="text-white/50 text-xl">{open ? '▲' : '▼'}</span>
+            </button>
+
+            {open && (
+                <div className="px-4 pb-4 space-y-4">
+                    <p className="text-white/70 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                        {description}
+                    </p>
+                    <div
+                        className="rounded-lg p-3"
+                        style={{ background: 'rgba(0,0,0,0.3)' }}
+                    >
+                        {preview}
+                    </div>
+                    <button
+                        onClick={() => { window.location.href = href; }}
+                        className="w-full py-2.5 rounded-lg text-white font-semibold flex items-center justify-center gap-2"
+                        style={{ fontFamily: "'Raleway', sans-serif", background: buttonBg, cursor: 'pointer' }}
+                    >
+                        {buttonLabel} <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ProdePreview() {
+    return (
+        <div className="flex items-center justify-between text-white text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
+            <div className="text-center">
+                <div className="font-bold text-base">BOC</div>
+                <div className="text-white/50 text-xs">Boca</div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>2</div>
+                <div className="text-white/40 text-xs">×</div>
+                <div className="w-8 h-8 rounded flex items-center justify-center font-bold text-lg" style={{ background: 'rgba(255,255,255,0.15)' }}>1</div>
+            </div>
+            <div className="text-center">
+                <div className="font-bold text-base">RIV</div>
+                <div className="text-white/50 text-xs">River</div>
+            </div>
+        </div>
+    );
+}
+
+function FantasyPreview() {
+    const players = ['Marchesín', 'Di María', 'Carboni', 'Martínez A.', 'Driussi'];
+    return (
+        <div className="space-y-2" style={{ fontFamily: "'Raleway', sans-serif" }}>
+            <div className="text-white/50 text-xs text-center mb-2">Formación 4-3-3 · $150M presupuesto</div>
+            <div className="flex flex-wrap gap-2 justify-center">
+                {players.map(p => (
+                    <span key={p} className="px-2 py-1 rounded-full text-xs text-white font-semibold" style={{ background: 'rgba(255,184,28,0.2)', border: '1px solid rgba(255,184,28,0.4)' }}>
+                        {p}
+                    </span>
+                ))}
+                <span className="px-2 py-1 rounded-full text-xs text-white/40" style={{ border: '1px dashed rgba(255,255,255,0.2)' }}>
+                    +10 más...
+                </span>
+            </div>
+        </div>
+    );
+}
+
 function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
     const { data: team } = useQuery({
         queryKey: ['team', preferredTeamId],
@@ -302,61 +382,47 @@ function Completion({ displayName, department, preferredTeamId, avatarUrl }) {
     });
 
     return (
-        <div className="max-w-md w-full text-center">
-            <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
-                You're in! 🎉
-            </h1>
-            
-            <div className="mt-8 mb-8 space-y-4">
-                {avatarUrl && (
-                    <img
-                        src={avatarUrl}
-                        alt={displayName}
-                        className="w-32 h-32 rounded-full mx-auto object-cover border-4"
-                        style={{ borderColor: CU.orange }}
-                    />
-                )}
-                
-                <div>
-                    <div className="text-2xl font-bold text-white" style={{ fontFamily: "'DM Serif Display', serif" }}>
-                        {displayName}
-                    </div>
-                    <div className="text-white/60" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                        {department}
+        <div className="max-w-md w-full">
+            <div className="text-center mb-6">
+                <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: "'DM Serif Display', serif" }}>
+                    ¡Ya estás! 🎉
+                </h1>
+                <div className="flex items-center justify-center gap-3 mt-4">
+                    {avatarUrl && (
+                        <img src={avatarUrl} alt={displayName} className="w-12 h-12 rounded-full object-cover border-2" style={{ borderColor: CU.orange }} />
+                    )}
+                    <div className="text-left">
+                        <div className="text-xl font-bold text-white" style={{ fontFamily: "'DM Serif Display', serif" }}>{displayName}</div>
+                        <div className="text-white/50 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                            {department}{team ? ` · 🏆 ${team.name}` : ''}
+                        </div>
                     </div>
                 </div>
-                
-                {team && (
-                    <div className="text-lg text-white" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                        🏆 {team.name}
-                    </div>
-                )}
             </div>
-            
+
+            <p className="text-white/50 text-sm text-center mb-4" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                Tocá para ver cómo funciona cada modo:
+            </p>
+
             <div className="space-y-3">
-                <button
-                    onClick={() => { window.location.href = '/ProdePredictions'; }}
-                    className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity"
-                    style={{
-                        fontFamily: "'Raleway', sans-serif",
-                        background: CU.magenta,
-                        cursor: 'pointer'
-                    }}
-                >
-                    Empezar a Predecir <ChevronRight className="w-4 h-4" />
-                </button>
-                
-                <button
-                    onClick={() => { window.location.href = '/SquadBuilder'; }}
-                    className="w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-opacity"
-                    style={{
-                        fontFamily: "'Raleway', sans-serif",
-                        background: CU.orange + '80',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Armar Mi Equipo <ChevronRight className="w-4 h-4" />
-                </button>
+                <GameCard
+                    emoji="⚽"
+                    title="Prode — Predicciones"
+                    description="Predecí el resultado exacto de cada partido. Exacto = 5 pts, Ganador correcto = 3 pts."
+                    preview={<ProdePreview />}
+                    buttonLabel="Empezar a Predecir"
+                    buttonBg={CU.magenta}
+                    href="/ProdePredictions"
+                />
+                <GameCard
+                    emoji="🏟️"
+                    title="Fantasy — Armá tu Equipo"
+                    description="Elegí 15 jugadores reales con $150M de presupuesto. Tu capitán suma el doble de puntos."
+                    preview={<FantasyPreview />}
+                    buttonLabel="Armar Mi Equipo"
+                    buttonBg={CU.green}
+                    href="/SquadManagement"
+                />
             </div>
         </div>
     );
@@ -377,11 +443,12 @@ export default function Onboarding() {
     });
 
     useEffect(() => {
-        if (currentUser?.email) {
-            const guess = currentUser.email.split('@')[0];
-            setDisplayName(guess);
+        if (currentUser?.display_name) {
+            setDisplayName(currentUser.display_name);
+        } else if (currentUser?.email && !displayName) {
+            setDisplayName(currentUser.email.split('@')[0]);
         }
-    }, [currentUser]);
+    }, [currentUser?.email, currentUser?.display_name]);
 
     async function saveAndContinue(newStep) {
         if (newStep < 4) {
