@@ -219,12 +219,16 @@ export default function ProdePredictions() {
         return numA - numB;
     });
 
-    // Auto-select the first matchday with upcoming matches
+    // Auto-select the current fecha:
+    // "current" = the last fecha where at least one match has started (kickoff <= now),
+    // OR the first upcoming fecha if none have started yet.
     useEffect(() => {
         if (!selectedMatchday && sortedMatchdays.length > 0) {
             const now = new Date();
-            const upcoming = sortedMatchdays.find(md => matchdays[md].some(m => new Date(m.kickoff_at) > now));
-            setSelectedMatchday(upcoming || sortedMatchdays[0]);
+            // Find the last matchday that has started (has at least one match with kickoff <= now)
+            const started = sortedMatchdays.filter(md => matchdays[md].some(m => new Date(m.kickoff_at) <= now));
+            const current = started.length > 0 ? started[started.length - 1] : sortedMatchdays[0];
+            setSelectedMatchday(current);
         }
     }, [sortedMatchdays.length]);
 
@@ -342,9 +346,11 @@ export default function ProdePredictions() {
                                 {sortedMatchdays.map(md => {
                                     const mdMatches = matchdays[md] || [];
                                     const predicted = mdMatches.filter(m => predictionsMap[m.id]).length;
+                                    const allFinal = mdMatches.every(m => m.status === 'FINAL');
+                                    const isPast = allFinal && mdMatches.every(m => new Date(m.kickoff_at) < now);
                                     return (
-                                        <SelectItem key={md} value={md}>
-                                            {md} ({predicted}/{mdMatches.length})
+                                        <SelectItem key={md} value={md} disabled={isPast}>
+                                            {md} ({predicted}/{mdMatches.length}){isPast ? ' — Finalizada' : ''}
                                         </SelectItem>
                                     );
                                 })}
