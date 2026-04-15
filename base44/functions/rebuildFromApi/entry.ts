@@ -71,6 +71,9 @@ async function fetchRound(round) {
   return data.response || [];
 }
 
+// Simple in-process lock to prevent concurrent rebuilds
+let _rebuildRunning = false;
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -83,8 +86,16 @@ Deno.serve(async (req) => {
     const action = body.action || 'full_rebuild';
 
     if (action === 'full_rebuild') {
-      const result = await fullRebuild(base44);
-      return Response.json(result);
+      if (_rebuildRunning) {
+        return Response.json({ error: 'Rebuild already in progress. Please wait.' }, { status: 429 });
+      }
+      _rebuildRunning = true;
+      try {
+        const result = await fullRebuild(base44);
+        return Response.json(result);
+      } finally {
+        _rebuildRunning = false;
+      }
     }
 
     if (action === 'preview') {

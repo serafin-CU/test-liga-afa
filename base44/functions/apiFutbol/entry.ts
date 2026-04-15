@@ -136,10 +136,8 @@ Deno.serve(async (req) => {
       }
 
       case 'seed_players': {
-        // Fetch squads for teams in DB and upsert Player records (paginated)
-        const offset = body.offset || 0;
-        const batchSize = body.batch_size || 5;
-        const result = await seedPlayersFromApi(base44, offset, batchSize);
+        // Fetch squads for all teams in DB and upsert Player records (single call, all 30 teams)
+        const result = await seedPlayersFromApi(base44);
         return Response.json(result);
       }
 
@@ -539,31 +537,28 @@ function defaultPrice(position) {
  * Fetch squads for all teams in DB in small batches, upsert Player records via bulkCreate.
  * Accepts optional `offset` to resume from a team index (for pagination across calls).
  */
-async function seedPlayersFromApi(base44, offset = 0, batchSize = 5) {
-  const allTeams = await base44.asServiceRole.entities.Team.list();
-  const teamBatch = allTeams.slice(offset, offset + batchSize);
+async function seedPlayersFromApi(base44) {
+  // Fetch all teams and all existing players in parallel
+  const [allTeams, existingPlayers] = await Promise.all([
+    base44.asServiceRole.entities.Team.list('name', 200),
+    base44.asServiceRole.entities.Player.list('created_date', 5000),
+  ]);
 
-  if (teamBatch.length === 0) {
-    return { ok: true, done: true, message: 'All teams processed', total_teams: allTeams.length };
-  }
-
-  const existingPlayers = await base44.asServiceRole.entities.Player.list('created_date', 5000);
   const existingByApiId = {};
   for (const p of existingPlayers) {
     if (p.api_player_id) existingByApiId[p.api_player_id] = p;
   }
 
-  const results = { teams_processed: 0, players_created: 0, players_skipped: 0, errors: [], next_offset: offset + batchSize, total_teams: allTeams.length, done: (offset + batchSize) >= allTeams.length };
-
+  const results = { teams_processed: 0, players_created: 0, players_skipped: 0, errors: [], total_teams: allTeams.length, done: true };
   const toCreate = [];
 
-  for (const team of teamBatch) {
+  for (const team of allTeams) {
     if (!team.api_team_id) {
       results.errors.push(`Team ${team.name} has no api_team_id, skipping`);
       continue;
     }
     try {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 400));
       const data = await apiFetch(`/players/squads?team=${team.api_team_id}`);
       const squadData = data.response?.[0];
       if (!squadData || !squadData.players) {
@@ -582,18 +577,21 @@ async function seedPlayersFromApi(base44, offset = 0, batchSize = 5) {
           is_active: true,
           api_player_id: playerApiId,
         });
+        existingByApiId[playerApiId] = true; // prevent intra-run dupe
       }
       results.teams_processed++;
-      console.log(`[seedPlayers] ${team.name}: ${squadData.players.length} players queued`);
+      console.log(`[seedPlayers] ${team.name}: ${squadData.players.length} players`);
     } catch (err) {
       results.errors.push(`Error for ${team.name}: ${err.message}`);
     }
   }
 
-  if (toCreate.length > 0) {
-    await base44.asServiceRole.entities.Player.bulkCreate(toCreate);
-    results.players_created = toCreate.length;
+  // bulkCreate in batches of 100
+  for (let i = 0; i < toCreate.length; i += 100) {
+    await base44.asServiceRole.entities.Player.bulkCreate(toCreate.slice(i, i + 100));
+    if (i + 100 < toCreate.length) await new Promise(r => setTimeout(r, 300));
   }
+  results.players_created = toCreate.length;
 
   return { ok: true, ...results };
 }
