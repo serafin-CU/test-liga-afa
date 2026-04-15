@@ -34,9 +34,22 @@ function StatCard({ icon: Icon, label, value, sublabel, accentColor }) {
     );
 }
 
-function RecentPredictions({ predictions, matches, teams }) {
+function RecentPredictions({ predictions, matches, teams, results, ledger }) {
     const matchesMap = Object.fromEntries(matches.map(m => [m.id, m]));
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
+    const resultsByMatchId = Object.fromEntries(results.map(r => [r.match_id, r]));
+
+    // Build a map of match_id -> prode points from ledger
+    const prodePointsByMatchId = {};
+    for (const entry of ledger) {
+        if (entry.mode !== 'PRODE') continue;
+        // source_id format: "MATCH:{match_id}:v1"
+        const parts = entry.source_id?.split(':');
+        if (parts?.length >= 2) {
+            const mid = parts[1];
+            prodePointsByMatchId[mid] = (prodePointsByMatchId[mid] || 0) + entry.points;
+        }
+    }
 
     const recent = [...predictions]
         .sort((a, b) => new Date(b.submitted_at || b.created_date) - new Date(a.submitted_at || a.created_date))
@@ -61,19 +74,41 @@ function RecentPredictions({ predictions, matches, teams }) {
                 const homeName = home?.fifa_code || home?.name || '???';
                 const awayName = away?.fifa_code || away?.name || '???';
                 const kickoff = new Date(match.kickoff_at);
+                const result = resultsByMatchId[pred.match_id];
+                const pts = prodePointsByMatchId[pred.match_id];
+                const isFinalized = match.status === 'FINAL' && result;
+
+                let pointsColor = '#9ca3af';
+                if (pts === 5) pointsColor = CU.green;
+                else if (pts === 3) pointsColor = CU.orange;
+                else if (isFinalized && (pts === 0 || pts === undefined)) pointsColor = '#ef4444';
 
                 return (
                     <div key={pred.id} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: '#f9fafb' }}>
-                        <div className="flex items-center gap-3">
-                            <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#9ca3af', width: '60px' }}>
-                                {kickoff.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#9ca3af', width: '50px', flexShrink: 0 }}>
+                                {kickoff.toLocaleDateString('es-AR', { month: 'short', day: 'numeric' })}
                             </div>
-                            <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 500, fontSize: '0.875rem', color: CU.charcoal }}>
-                                {homeName} vs {awayName}
+                            <div className="min-w-0">
+                                <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 500, fontSize: '0.875rem', color: CU.charcoal }} className="truncate">
+                                    {homeName} vs {awayName}
+                                </div>
+                                {isFinalized && (
+                                    <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.72rem', color: '#6b7280', marginTop: '1px' }}>
+                                        Resultado: <span style={{ fontWeight: 700, color: CU.charcoal }}>{result.home_goals} – {result.away_goals}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <div style={{ fontFamily: "'DM Serif Display', serif", fontWeight: 700, color: CU.charcoal, fontSize: '0.95rem' }}>
-                            {pred.pred_home_goals} – {pred.pred_away_goals}
+                        <div className="flex flex-col items-end gap-0.5 ml-2 flex-shrink-0">
+                            <div style={{ fontFamily: "'DM Serif Display', serif", fontWeight: 700, color: CU.charcoal, fontSize: '0.95rem' }}>
+                                {pred.pred_home_goals} – {pred.pred_away_goals}
+                            </div>
+                            {isFinalized && (
+                                <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 700, fontSize: '0.72rem', color: pointsColor }}>
+                                    {pts !== undefined ? `+${pts} pts` : '+0 pts'}
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -223,6 +258,11 @@ export default function Dashboard() {
         enabled: !!currentUser
     });
 
+    const { data: matchResults = [] } = useQuery({
+        queryKey: ['dashMatchResults'],
+        queryFn: () => base44.entities.MatchResultFinal.list()
+    });
+
     const prodePoints = ledger.filter(e => e.mode === 'PRODE').reduce((sum, e) => sum + (e.points || 0), 0);
     const fantasyPoints = ledger.filter(e => e.mode === 'FANTASY').reduce((sum, e) => sum + (e.points || 0), 0);
     const totalPoints = prodePoints + fantasyPoints;
@@ -266,7 +306,7 @@ export default function Dashboard() {
             {/* Two-column content */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <SectionCard title="Recent Predictions" icon={Target} iconColor={CU.orange} linkTo="/ProdePredictions" linkLabel="All">
-                    <RecentPredictions predictions={predictions} matches={matches} teams={teams} />
+                    <RecentPredictions predictions={predictions} matches={matches} teams={teams} results={matchResults} ledger={ledger} />
                 </SectionCard>
                 <SectionCard title="My Squad" icon={Users} iconColor={CU.blue} linkTo="/SquadManagement" linkLabel="Manage">
                     <SquadSummary currentUser={currentUser} teams={teams} />
