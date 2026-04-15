@@ -273,16 +273,26 @@ export default function ProdePredictions() {
         return numA - numB;
     });
 
-    // Auto-select the current active fecha:
-    // - If there are upcoming matches, pick the FIRST fecha with any future kickoff
-    // - Otherwise fall back to the last fecha
+    // Auto-select the fecha with the soonest upcoming kickoff (closest to now)
     useEffect(() => {
         if (sortedMatchdays.length > 0 && !selectedMatchday) {
             const now = new Date();
-            const upcoming = sortedMatchdays.find(md =>
-                matchdays[md].some(m => new Date(m.kickoff_at) > now)
-            );
-            setSelectedMatchday(upcoming || sortedMatchdays[sortedMatchdays.length - 1]);
+            // For each matchday, find its earliest future kickoff
+            let bestMd = null;
+            let bestTime = Infinity;
+            for (const md of sortedMatchdays) {
+                const futureTimes = matchdays[md]
+                    .map(m => new Date(m.kickoff_at).getTime())
+                    .filter(t => t > now.getTime());
+                if (futureTimes.length > 0) {
+                    const earliest = Math.min(...futureTimes);
+                    if (earliest < bestTime) {
+                        bestTime = earliest;
+                        bestMd = md;
+                    }
+                }
+            }
+            setSelectedMatchday(bestMd || sortedMatchdays[sortedMatchdays.length - 1]);
         }
     }, [sortedMatchdays.length]);
 
