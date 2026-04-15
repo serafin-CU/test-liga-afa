@@ -1,0 +1,61 @@
+{
+  "name": "Match",
+  "type": "object",
+  "description": "AFA Apertura matches",
+  "properties": {
+    "phase": {
+      "type": "string",
+      "enum": [
+        "PRE_TOURNAMENT",
+        "APERTURA_ZONE",
+        "GROUP_MD1",
+        "GROUP_MD2",
+        "GROUP_MD3",
+        "ROUND_OF_32",
+        "ROUND_OF_16",
+        "QUARTERFINALS",
+        "SEMIFINALS",
+        "FINAL",
+        "TOURNAMENT_DONE"
+      ],
+      "description": "Tournament phase"
+    },
+    "kickoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Match kickoff time"
+    },
+    "home_team_id": {
+      "type": "string",
+      "description": "FK reference to teams.id"
+    },
+    "away_team_id": {
+      "type": "string",
+      "description": "FK reference to teams.id"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SCHEDULED",
+        "LIVE",
+        "FINAL"
+      ],
+      "default": "SCHEDULED",
+      "description": "Current match status"
+    },
+    "venue": {
+      "type": "string",
+      "description": "Fecha label or stadium name"
+    },
+    "api_fixture_id": {
+      "type": "string",
+      "description": "API-Football fixture ID for data sync"
+    }
+  },
+  "required": [
+    "phase",
+    "kickoff_at",
+    "home_team_id",
+    "away_team_id"
+  ]
+}

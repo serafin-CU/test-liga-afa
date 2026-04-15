@@ -1,0 +1,54 @@
+{
+  "name": "Team",
+  "type": "object",
+  "description": "Teams participating in Liga AFA Apertura",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Team name (e.g., Boca Juniors, River Plate)"
+    },
+    "fifa_code": {
+      "type": "string",
+      "description": "3-letter code (e.g., BOC, RIV)",
+      "minLength": 3,
+      "maxLength": 5
+    },
+    "is_qualified": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether team is participating"
+    },
+    "group_code": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B"
+      ],
+      "description": "Zone group: A or B"
+    },
+    "eliminated_at_phase": {
+      "type": "string",
+      "enum": [
+        "PRE_TOURNAMENT",
+        "APERTURA_ZONE",
+        "APERTURA_R16",
+        "APERTURA_QF",
+        "APERTURA_SF",
+        "APERTURA_FINAL"
+      ],
+      "description": "Phase at which team was eliminated (null if still active)"
+    },
+    "api_team_id": {
+      "type": "string",
+      "description": "API-Football team ID for data sync"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "Team logo URL from API-Football"
+    }
+  },
+  "required": [
+    "name",
+    "fifa_code"
+  ]
+}
