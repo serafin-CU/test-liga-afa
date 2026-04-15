@@ -99,11 +99,22 @@ const KNOWN_RESULTS = [
   { home: 'HUR', away: 'BAR',  hg: 0, ag: 0 },
   { home: 'RIE', away: 'SLO',  hg: 1, ag: 1 },
 
-  // ===== FECHA 13 (Apr 1-3, partial) =====
+  // ===== FECHA 13 (Apr 1-7) — Full results =====
   { home: 'LAN', away: 'PLA',  hg: 0, ag: 0 },
   { home: 'BAR', away: 'SAR',  hg: 1, ag: 2 },
   { home: 'TIG', away: 'IRV',  hg: 0, ag: 2 },
   { home: 'TAL', away: 'BOC',  hg: 0, ag: 1 },
+  { home: 'GME', away: 'VEL',  hg: 3, ag: 2 },
+  { home: 'UNI', away: 'RIE',  hg: 2, ag: 0 },
+  { home: 'SLO', away: 'EDL',  hg: 1, ag: 0 },
+  { home: 'ALD', away: 'ERC',  hg: 0, ag: 0 },
+  { home: 'IND', away: 'RAC',  hg: 1, ag: 0 },
+  { home: 'ROS', away: 'ATU',  hg: 2, ag: 1 },
+  { home: 'GLP', away: 'HUR',  hg: 0, ag: 3 },
+  { home: 'RIV', away: 'BEL',  hg: 3, ag: 0 },
+  { home: 'CCO', away: 'NEW',  hg: 1, ag: 3 },
+  { home: 'ARG', away: 'BAN',  hg: 3, ag: 2 },
+  { home: 'INS', away: 'DYJ',  hg: 2, ag: 0 },
 ];
 
 Deno.serve(async (req) => {
@@ -216,53 +227,54 @@ async function finalizeKnownResults(base44, user) {
 }
 
 async function scoreAllFinalized(base44, user) {
-  // Get all finalized matches
-  const finalMatches = await base44.asServiceRole.entities.Match.filter({ status: 'FINAL' }, 'kickoff_at', 300);
-  
+  // Batch-load everything upfront to minimize API calls
+  const [finalMatches, allResults, allJobs, allPredictions, allLedger] = await Promise.all([
+    base44.asServiceRole.entities.Match.filter({ status: 'FINAL' }, 'kickoff_at', 300),
+    base44.asServiceRole.entities.MatchResultFinal.filter({}, 'finalized_at', 500),
+    base44.asServiceRole.entities.ScoringJob.filter({ mode: 'PRODE' }, 'created_date', 500),
+    base44.asServiceRole.entities.ProdePrediction.filter({}, 'submitted_at', 2000),
+    base44.asServiceRole.entities.PointsLedger.filter({ mode: 'PRODE' }, 'created_date', 2000),
+  ]);
+
+  // Build lookup maps
+  const resultsByMatchId = {};
+  for (const r of allResults) resultsByMatchId[r.match_id] = r;
+
+  const doneJobKeys = new Set();
+  for (const j of allJobs) { if (j.status === 'DONE') doneJobKeys.add(j.dedupe_key); }
+
+  const predsByMatchId = {};
+  for (const p of allPredictions) {
+    if (!predsByMatchId[p.match_id]) predsByMatchId[p.match_id] = [];
+    predsByMatchId[p.match_id].push(p);
+  }
+
+  const existingLedgerKeys = new Set();
+  for (const l of allLedger) existingLedgerKeys.add(`${l.user_id}|${l.source_id}`);
+
   let scored = 0;
   let already_done = 0;
   let no_predictions = 0;
+  const newLedgerEntries = [];
+  const jobUpdates = [];
 
   for (const match of finalMatches) {
-    // Check if result exists
-    const results = await base44.asServiceRole.entities.MatchResultFinal.filter({ match_id: match.id });
-    if (results.length === 0) continue;
+    const finalResult = resultsByMatchId[match.id];
+    if (!finalResult) continue;
 
-    const finalResult = results[0];
     const dedupe_key = `PRODE:MATCH:${match.id}:v1`;
 
-    // Check if already scored
-    const existingJobs = await base44.asServiceRole.entities.ScoringJob.filter({ dedupe_key });
-    if (existingJobs.length > 0 && existingJobs[0].status === 'DONE') {
+    if (doneJobKeys.has(dedupe_key)) {
       already_done++;
       continue;
     }
 
-    // Get predictions
-    const predictions = await base44.asServiceRole.entities.ProdePrediction.filter({ match_id: match.id });
+    const predictions = predsByMatchId[match.id] || [];
     if (predictions.length === 0) {
       no_predictions++;
-      // Still mark as done
-      const job = await base44.asServiceRole.entities.ScoringJob.create({
-        mode: 'PRODE',
-        source_type: 'MATCH',
-        source_id: `MATCH:${match.id}`,
-        version: 1,
-        dedupe_key,
-        status: 'DONE'
-      });
+      jobUpdates.push({ dedupe_key, match_id: match.id, status: 'DONE' });
       continue;
     }
-
-    // Create job
-    const job = await base44.asServiceRole.entities.ScoringJob.create({
-      mode: 'PRODE',
-      source_type: 'MATCH',
-      source_id: `MATCH:${match.id}`,
-      version: 1,
-      dedupe_key,
-      status: 'RUNNING'
-    });
 
     // Score predictions
     for (const pred of predictions) {
@@ -282,9 +294,9 @@ async function scoreAllFinalized(base44, user) {
       }
 
       const source_id = `MATCH:${match.id}:v1`;
-      const existingEntry = await base44.asServiceRole.entities.PointsLedger.filter({ user_id: pred.user_id, source_id });
-      if (existingEntry.length === 0) {
-        await base44.asServiceRole.entities.PointsLedger.create({
+      const ledgerKey = `${pred.user_id}|${source_id}`;
+      if (!existingLedgerKeys.has(ledgerKey)) {
+        newLedgerEntries.push({
           user_id: pred.user_id,
           mode: 'PRODE',
           source_type: 'MATCH',
@@ -292,12 +304,31 @@ async function scoreAllFinalized(base44, user) {
           points,
           breakdown_json: JSON.stringify(breakdown)
         });
+        existingLedgerKeys.add(ledgerKey); // prevent dupes within batch
       }
     }
 
-    await base44.asServiceRole.entities.ScoringJob.update(job.id, { status: 'DONE' });
+    jobUpdates.push({ dedupe_key, match_id: match.id, status: 'DONE' });
     scored++;
   }
 
-  return { matches_scored: scored, already_done, no_predictions_skipped: no_predictions };
+  // Write new ledger entries in batches
+  for (let i = 0; i < newLedgerEntries.length; i += 20) {
+    const batch = newLedgerEntries.slice(i, i + 20);
+    await base44.asServiceRole.entities.PointsLedger.bulkCreate(batch);
+  }
+
+  // Write scoring jobs
+  for (const j of jobUpdates) {
+    await base44.asServiceRole.entities.ScoringJob.create({
+      mode: 'PRODE',
+      source_type: 'MATCH',
+      source_id: `MATCH:${j.match_id}`,
+      version: 1,
+      dedupe_key: j.dedupe_key,
+      status: 'DONE'
+    });
+  }
+
+  return { matches_scored: scored, already_done, no_predictions_skipped: no_predictions, ledger_entries_created: newLedgerEntries.length };
 }
