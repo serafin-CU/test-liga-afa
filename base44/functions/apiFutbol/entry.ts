@@ -547,7 +547,7 @@ async function seedPlayersFromApi(base44, offset = 0, batchSize = 5) {
     return { ok: true, done: true, message: 'All teams processed', total_teams: allTeams.length };
   }
 
-  const existingPlayers = await base44.asServiceRole.entities.Player.list();
+  const existingPlayers = await base44.asServiceRole.entities.Player.list('created_date', 5000);
   const existingByApiId = {};
   for (const p of existingPlayers) {
     if (p.api_player_id) existingByApiId[p.api_player_id] = p;
@@ -555,43 +555,39 @@ async function seedPlayersFromApi(base44, offset = 0, batchSize = 5) {
 
   const results = { teams_processed: 0, players_created: 0, players_skipped: 0, errors: [], next_offset: offset + batchSize, total_teams: allTeams.length, done: (offset + batchSize) >= allTeams.length };
 
-  // Build multi-team query string — API supports comma-separated team IDs
-  const validTeams = teamBatch.filter(t => t.api_team_id);
-  const teamIds = validTeams.map(t => t.api_team_id).join(',');
-  const teamById = Object.fromEntries(validTeams.map(t => [String(t.api_team_id), t]));
-
-  const data = await apiFetch(`/players/squads?team=${teamIds}`);
-  const squadResponses = data.response || [];
-
   const toCreate = [];
 
-  for (const squadData of squadResponses) {
-    const apiTeamId = String(squadData.team?.id);
-    const team = teamById[apiTeamId];
-    if (!team) {
-      results.errors.push(`Unmatched API team id: ${apiTeamId}`);
+  for (const team of teamBatch) {
+    if (!team.api_team_id) {
+      results.errors.push(`Team ${team.name} has no api_team_id, skipping`);
       continue;
     }
-
-    for (const apiPlayer of (squadData.players || [])) {
-      const playerApiId = String(apiPlayer.id);
-      if (existingByApiId[playerApiId]) {
-        results.players_skipped++;
+    try {
+      await new Promise(r => setTimeout(r, 500));
+      const data = await apiFetch(`/players/squads?team=${team.api_team_id}`);
+      const squadData = data.response?.[0];
+      if (!squadData || !squadData.players) {
+        results.errors.push(`No squad data for ${team.name}`);
         continue;
       }
-      const position = mapPosition(apiPlayer.position);
-      toCreate.push({
-        full_name: apiPlayer.name,
-        team_id: team.id,
-        position,
-        price: defaultPrice(position),
-        is_active: true,
-        api_player_id: playerApiId,
-      });
+      for (const apiPlayer of squadData.players) {
+        const playerApiId = String(apiPlayer.id);
+        if (existingByApiId[playerApiId]) { results.players_skipped++; continue; }
+        const position = mapPosition(apiPlayer.position);
+        toCreate.push({
+          full_name: apiPlayer.name,
+          team_id: team.id,
+          position,
+          price: defaultPrice(position),
+          is_active: true,
+          api_player_id: playerApiId,
+        });
+      }
+      results.teams_processed++;
+      console.log(`[seedPlayers] ${team.name}: ${squadData.players.length} players queued`);
+    } catch (err) {
+      results.errors.push(`Error for ${team.name}: ${err.message}`);
     }
-
-    results.teams_processed++;
-    console.log(`[seedPlayers] ${team.name}: ${squadData.players?.length} players`);
   }
 
   if (toCreate.length > 0) {
