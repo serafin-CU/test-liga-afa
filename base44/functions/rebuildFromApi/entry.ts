@@ -11,10 +11,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
  */
 
 const LEAGUE_ID = 128;
-const SEASON = 2025;
-const TOTAL_ROUNDS = 16;
+const SEASON = 2026;
+const ROUND_FORMAT = 'Regular%20Season'; // 2026 uses "Regular Season - N" format
+const TOTAL_ROUNDS = 27; // AFA Liga Profesional full season rounds
 
-// API-Football team ID -> short code mapping (verified from live API preview)
+// API-Football team ID -> short code mapping (verified from live API preview - 2026 season)
 const API_TEAM_MAP = {
   451: { name: 'Boca Juniors',              fifa_code: 'BOC' },
   453: { name: 'Independiente',             fifa_code: 'IND' },
@@ -25,7 +26,7 @@ const API_TEAM_MAP = {
   478: { name: 'Instituto Cordoba',         fifa_code: 'INS' },
   1064: { name: 'Platense',                 fifa_code: 'PLA' },
   450: { name: 'Estudiantes LP',            fifa_code: 'EDL' },
-  434: { name: 'Gimnasia LP',               fifa_code: 'GME' },
+  434: { name: 'Gimnasia LP',               fifa_code: 'GLP' },
   446: { name: 'Lanus',                     fifa_code: 'LAN' },
   457: { name: 'Newells Old Boys',          fifa_code: 'NEW' },
   442: { name: 'Defensa Y Justicia',        fifa_code: 'DYJ' },
@@ -36,16 +37,19 @@ const API_TEAM_MAP = {
   445: { name: 'Huracan',                   fifa_code: 'HUR' },
   2432: { name: 'Barracas Central',         fifa_code: 'BAR' },
   440: { name: 'Belgrano Cordoba',          fifa_code: 'BEL' },
-  461: { name: 'San Martin SJ',             fifa_code: 'ERC' },
+  461: { name: 'San Martin SJ',             fifa_code: 'SMJ' },
   458: { name: 'Argentinos Juniors',        fifa_code: 'ARG' },
   452: { name: 'Tigre',                     fifa_code: 'TIG' },
-  439: { name: 'Godoy Cruz',                fifa_code: 'GLP' },
+  439: { name: 'Godoy Cruz',                fifa_code: 'GCR' },
   473: { name: 'Independ. Rivadavia',       fifa_code: 'IRV' },
   437: { name: 'Rosario Central',           fifa_code: 'ROS' },
   449: { name: 'Banfield',                  fifa_code: 'BAN' },
   463: { name: 'Aldosivi',                  fifa_code: 'ALD' },
   455: { name: 'Atletico Tucuman',          fifa_code: 'ATU' },
   474: { name: 'Sarmiento Junin',           fifa_code: 'SAR' },
+  // 2026 new teams
+  1066: { name: 'Gimnasia Mendoza',         fifa_code: 'GIM' },
+  2424: { name: 'Estudiantes RC',           fifa_code: 'ERC' },
 };
 
 async function fetchFromApi(url) {
@@ -62,7 +66,7 @@ async function fetchFromApi(url) {
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function fetchRound(round) {
-  const url = `https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}&round=1st%20Phase%20-%20${round}`;
+  const url = `https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}&round=${ROUND_FORMAT}%20-%20${round}`;
   const data = await fetchFromApi(url);
   return data.response || [];
 }
@@ -84,14 +88,17 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'preview') {
-      // Just fetch round 1 to preview without writing anything
-      const fixtures = await fetchRound(1);
+      // Fetch round 1 and available rounds
+      const [fixtures, roundsData] = await Promise.all([
+        fetchRound(1),
+        fetchFromApi(`https://v3.football.api-sports.io/leagues/rounds?league=${LEAGUE_ID}&season=${SEASON}`)
+      ]);
       const teams = {};
       fixtures.forEach(f => {
         teams[f.teams.home.id] = f.teams.home.name;
         teams[f.teams.away.id] = f.teams.away.name;
       });
-      return Response.json({ round_1_fixtures: fixtures.length, teams });
+      return Response.json({ season: SEASON, round_1_fixtures: fixtures.length, available_rounds: roundsData.response || [], teams });
     }
 
     return Response.json({ error: 'Unknown action. Use: full_rebuild, preview' }, { status: 400 });
@@ -110,8 +117,13 @@ async function fullRebuild(base44) {
   const allFixtures = [];
   for (let round = 1; round <= TOTAL_ROUNDS; round++) {
     const fixtures = await fetchRound(round);
+    if (fixtures.length === 0) {
+      log.push(`Round ${round} returned 0 fixtures — stopping fetch at round ${round - 1}`);
+      break;
+    }
     allFixtures.push(...fixtures.map(f => ({ ...f, _round: round })));
     console.log(`[rebuildFromApi] Round ${round}: ${fixtures.length} fixtures`);
+    await sleep(200); // small delay between API calls
   }
   log.push(`Fetched ${allFixtures.length} total fixtures`);
 

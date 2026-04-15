@@ -7,7 +7,7 @@ const CU = {
     green: '#218848',
 };
 
-const APERTURA_FINAL = new Date('2025-06-01T19:00:00Z'); // AFA Apertura 2025 Final
+const APERTURA_FINAL = new Date('2026-11-01T19:00:00Z'); // AFA Liga Profesional 2026 Final (estimated)
 
 function useCountdown(target) {
     const [timeLeft, setTimeLeft] = useState(getTimeLeft(target));
@@ -63,7 +63,7 @@ export default function WorldCupBanner({ compact = false }) {
                 }}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white/80" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                        ⚽ Liga Profesional AFA · Apertura 2025
+                        ⚽ Liga Profesional AFA · 2026
                     </span>
                     {!countdown.started && (
                         <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: CU.orange }}>
@@ -98,7 +98,7 @@ export default function WorldCupBanner({ compact = false }) {
                         Liga Profesional AFA
                     </h1>
                     <p className="text-sm" style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.5)' }}>
-                        Torneo Apertura 2025
+                        Temporada 2026
                     </p>
                 </div>
 
