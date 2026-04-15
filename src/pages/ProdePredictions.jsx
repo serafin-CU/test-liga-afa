@@ -224,7 +224,7 @@ export default function ProdePredictions() {
     const queryClient = useQueryClient();
 
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
-    const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ queryKey: ['matches'], queryFn: () => base44.entities.Match.list() });
+    const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ queryKey: ['matches'], queryFn: () => base44.entities.Match.list('kickoff_at', 500) });
     const { data: teams = [] } = useQuery({ queryKey: ['teams'], queryFn: () => base44.entities.Team.list() });
     const { data: predictions = [] } = useQuery({
         queryKey: ['prodePredictions', currentUser?.id],
@@ -237,7 +237,7 @@ export default function ProdePredictions() {
     });
     const { data: matchResults = [] } = useQuery({
         queryKey: ['matchResults'],
-        queryFn: () => base44.entities.MatchResultFinal.list()
+        queryFn: () => base44.entities.MatchResultFinal.list('finalized_at', 500)
     });
 
     // Only show real API matches (have api_fixture_id), exclude old seed data
@@ -247,32 +247,41 @@ export default function ProdePredictions() {
     const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
     const resultsMap = Object.fromEntries(matchResults.map(r => [r.match_id, r]));
 
-    // Group matches by matchday label (venue or phase)
+    // Deduplicate matches by api_fixture_id before grouping
+    const seenIds = new Set();
+    const uniqueMatchesForGrouping = matches.filter(m => {
+        if (seenIds.has(m.api_fixture_id)) return false;
+        seenIds.add(m.api_fixture_id);
+        return true;
+    });
+
+    // Group matches by matchday label (venue field e.g. "Fecha 16")
     const matchdays = {};
-    for (const match of matches) {
+    for (const match of uniqueMatchesForGrouping) {
         const label = getMatchdayLabel(match);
         if (!matchdays[label]) matchdays[label] = [];
         matchdays[label].push(match);
     }
-    // Sort matches within each matchday by kickoff
+    // Sort matches within each matchday by kickoff time
     for (const label in matchdays) {
         matchdays[label].sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
     }
-    // Sort matchday keys: put "Fecha N" in order, then others
+    // Sort matchday keys numerically (Fecha 1, Fecha 2, ... Fecha 16)
     const sortedMatchdays = Object.keys(matchdays).sort((a, b) => {
         const numA = parseInt(a.replace(/\D/g, '')) || 999;
         const numB = parseInt(b.replace(/\D/g, '')) || 999;
         return numA - numB;
     });
 
-    // Auto-select the most recent fecha with FINAL matches, or first upcoming if none
+    // Auto-select the first fecha that has at least one upcoming (not yet kicked off) SCHEDULED match
     useEffect(() => {
         if (!selectedMatchday && sortedMatchdays.length > 0) {
-            // Prefer last fecha that has at least one FINAL match
-            const withFinal = sortedMatchdays.filter(md => matchdays[md].some(m => m.status === 'FINAL'));
-            const upcoming = sortedMatchdays.filter(md => matchdays[md].some(m => m.status === 'SCHEDULED' && new Date(m.kickoff_at) > new Date()));
-            const current = withFinal.length > 0 ? withFinal[withFinal.length - 1] : upcoming[0] || sortedMatchdays[0];
-            setSelectedMatchday(current);
+            const now = new Date();
+            // First fecha with any future match (kickoff hasn't passed yet)
+            const upcoming = sortedMatchdays.find(md =>
+                matchdays[md].some(m => new Date(m.kickoff_at) > now)
+            );
+            setSelectedMatchday(upcoming || sortedMatchdays[sortedMatchdays.length - 1]);
         }
     }, [sortedMatchdays.length]);
 
@@ -300,12 +309,9 @@ export default function ProdePredictions() {
         return Number(local.home) !== saved.pred_home_goals || Number(local.away) !== saved.pred_away_goals;
     }).length;
 
-    const totalMatches = matches.length;
-    // Count predictions that match an actual API match
-    const apiMatchIds = new Set(matches.map(m => m.id));
-    const predictedCount = predictions.filter(p => apiMatchIds.has(p.match_id)).length;
-    const upcomingUnpredicted = matches.filter(m => new Date(m.kickoff_at) > now && !predictionsMap[m.id]).length;
-    const finalWithPrediction = matches.filter(m => m.status === 'FINAL' && predictionsMap[m.id]).length;
+    const totalMatches = uniqueMatchesForGrouping.length;
+    const upcomingUnpredicted = uniqueMatchesForGrouping.filter(m => new Date(m.kickoff_at) > now && !predictionsMap[m.id]).length;
+    const finalWithPrediction = uniqueMatchesForGrouping.filter(m => m.status === 'FINAL' && predictionsMap[m.id]).length;
 
     const handleUpdate = useCallback((matchId, side, value) => {
         setLocalEdits(prev => ({ ...prev, [matchId]: { ...prev[matchId], [side]: value } }));
