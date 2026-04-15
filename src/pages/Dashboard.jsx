@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Trophy, Users, Target, TrendingUp, Loader2, ChevronRight, Award } from 'lucide-react';
+import { Trophy, Users, Target, TrendingUp, Loader2, ChevronRight, Award, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const CU = {
     orange: '#FFB81C',
@@ -126,11 +126,17 @@ function SquadSummary({ currentUser, teams }) {
 
     const { data: squads = [], isLoading } = useQuery({
         queryKey: ['userSquadsDash', currentUser?.id],
-        queryFn: () => base44.entities.FantasySquad.filter({ user_id: currentUser.id, status: 'FINAL' }),
+        queryFn: () => base44.entities.FantasySquad.filter({ user_id: currentUser.id }),
         enabled: !!currentUser
     });
 
-    const latestSquad = squads.sort((a, b) => new Date(b.finalized_at || b.created_date) - new Date(a.finalized_at || a.created_date))[0];
+    // Pick most recently updated squad (FINAL preferred, otherwise latest DRAFT)
+    const latestSquad = [...squads]
+        .sort((a, b) => {
+            if (a.status === 'FINAL' && b.status !== 'FINAL') return -1;
+            if (b.status === 'FINAL' && a.status !== 'FINAL') return 1;
+            return new Date(b.last_autosaved_at || b.updated_date || b.created_date) - new Date(a.last_autosaved_at || a.updated_date || a.created_date);
+        })[0];
 
     const { data: squadPlayers = [] } = useQuery({
         queryKey: ['squadPlayersDash', latestSquad?.id],
@@ -165,8 +171,19 @@ function SquadSummary({ currentUser, teams }) {
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between">
-                <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.85rem', color: '#6b7280' }}>
-                    Phase: <span style={{ fontWeight: 600, color: CU.charcoal }}>{latestSquad.phase}</span>
+                <div className="flex items-center gap-2">
+                    <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.85rem', color: '#6b7280' }}>
+                        {latestSquad.phase}
+                    </span>
+                    <span style={{
+                        fontFamily: "'Raleway', sans-serif", fontSize: '0.65rem', fontWeight: 700,
+                        padding: '1px 7px', borderRadius: '999px',
+                        background: latestSquad.status === 'FINAL' ? CU.green + '20' : CU.orange + '20',
+                        color: latestSquad.status === 'FINAL' ? CU.green : CU.orange,
+                        border: `1px solid ${latestSquad.status === 'FINAL' ? CU.green : CU.orange}50`
+                    }}>
+                        {latestSquad.status === 'FINAL' ? 'Finalizado' : 'Borrador'}
+                    </span>
                 </div>
                 <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.75rem', color: '#9ca3af' }}>{starters.length}/11 starters</div>
             </div>
@@ -195,6 +212,78 @@ function SquadSummary({ currentUser, teams }) {
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function NextActionBanner({ matches }) {
+    // Only look at real API matches (have api_fixture_id)
+    const realMatches = matches.filter(m => m.api_fixture_id);
+    const now = new Date();
+
+    // Find the latest completed fecha
+    const finalMatches = realMatches.filter(m => m.status === 'FINAL');
+    const venues = [...new Set(finalMatches.map(m => m.venue))].sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.replace(/\D/g, '')) || 0;
+        return numB - numA;
+    });
+    const lastFecha = venues[0]; // e.g. "Fecha 16"
+    const lastFechaNum = lastFecha ? parseInt(lastFecha.replace(/\D/g, '')) : 0;
+
+    // Find next scheduled fecha
+    const scheduledMatches = realMatches.filter(m => m.status === 'SCHEDULED' && new Date(m.kickoff_at) > now);
+    const nextMatch = scheduledMatches.sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at))[0];
+
+    // How many final matches in last fecha have no prediction entered? (handled by Prode page)
+    const lastFechaMatchCount = finalMatches.filter(m => m.venue === lastFecha).length;
+
+    if (!lastFecha && !nextMatch) return null;
+
+    // Compute time until next kickoff
+    let urgencyColor = CU.blue;
+    let icon = Clock;
+    let title = '';
+    let subtitle = '';
+    let linkTo = '/ProdePredictions';
+    let linkLabel = 'Ir al Prode →';
+
+    if (nextMatch) {
+        const diff = new Date(nextMatch.kickoff_at) - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+        const timeStr = days > 0 ? `${days}d ${hours % 24}h` : `${hours}h`;
+
+        if (hours < 24) { urgencyColor = '#ef4444'; icon = AlertCircle; }
+        else if (hours < 72) { urgencyColor = CU.orange; icon = Clock; }
+        else { urgencyColor = CU.blue; icon = Clock; }
+
+        title = `Próxima fecha en ${timeStr}`;
+        subtitle = `${lastFecha} completada · ${lastFechaMatchCount} partidos. Registrá tus predicciones antes del próximo saque.`;
+    } else if (lastFecha) {
+        urgencyColor = CU.green;
+        icon = CheckCircle2;
+        title = `${lastFecha} completada`;
+        subtitle = `Todos los partidos finalizados. Actualizá tus puntajes en el Prode.`;
+    }
+
+    const Icon = icon;
+
+    return (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl" style={{
+            background: urgencyColor + '10',
+            border: `1px solid ${urgencyColor}30`,
+        }}>
+            <Icon className="w-5 h-5 mt-0.5 shrink-0" style={{ color: urgencyColor }} />
+            <div className="flex-1 min-w-0">
+                <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: urgencyColor }}>{title}</div>
+                <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>{subtitle}</div>
+            </div>
+            <Link to={linkTo} style={{ textDecoration: 'none', flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 600, fontSize: '0.8rem', color: urgencyColor, whiteSpace: 'nowrap' }}>
+                    {linkLabel}
+                </span>
+            </Link>
         </div>
     );
 }
@@ -308,6 +397,9 @@ export default function Dashboard() {
                     return names[b.badge_type] || b.badge_type;
                 }).join(', ') : 'None yet'} accentColor={CU.magenta} />
             </div>
+
+            {/* Next action banner */}
+            <NextActionBanner matches={matches} />
 
             {/* Two-column content */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
