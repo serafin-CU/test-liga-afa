@@ -3,10 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { 
-    LayoutGrid, FileText, Database, Settings, LogOut, 
-    Home, Play, Link2, Eye, FileEdit, Archive, Award
-} from 'lucide-react';
+import { FileText, Database, LogOut, Home, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function AdminLayout({ children, currentPageName }) {
@@ -16,15 +13,8 @@ export default function AdminLayout({ children, currentPageName }) {
     });
 
     const adminNavItems = [
-        { name: 'AdminSystemTestHarness', label: 'Test Harness', icon: LayoutGrid },
         { name: 'AdminFantasyStatsViewer', label: 'Stats Viewer', icon: FileText },
         { name: 'AdminFantasyLedgerViewer', label: 'Ledger Viewer', icon: Database },
-        { name: 'AdminMatchValidation', label: 'Match Validation', icon: Eye },
-        { name: 'AdminMatchSourceLinks', label: 'Source Links', icon: Link2 },
-        { name: 'AdminDataSources', label: 'Data Sources', icon: Archive },
-        { name: 'AdminIngestionMonitor', label: 'Ingestion', icon: Play },
-        { name: 'AdminManualOverride', label: 'Manual Override', icon: FileEdit },
-        { name: 'AdminDevSeed', label: 'Dev Seed', icon: Settings },
         { name: 'AdminBadgesViewer', label: 'Badges', icon: Award }
     ];
 
