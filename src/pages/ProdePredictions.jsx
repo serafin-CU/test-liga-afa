@@ -3,7 +3,7 @@ import WorldCupBanner from '@/components/WorldCupBanner';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Clock, Lock, Loader2, Save, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, Lock, Loader2, Save, AlertCircle, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CU = {
@@ -87,7 +87,15 @@ function ScoreStepper({ value, onChange, disabled }) {
     );
 }
 
-function MatchRow({ match, teams, localPrediction, savedPrediction, onUpdate, isLocked }) {
+function getPoints(pred, result) {
+    if (!pred || !result) return null;
+    if (pred.pred_home_goals === result.home_goals && pred.pred_away_goals === result.away_goals) return 5;
+    const predWinner = pred.pred_home_goals > pred.pred_away_goals ? 'H' : pred.pred_home_goals < pred.pred_away_goals ? 'A' : 'D';
+    const realWinner = result.home_goals > result.away_goals ? 'H' : result.home_goals < result.away_goals ? 'A' : 'D';
+    return predWinner === realWinner ? 3 : 0;
+}
+
+function MatchRow({ match, teams, localPrediction, savedPrediction, result, onUpdate, isLocked }) {
     const homeTeam = teams[match.home_team_id];
     const awayTeam = teams[match.away_team_id];
     const homeName = homeTeam?.fifa_code || homeTeam?.name || 'TBD';
@@ -105,6 +113,9 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, onUpdate, is
     const isNew = hasLocal && !hasSaved;
     const showUnsaved = isChanged || isNew;
 
+    const pts = isFinal && hasSaved && result ? getPoints(savedPrediction, result) : null;
+    const ptsColor = pts === 5 ? CU.green : pts === 3 ? CU.orange : pts === 0 ? '#ef4444' : '#9ca3af';
+
     const timeUntil = () => {
         const diff = kickoff - new Date();
         if (diff <= 0) return null;
@@ -117,7 +128,7 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, onUpdate, is
     return (
         <div className="rounded-xl border transition-all"
             style={{
-                borderColor: showUnsaved ? CU.orange : hasSaved ? CU.green + '40' : '#e5e7eb',
+                borderColor: isFinal && pts === 5 ? CU.green + '60' : showUnsaved ? CU.orange : hasSaved && !isFinal ? CU.green + '40' : '#e5e7eb',
                 background: isFinal ? '#f9fafb' : showUnsaved ? CU.orange + '08' : hasSaved ? CU.green + '06' : 'white',
                 borderWidth: showUnsaved ? '2px' : '1px'
             }}>
@@ -134,11 +145,19 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, onUpdate, is
                             Sin guardar
                         </span>
                     )}
-                    {isFinal && (
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-200 text-gray-500"
-                            style={{ fontFamily: "'Raleway', sans-serif" }}>Final</span>
+                    {isFinal && result && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: '#1f29371a', color: CU.charcoal, fontFamily: "'DM Serif Display', serif", letterSpacing: '0.02em' }}>
+                            {result.home_goals} – {result.away_goals}
+                        </span>
                     )}
-                    {isLocked && !isFinal && (
+                    {isFinal && pts !== null && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: ptsColor + '20', color: ptsColor, fontFamily: "'Raleway', sans-serif" }}>
+                            {pts === 5 ? '⭐ +5' : pts === 3 ? '+3' : '+0'}
+                        </span>
+                    )}
+                    {!isFinal && isLocked && (
                         <span className="flex items-center gap-1 text-xs" style={{ color: CU.magenta, fontFamily: "'Raleway', sans-serif" }}>
                             <Lock className="w-3 h-3" /> Cerrado
                         </span>
@@ -148,29 +167,48 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, onUpdate, is
                             <Clock className="w-3 h-3" /> {timeUntil()}
                         </span>
                     )}
-                    {hasSaved && !showUnsaved && (
+                    {hasSaved && !showUnsaved && !isFinal && (
                         <CheckCircle className="w-4 h-4" style={{ color: CU.green }} />
                     )}
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 px-4 pb-4 pt-1">
+            <div className="flex items-center gap-2 px-4 pb-3 pt-1">
                 <div className="flex-1 text-right pr-2">
+                    {homeTeam?.logo_url && <img src={homeTeam.logo_url} alt={homeName} className="w-5 h-5 object-contain ml-auto mb-1" />}
                     <div className="text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>{homeName}</div>
                     <div className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>{homeFullName}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <ScoreStepper value={localPrediction?.home ?? ''} onChange={v => onUpdate(match.id, 'home', v)} disabled={isLocked} />
-                    <span className="text-xl font-light" style={{ color: '#d1d5db', fontFamily: "'DM Serif Display', serif" }}>×</span>
-                    <ScoreStepper value={localPrediction?.away ?? ''} onChange={v => onUpdate(match.id, 'away', v)} disabled={isLocked} />
+                    {isFinal ? (
+                        // Show prediction as static display when final
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold"
+                                style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
+                                {hasSaved ? savedPrediction.pred_home_goals : '–'}
+                            </div>
+                            <span style={{ color: '#d1d5db', fontSize: '1.2rem' }}>×</span>
+                            <div className="w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold"
+                                style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
+                                {hasSaved ? savedPrediction.pred_away_goals : '–'}
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <ScoreStepper value={localPrediction?.home ?? ''} onChange={v => onUpdate(match.id, 'home', v)} disabled={isLocked} />
+                            <span className="text-xl font-light" style={{ color: '#d1d5db', fontFamily: "'DM Serif Display', serif" }}>×</span>
+                            <ScoreStepper value={localPrediction?.away ?? ''} onChange={v => onUpdate(match.id, 'away', v)} disabled={isLocked} />
+                        </>
+                    )}
                 </div>
                 <div className="flex-1 pl-2">
+                    {awayTeam?.logo_url && <img src={awayTeam.logo_url} alt={awayName} className="w-5 h-5 object-contain mb-1" />}
                     <div className="text-lg font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>{awayName}</div>
                     <div className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>{awayFullName}</div>
                 </div>
             </div>
 
-            {isLocked && hasSaved && (
+            {!isFinal && isLocked && hasSaved && (
                 <div className="px-4 pb-3 -mt-1 text-center text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
                     Tu pronóstico: {savedPrediction.pred_home_goals} – {savedPrediction.pred_away_goals}
                 </div>
@@ -186,7 +224,7 @@ export default function ProdePredictions() {
     const queryClient = useQueryClient();
 
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
-    const { data: matches = [], isLoading: matchesLoading } = useQuery({ queryKey: ['matches'], queryFn: () => base44.entities.Match.list() });
+    const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ queryKey: ['matches'], queryFn: () => base44.entities.Match.list() });
     const { data: teams = [] } = useQuery({ queryKey: ['teams'], queryFn: () => base44.entities.Team.list() });
     const { data: predictions = [] } = useQuery({
         queryKey: ['prodePredictions', currentUser?.id],
@@ -197,9 +235,17 @@ export default function ProdePredictions() {
         },
         enabled: !!currentUser
     });
+    const { data: matchResults = [] } = useQuery({
+        queryKey: ['matchResults'],
+        queryFn: () => base44.entities.MatchResultFinal.list()
+    });
+
+    // Only show real API matches (have api_fixture_id), exclude old seed data
+    const matches = allMatches.filter(m => m.api_fixture_id);
 
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
     const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
+    const resultsMap = Object.fromEntries(matchResults.map(r => [r.match_id, r]));
 
     // Group matches by matchday label (venue or phase)
     const matchdays = {};
@@ -219,15 +265,13 @@ export default function ProdePredictions() {
         return numA - numB;
     });
 
-    // Auto-select the current fecha:
-    // "current" = the last fecha where at least one match has started (kickoff <= now),
-    // OR the first upcoming fecha if none have started yet.
+    // Auto-select the most recent fecha with FINAL matches, or first upcoming if none
     useEffect(() => {
         if (!selectedMatchday && sortedMatchdays.length > 0) {
-            const now = new Date();
-            // Find the last matchday that has started (has at least one match with kickoff <= now)
-            const started = sortedMatchdays.filter(md => matchdays[md].some(m => new Date(m.kickoff_at) <= now));
-            const current = started.length > 0 ? started[started.length - 1] : sortedMatchdays[0];
+            // Prefer last fecha that has at least one FINAL match
+            const withFinal = sortedMatchdays.filter(md => matchdays[md].some(m => m.status === 'FINAL'));
+            const upcoming = sortedMatchdays.filter(md => matchdays[md].some(m => m.status === 'SCHEDULED' && new Date(m.kickoff_at) > new Date()));
+            const current = withFinal.length > 0 ? withFinal[withFinal.length - 1] : upcoming[0] || sortedMatchdays[0];
             setSelectedMatchday(current);
         }
     }, [sortedMatchdays.length]);
@@ -257,8 +301,11 @@ export default function ProdePredictions() {
     }).length;
 
     const totalMatches = matches.length;
-    const predictedCount = predictions.length;
+    // Count predictions that match an actual API match
+    const apiMatchIds = new Set(matches.map(m => m.id));
+    const predictedCount = predictions.filter(p => apiMatchIds.has(p.match_id)).length;
     const upcomingUnpredicted = matches.filter(m => new Date(m.kickoff_at) > now && !predictionsMap[m.id]).length;
+    const finalWithPrediction = matches.filter(m => m.status === 'FINAL' && predictionsMap[m.id]).length;
 
     const handleUpdate = useCallback((matchId, side, value) => {
         setLocalEdits(prev => ({ ...prev, [matchId]: { ...prev[matchId], [side]: value } }));
@@ -326,13 +373,15 @@ export default function ProdePredictions() {
                 <div className="flex gap-4 text-sm mb-5 flex-wrap">
                     <div className="flex items-center gap-1.5">
                         <CheckCircle className="w-4 h-4" style={{ color: CU.green }} />
-                        <span style={{ color: '#6b7280' }}>{predictedCount} pronosticados</span>
+                        <span style={{ color: '#6b7280' }}>{finalWithPrediction} pronosticados (finalizados)</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4" style={{ color: CU.orange }} />
-                        <span style={{ color: '#6b7280' }}>{upcomingUnpredicted} pendientes</span>
-                    </div>
-                    <span style={{ color: '#d1d5db' }}>{totalMatches} en total</span>
+                    {upcomingUnpredicted > 0 && (
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4" style={{ color: CU.orange }} />
+                            <span style={{ color: '#6b7280' }}>{upcomingUnpredicted} pendientes</span>
+                        </div>
+                    )}
+                    <span style={{ color: '#d1d5db' }}>{totalMatches} partidos</span>
                 </div>
 
                 {sortedMatchdays.length > 0 ? (
@@ -347,10 +396,9 @@ export default function ProdePredictions() {
                                     const mdMatches = matchdays[md] || [];
                                     const predicted = mdMatches.filter(m => predictionsMap[m.id]).length;
                                     const allFinal = mdMatches.every(m => m.status === 'FINAL');
-                                    const isPast = allFinal && mdMatches.every(m => new Date(m.kickoff_at) < now);
                                     return (
-                                        <SelectItem key={md} value={md} disabled={isPast}>
-                                            {md} ({predicted}/{mdMatches.length}){isPast ? ' — Finalizada' : ''}
+                                        <SelectItem key={md} value={md}>
+                                            {md} ({predicted}/{mdMatches.length}){allFinal ? ' ✓' : ''}
                                         </SelectItem>
                                     );
                                 })}
@@ -359,11 +407,11 @@ export default function ProdePredictions() {
 
                         <div className="space-y-3">
                             {currentMatches.map(match => {
-                                // TEST MODE: Allow late predictions (7 day grace period)
-                    const isLocked = match.status === 'FINAL' || new Date(match.kickoff_at).getTime() + 7 * 24 * 60 * 60 * 1000 < Date.now();
+                                const isLocked = match.status === 'FINAL' || new Date(match.kickoff_at) <= now;
                                 return (
                                     <MatchRow key={match.id} match={match} teams={teamsMap}
                                         localPrediction={localEdits[match.id]} savedPrediction={predictionsMap[match.id]}
+                                        result={resultsMap[match.id]}
                                         onUpdate={handleUpdate} isLocked={isLocked} />
                                 );
                             })}

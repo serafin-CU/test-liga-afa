@@ -69,11 +69,12 @@ async function submitPrediction(base44, user, body) {
     const now = new Date();
     const kickoff = new Date(match.kickoff_at);
 
-    // TEST MODE: Allow predictions up to 7 days after kickoff for testing
-    if (now >= new Date(kickoff.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+    // Block predictions if match has kicked off or is already FINAL
+    if (match.status === 'FINAL' || now >= kickoff) {
         return Response.json({ 
             error: 'Cannot submit prediction after match kickoff',
-            kickoff_at: match.kickoff_at
+            kickoff_at: match.kickoff_at,
+            status: match.status
         }, { status: 400 });
     }
 
