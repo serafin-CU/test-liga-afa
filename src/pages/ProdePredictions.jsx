@@ -240,8 +240,8 @@ export default function ProdePredictions() {
         queryFn: () => base44.entities.MatchResultFinal.list('finalized_at', 500)
     });
 
-    // Only show real API matches (have api_fixture_id), exclude old seed data
-    const matches = allMatches.filter(m => m.api_fixture_id);
+    // Only show 2026 season matches (kickoff in 2026 or later) with api_fixture_id
+    const matches = allMatches.filter(m => m.api_fixture_id && new Date(m.kickoff_at).getFullYear() >= 2026);
 
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
     const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
@@ -273,11 +273,12 @@ export default function ProdePredictions() {
         return numA - numB;
     });
 
-    // Auto-select the first fecha that has at least one upcoming (not yet kicked off) SCHEDULED match
+    // Auto-select the current active fecha:
+    // - If there are upcoming matches, pick the FIRST fecha with any future kickoff
+    // - Otherwise fall back to the last fecha
     useEffect(() => {
-        if (!selectedMatchday && sortedMatchdays.length > 0) {
+        if (sortedMatchdays.length > 0 && !selectedMatchday) {
             const now = new Date();
-            // First fecha with any future match (kickoff hasn't passed yet)
             const upcoming = sortedMatchdays.find(md =>
                 matchdays[md].some(m => new Date(m.kickoff_at) > now)
             );
