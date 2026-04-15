@@ -75,20 +75,12 @@ export default function AdminFantasyStatsViewer() {
         new Date(b.kickoff_at) - new Date(a.kickoff_at)
     );
     
-    // Auto-select first match with 22+ stats if no match selected
+    // Auto-select the most recent finalized match if none selected
     useEffect(() => {
         if (!selectedMatchId && finalizedMatches.length > 0) {
-            (async () => {
-                for (const match of finalizedMatches) {
-                    const stats = await base44.entities.FantasyMatchPlayerStats.filter({ match_id: match.id });
-                    if (stats.length >= 22) {
-                        setSelectedMatchId(match.id);
-                        break;
-                    }
-                }
-            })();
+            setSelectedMatchId(finalizedMatches[0].id);
         }
-    }, [finalizedMatches, selectedMatchId]);
+    }, [finalizedMatches.length, selectedMatchId]);
 
     // Load squad players to show captain
     useEffect(() => {
