@@ -70,11 +70,13 @@ async function submitPrediction(base44, user, body) {
     const kickoff = new Date(match.kickoff_at);
 
     // Block predictions if match has kicked off or is already FINAL
+    // Only allow predictions for future SCHEDULED matches (kickoff has not passed yet)
     if (match.status === 'FINAL' || now >= kickoff) {
         return Response.json({ 
-            error: 'Cannot submit prediction after match kickoff',
+            error: 'Cannot submit prediction: match has already started or is finalized',
             kickoff_at: match.kickoff_at,
-            status: match.status
+            status: match.status,
+            now: now.toISOString()
         }, { status: 400 });
     }
 

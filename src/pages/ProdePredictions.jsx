@@ -407,7 +407,10 @@ export default function ProdePredictions() {
 
                         <div className="space-y-3">
                             {currentMatches.map(match => {
-                                const isLocked = match.status === 'FINAL' || new Date(match.kickoff_at) <= now;
+                                // Lock only if FINAL (result known) OR kickoff has already passed
+                                // Future SCHEDULED matches are always open for predictions
+                                const kickoffPassed = new Date(match.kickoff_at) <= now;
+                                const isLocked = match.status === 'FINAL' || kickoffPassed;
                                 return (
                                     <MatchRow key={match.id} match={match} teams={teamsMap}
                                         localPrediction={localEdits[match.id]} savedPrediction={predictionsMap[match.id]}
