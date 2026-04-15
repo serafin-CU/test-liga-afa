@@ -39,8 +39,8 @@ export default function ParticipantLayout({ children, currentPageName }) {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-8">
                             <Link to="/Dashboard" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white', lineHeight: 1 }}>⚽ Liga AFA Test</span>
-                                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: CU.orange, lineHeight: 1 }}>Torneo Apertura 2026</span>
+                                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1.25rem', color: 'white', lineHeight: 1 }}>⚽ Liga Profesional</span>
+                                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.7rem', color: CU.orange, lineHeight: 1 }}>Apertura 2025</span>
                             </Link>
                             <div className="flex items-center gap-1">
                                 {navItems.map(item => {
@@ -108,7 +108,7 @@ export default function ParticipantLayout({ children, currentPageName }) {
             {/* Mobile top bar */}
             <div className="md:hidden flex items-center justify-between px-4 h-12" style={{ background: CU.charcoal, borderTop: `2px solid ${CU.orange}` }}>
                 <Link to="/Dashboard" style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}>
-                    <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1rem', color: 'white' }}>⚽ Liga AFA</span>
+                    <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: '1rem', color: 'white' }}>⚽ Apertura 2025</span>
                 </Link>
                 <div className="flex items-center gap-2">
                     {isAdmin && (

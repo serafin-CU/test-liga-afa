@@ -90,8 +90,12 @@ function RecentPredictions({ predictions, matches, teams, results, ledger }) {
                                 {kickoff.toLocaleDateString('es-AR', { month: 'short', day: 'numeric' })}
                             </div>
                             <div className="min-w-0">
-                                <div style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 500, fontSize: '0.875rem', color: CU.charcoal }} className="truncate">
-                                    {homeName} vs {awayName}
+                                <div className="flex items-center gap-1.5" style={{ fontFamily: "'Raleway', sans-serif", fontWeight: 500, fontSize: '0.875rem', color: CU.charcoal }}>
+                                    {home?.logo_url && <img src={home.logo_url} alt={homeName} className="w-4 h-4 object-contain" />}
+                                    <span className="truncate">{homeName}</span>
+                                    <span style={{ color: '#9ca3af', fontWeight: 400 }}>vs</span>
+                                    {away?.logo_url && <img src={away.logo_url} alt={awayName} className="w-4 h-4 object-contain" />}
+                                    <span className="truncate">{awayName}</span>
                                 </div>
                                 {isFinalized && (
                                     <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.72rem', color: '#6b7280', marginTop: '1px' }}>
@@ -268,7 +272,9 @@ export default function Dashboard() {
     const totalPoints = prodePoints + fantasyPoints;
 
     const now = new Date();
-    const upcomingMatches = matches.filter(m => new Date(m.kickoff_at) > now).length;
+    const upcomingMatches = matches.filter(m => new Date(m.kickoff_at) > now && m.api_fixture_id).length;
+    const finalMatches = matches.filter(m => m.status === 'FINAL' && m.api_fixture_id).length;
+    const totalRealMatches = matches.filter(m => m.api_fixture_id).length;
 
     if (userLoading) {
         return (
@@ -288,7 +294,7 @@ export default function Dashboard() {
                     Hola, {currentUser?.display_name || currentUser?.full_name || currentUser?.email || ''}
                 </h1>
                 <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>
-                    Torneo Apertura 2026
+                    Liga Profesional AFA · Apertura 2025
                 </p>
             </div>
 
@@ -313,9 +319,9 @@ export default function Dashboard() {
                 </SectionCard>
             </div>
 
-            {upcomingMatches > 0 && (
+            {totalRealMatches > 0 && (
                 <div className="text-center text-sm pt-2" style={{ fontFamily: "'Raleway', sans-serif", color: '#9ca3af' }}>
-                    {upcomingMatches} upcoming match{upcomingMatches !== 1 ? 'es' : ''} to predict
+                    {finalMatches}/{totalRealMatches} partidos finalizados · {upcomingMatches > 0 ? `${upcomingMatches} por jugar` : 'Temporada completa'}
                 </div>
             )}
         </div>

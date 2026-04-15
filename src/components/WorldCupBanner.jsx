@@ -7,7 +7,7 @@ const CU = {
     green: '#218848',
 };
 
-const APERTURA_FINAL = new Date('2026-05-24T19:00:00Z');
+const APERTURA_FINAL = new Date('2025-06-01T19:00:00Z'); // AFA Apertura 2025 Final
 
 function useCountdown(target) {
     const [timeLeft, setTimeLeft] = useState(getTimeLeft(target));
@@ -63,7 +63,7 @@ export default function WorldCupBanner({ compact = false }) {
                 }}>
                 <div className="px-4 py-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white/80" style={{ fontFamily: "'Raleway', sans-serif" }}>
-                        ⚽ Liga AFA Test
+                        ⚽ Liga Profesional AFA · Apertura 2025
                     </span>
                     {!countdown.started && (
                         <span className="text-xs font-medium" style={{ fontFamily: "'Raleway', sans-serif", color: CU.orange }}>
@@ -95,14 +95,10 @@ export default function WorldCupBanner({ compact = false }) {
                 <div className="text-center mb-3">
                     <h1 className="text-2xl sm:text-3xl font-bold text-white mb-0.5"
                         style={{ fontFamily: "'DM Serif Display', serif" }}>
-                        Liga AFA Test
+                        Liga Profesional AFA
                     </h1>
                     <p className="text-sm" style={{ fontFamily: "'Raleway', sans-serif", color: 'rgba(255,255,255,0.5)' }}>
-                        Torneo Apertura 2026
-                    </p>
-                    <p className="text-xs mt-0.5 uppercase tracking-widest"
-                        style={{ fontFamily: "'Raleway', sans-serif", color: CU.orange }}>
-                        TEST ENVIRONMENT
+                        Torneo Apertura 2025
                     </p>
                 </div>
 
