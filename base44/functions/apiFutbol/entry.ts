@@ -127,10 +127,26 @@ Deno.serve(async (req) => {
         return Response.json(result);
       }
 
+      case 'get_squad': {
+        // Fetch squad/players for a team from API-Football
+        const teamId = body.team_id;
+        if (!teamId) return Response.json({ error: 'team_id is required' }, { status: 400 });
+        const data = await apiFetch(`/players/squads?team=${teamId}`);
+        return Response.json(data);
+      }
+
+      case 'seed_players': {
+        // Fetch squads for teams in DB and upsert Player records (paginated)
+        const offset = body.offset || 0;
+        const batchSize = body.batch_size || 5;
+        const result = await seedPlayersFromApi(base44, offset, batchSize);
+        return Response.json(result);
+      }
+
       default:
         return Response.json({
           error: 'Invalid action',
-          available_actions: ['status', 'get_rounds', 'get_fixtures', 'get_fixture', 'get_events', 'get_lineups', 'get_player_stats', 'ingest_fixture']
+          available_actions: ['status', 'get_rounds', 'get_fixtures', 'get_fixture', 'get_events', 'get_lineups', 'get_player_stats', 'ingest_fixture', 'get_squad', 'seed_players']
         }, { status: 400 });
     }
 
@@ -491,4 +507,97 @@ async function hashString(str) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── Seed Players from API ────────────────────────────────────────────────────
+
+/**
+ * API-Football position → our Player position enum
+ */
+function mapPosition(apiPos) {
+  if (!apiPos) return 'MID';
+  const p = apiPos.toLowerCase();
+  if (p === 'goalkeeper') return 'GK';
+  if (p === 'defender') return 'DEF';
+  if (p === 'midfielder') return 'MID';
+  if (p === 'attacker') return 'FWD';
+  return 'MID';
+}
+
+/**
+ * Assign a fantasy market price (1–18) based on position.
+ * Prices are seeded as equal base per position group.
+ * Admin can adjust after ingestion.
+ * GK: 4-6 | DEF: 4-7 | MID: 5-9 | FWD: 6-12
+ */
+function defaultPrice(position) {
+  const defaults = { GK: 5, DEF: 5, MID: 6, FWD: 7 };
+  return defaults[position] || 5;
+}
+
+/**
+ * Fetch squads for all teams in DB in small batches, upsert Player records via bulkCreate.
+ * Accepts optional `offset` to resume from a team index (for pagination across calls).
+ */
+async function seedPlayersFromApi(base44, offset = 0, batchSize = 5) {
+  const allTeams = await base44.asServiceRole.entities.Team.list();
+  const teamBatch = allTeams.slice(offset, offset + batchSize);
+
+  if (teamBatch.length === 0) {
+    return { ok: true, done: true, message: 'All teams processed', total_teams: allTeams.length };
+  }
+
+  const existingPlayers = await base44.asServiceRole.entities.Player.list();
+  const existingByApiId = {};
+  for (const p of existingPlayers) {
+    if (p.api_player_id) existingByApiId[p.api_player_id] = p;
+  }
+
+  const results = { teams_processed: 0, players_created: 0, players_skipped: 0, errors: [], next_offset: offset + batchSize, total_teams: allTeams.length, done: (offset + batchSize) >= allTeams.length };
+
+  // Build multi-team query string — API supports comma-separated team IDs
+  const validTeams = teamBatch.filter(t => t.api_team_id);
+  const teamIds = validTeams.map(t => t.api_team_id).join(',');
+  const teamById = Object.fromEntries(validTeams.map(t => [String(t.api_team_id), t]));
+
+  const data = await apiFetch(`/players/squads?team=${teamIds}`);
+  const squadResponses = data.response || [];
+
+  const toCreate = [];
+
+  for (const squadData of squadResponses) {
+    const apiTeamId = String(squadData.team?.id);
+    const team = teamById[apiTeamId];
+    if (!team) {
+      results.errors.push(`Unmatched API team id: ${apiTeamId}`);
+      continue;
+    }
+
+    for (const apiPlayer of (squadData.players || [])) {
+      const playerApiId = String(apiPlayer.id);
+      if (existingByApiId[playerApiId]) {
+        results.players_skipped++;
+        continue;
+      }
+      const position = mapPosition(apiPlayer.position);
+      toCreate.push({
+        full_name: apiPlayer.name,
+        team_id: team.id,
+        position,
+        price: defaultPrice(position),
+        is_active: true,
+        api_player_id: playerApiId,
+      });
+    }
+
+    results.teams_processed++;
+    console.log(`[seedPlayers] ${team.name}: ${squadData.players?.length} players`);
+  }
+
+  if (toCreate.length > 0) {
+    await base44.asServiceRole.entities.Player.bulkCreate(toCreate);
+    results.players_created = toCreate.length;
+  }
+
+  return { ok: true, ...results };
 }
