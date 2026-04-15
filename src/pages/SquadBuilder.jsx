@@ -565,7 +565,7 @@ export default function SquadBuilder() {
 
             {!isSquadComplete && (starters.length > 0 || benchPlayers.length > 0) && (
                 <div className="fixed bottom-0 left-0 right-0 z-50">
-                    <div className="max-w-6xl mx-auto px-4 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)' }}>
+                    <div className="max-w-6xl mx-auto px-4 pt-3 pb-24" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 16px) + 8px)' }}>
                         <div className="w-full h-11 rounded-xl flex items-center justify-center gap-3 text-sm"
                              style={{ background: CU.charcoal, fontFamily: "'Raleway', sans-serif", color: 'white' }}>
                             {!startersComplete && <span>⚽ {starters.length}/{TOTAL_STARTERS} titulares</span>}
