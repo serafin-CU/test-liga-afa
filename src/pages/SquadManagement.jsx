@@ -187,7 +187,8 @@ export default function SquadManagement() {
         queryKey: ['userSquads', currentUser?.id],
         queryFn: async () => {
             if (!currentUser) return [];
-            return await base44.entities.FantasySquad.filter({ user_id: currentUser.id, status: 'FINAL' });
+            // Include both DRAFT and FINAL squads so Mi Equipo shows in-progress squads too
+            return await base44.entities.FantasySquad.filter({ user_id: currentUser.id });
         },
         enabled: !!currentUser
     });
