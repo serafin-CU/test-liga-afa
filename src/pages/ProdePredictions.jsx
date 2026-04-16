@@ -240,8 +240,8 @@ export default function ProdePredictions() {
         queryFn: () => base44.entities.MatchResultFinal.list('finalized_at', 500)
     });
 
-    // Only show 2026 season matches (kickoff in 2026 or later) with api_fixture_id
-    const matches = allMatches.filter(m => m.api_fixture_id && new Date(m.kickoff_at).getFullYear() >= 2026);
+    // Show all matches with api_fixture_id (season spans 2025-2026)
+    const matches = allMatches.filter(m => m.api_fixture_id);
 
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
     const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
