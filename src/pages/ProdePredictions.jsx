@@ -224,7 +224,10 @@ export default function ProdePredictions() {
     const queryClient = useQueryClient();
 
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
-    const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ queryKey: ['matches'], queryFn: () => base44.entities.Match.list('kickoff_at', 500) });
+   const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ 
+    queryKey: ['matches'], 
+    queryFn: () => base44.entities.Match.list('kickoff_at')  // ← ADD THIS PARAMETER
+});
     const { data: teams = [] } = useQuery({ queryKey: ['teams'], queryFn: () => base44.entities.Team.list() });
     const { data: predictions = [] } = useQuery({
         queryKey: ['prodePredictions', currentUser?.id],
