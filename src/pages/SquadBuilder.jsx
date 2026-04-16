@@ -629,7 +629,7 @@ export default function SquadBuilder({ onSquadSaved } = {}) {
             )}
 
             {/* Confirm dialog */}
-            <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+            <Dialog open={showConfirm} onOpenChange={(open) => { if (!saving) setShowConfirm(open); }}>
                 <DialogContent className="max-w-[95vw] sm:max-w-md">
                     <DialogHeader><DialogTitle style={{ fontFamily: "'DM Serif Display', serif" }}>¿Confirmar equipo?</DialogTitle></DialogHeader>
                     <div className="space-y-2 text-sm" style={{ fontFamily: "'Raleway', sans-serif" }}>
