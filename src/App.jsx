@@ -9,7 +9,7 @@ import AlbaChat from './pages/AlbaChat';
 import ProdePredictions from './pages/ProdePredictions';
 import Leaderboard from './pages/Leaderboard';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
-import AdminMatchSync from './pages/AdminMatchSync.jsx';
+import AdminMatchSync from './pages/AdminMatchSync';
 import AdminDataSync from './pages/AdminDataSync';
 import ImportAFAData from './pages/ImportAFAData';
 import SquadBuilder from './pages/SquadBuilder';
