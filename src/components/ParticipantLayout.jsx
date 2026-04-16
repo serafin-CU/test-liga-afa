@@ -74,7 +74,7 @@ export default function ParticipantLayout({ children, currentPageName }) {
                         </div>
                         <div className="flex items-center gap-3">
                             {isAdmin && (
-                                <Link to="/AdminSystemTestHarness">
+                                <Link to="/AdminDataSync">
                                     <button style={{
                                         fontFamily: "'Raleway', sans-serif", fontWeight: 600, fontSize: '0.8rem',
                                         color: 'white', border: '1px solid rgba(255,255,255,0.5)', borderRadius: '6px',
@@ -112,7 +112,7 @@ export default function ParticipantLayout({ children, currentPageName }) {
                 </Link>
                 <div className="flex items-center gap-2">
                     {isAdmin && (
-                        <Link to="/AdminSystemTestHarness">
+                        <Link to="/AdminDataSync">
                             <button style={{
                                 fontSize: '0.7rem', color: CU.orange, border: `1px solid ${CU.orange}50`,
                                 borderRadius: '4px', padding: '3px 8px', background: 'transparent', cursor: 'pointer',
