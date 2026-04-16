@@ -9,6 +9,7 @@ import AlbaChat from './pages/AlbaChat';
 import ProdePredictions from './pages/ProdePredictions';
 import Leaderboard from './pages/Leaderboard';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
+import AdminMatchSync from './pages/AdminMatchSync';
 import AdminDataSync from './pages/AdminDataSync';
 import ImportAFAData from './pages/ImportAFAData';
 import SquadBuilder from './pages/SquadBuilder';
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
       <Route path="/ImportAFAData" element={<LayoutWrapper currentPageName="ImportAFAData"><ImportAFAData /></LayoutWrapper>} />
       <Route path="/SquadBuilder" element={<LayoutWrapper currentPageName="SquadBuilder"><SquadBuilder /></LayoutWrapper>} />
       <Route path="/Profile" element={<LayoutWrapper currentPageName="Profile"><Profile /></LayoutWrapper>} />
+      <Route path="/AdminMatchSync" element={<LayoutWrapper currentPageName="AdminMatchSync"><AdminMatchSync /></LayoutWrapper>} />
       <Route path="/OnboardingTest" element={<Onboarding />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
