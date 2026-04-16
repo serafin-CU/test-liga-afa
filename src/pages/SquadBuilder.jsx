@@ -439,7 +439,12 @@ export default function SquadBuilder({ onSquadSaved } = {}) {
             }
             console.log('[SquadBuilder] Using squad ID:', squadId);
 
-            // Step 2: clear existing players
+            // Step 2: reset squad to DRAFT with zero cost, then clear existing players
+            await base44.entities.FantasySquad.update(squadId, {
+                status: 'DRAFT',
+                total_cost: 0,
+                captain_player_id: null
+            });
             const existing = await base44.entities.FantasySquadPlayer.filter({ squad_id: squadId });
             console.log('[SquadBuilder] Clearing', existing.length, 'existing squad players...');
             for (const sp of existing) await base44.entities.FantasySquadPlayer.delete(sp.id);
