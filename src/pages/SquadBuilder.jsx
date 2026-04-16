@@ -411,81 +411,59 @@ export default function SquadBuilder({ onSquadSaved } = {}) {
 
     // Finalize
     const handleFinalize = async () => {
-        console.log('[SquadBuilder] Confirmar clicked — starting save...', { starters, benchPlayers, captainId });
         setSaving(true);
         try {
             let squadId = existingSquadId;
 
-            // Step 1: create or reuse squad
+            // Step 1: create squad if needed
             if (!squadId) {
-                console.log('[SquadBuilder] Creating new squad...');
-                let res;
                 try {
-                    res = await base44.functions.invoke('fantasyService', { action: 'create_squad', phase, budget_cap: BUDGET_CAP });
-                    console.log('[SquadBuilder] create_squad response:', res.data);
-                    if (res.data?.squad?.id) squadId = res.data.squad.id;
-                    else if (res.data?.existing_squad?.id) squadId = res.data.existing_squad.id;
-                    else throw new Error('No squad ID returned: ' + JSON.stringify(res.data));
+                    const res = await base44.functions.invoke('fantasyService', { action: 'create_squad', phase, budget_cap: BUDGET_CAP });
+                    squadId = res.data?.squad?.id;
                 } catch (err) {
-                    // 409 = squad already exists — extract squad ID from error response
                     const existing = err?.response?.data?.existing_squad;
-                    if (existing?.id) {
-                        console.log('[SquadBuilder] Squad already exists (409), reusing:', existing.id);
-                        squadId = existing.id;
-                    } else {
-                        throw err;
-                    }
+                    if (existing?.id) squadId = existing.id;
+                    else throw err;
                 }
+                if (!squadId) throw new Error('No se pudo crear el equipo');
             }
-            console.log('[SquadBuilder] Using squad ID:', squadId);
 
-            // Step 2: reset squad to DRAFT with zero cost, then clear existing players
+            // Step 2: reset squad + bulk-delete old players in parallel
+            const existingPlayers = await base44.entities.FantasySquadPlayer.filter({ squad_id: squadId });
+            await Promise.all([
+                base44.entities.FantasySquad.update(squadId, { status: 'DRAFT', total_cost: 0, captain_player_id: null }),
+                ...existingPlayers.map(sp => base44.entities.FantasySquadPlayer.delete(sp.id))
+            ]);
+
+            // Step 3: bulk-create all players (starters + bench) in parallel
+            const totalCostCalc = [...starters, ...benchPlayers.map(id => ({ player_id: id }))]
+                .reduce((sum, s) => sum + (playersMap[s.player_id]?.price || 0), 0);
+
+            await Promise.all([
+                ...starters.map(s => base44.entities.FantasySquadPlayer.create({
+                    squad_id: squadId, player_id: s.player_id, slot_type: 'STARTER', starter_position: s.position, is_captain: s.player_id === captainId
+                })),
+                ...benchPlayers.map((id, i) => base44.entities.FantasySquadPlayer.create({
+                    squad_id: squadId, player_id: id, slot_type: 'BENCH', bench_order: i + 1, is_captain: false
+                }))
+            ]);
+
+            // Step 4: update squad cost + captain, then finalize
             await base44.entities.FantasySquad.update(squadId, {
-                status: 'DRAFT',
-                total_cost: 0,
-                captain_player_id: null
+                total_cost: totalCostCalc,
+                captain_player_id: captainId,
+                last_autosaved_at: new Date().toISOString()
             });
-            const existing = await base44.entities.FantasySquadPlayer.filter({ squad_id: squadId });
-            console.log('[SquadBuilder] Clearing', existing.length, 'existing squad players...');
-            for (const sp of existing) await base44.entities.FantasySquadPlayer.delete(sp.id);
 
-            // Step 3: add starters
-            console.log('[SquadBuilder] Adding', starters.length, 'starters...');
-            for (const starter of starters) {
-                const res = await base44.functions.invoke('fantasyService', { action: 'add_player_to_squad', squad_id: squadId, player_id: starter.player_id, slot_type: 'STARTER', starter_position: starter.position });
-                if (res.data?.error) throw new Error('Error adding starter: ' + JSON.stringify(res.data));
-            }
-
-            // Step 4: add bench
-            console.log('[SquadBuilder] Adding', benchPlayers.length, 'bench players...');
-            for (let i = 0; i < benchPlayers.length; i++) {
-                const res = await base44.functions.invoke('fantasyService', { action: 'add_player_to_squad', squad_id: squadId, player_id: benchPlayers[i], slot_type: 'BENCH' });
-                if (res.data?.error) throw new Error('Error adding bench player: ' + JSON.stringify(res.data));
-                if (res.data?.squad_player?.id) await base44.entities.FantasySquadPlayer.update(res.data.squad_player.id, { bench_order: i + 1 });
-            }
-
-            // Step 5: set captain
-            if (captainId) {
-                console.log('[SquadBuilder] Setting captain:', captainId);
-                const capRes = await base44.functions.invoke('squadCaptainService', { action: 'set_captain', squad_id: squadId, player_id: captainId });
-                console.log('[SquadBuilder] captain response:', capRes.data);
-                if (capRes.data?.status === 'ERROR') throw new Error('Error setting captain: ' + capRes.data.message);
-            }
-
-            // Step 6: finalize
-            console.log('[SquadBuilder] Finalizing squad...');
             const finalRes = await base44.functions.invoke('fantasyService', { action: 'finalize_squad', squad_id: squadId });
-            console.log('[SquadBuilder] finalize response:', finalRes.data);
-            if (finalRes.data?.error) throw new Error('Error finalizing: ' + JSON.stringify(finalRes.data));
+            if (finalRes.data?.error) throw new Error(finalRes.data.error);
 
             toast.success('¡Equipo guardado! 🎉');
             setExistingSquadId(squadId);
             setShowConfirm(false);
             queryClient.invalidateQueries(['userSquads']);
-            console.log('[SquadBuilder] Save complete ✓');
             if (onSquadSaved) onSquadSaved();
         } catch (error) {
-            console.error('[SquadBuilder] Save error:', error);
             toast.error(error.message || 'Error al guardar');
         } finally {
             setSaving(false);
