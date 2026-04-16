@@ -24,6 +24,7 @@ export default function ImportAFAData() {
     const [deleting, setDeleting] = useState(false);
     const [deleteResult, setDeleteResult] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
+    const [deleteProgress, setDeleteProgress] = useState('');
 
     const handleImport = async () => {
         if (!window.confirm('This will delete existing Match, Team, and Result data and re-import from API-Football.\n\nUser predictions, squads, and points are preserved.\n\nContinue?')) return;
@@ -45,6 +46,22 @@ export default function ImportAFAData() {
         }
     };
 
+    const deleteInBatches = async (items, entityName, batchSize = 50) => {
+        const total = items.length;
+        let deleted = 0;
+        for (let i = 0; i < items.length; i += batchSize) {
+            const batch = items.slice(i, i + batchSize);
+            for (const item of batch) {
+                await base44.entities[entityName].delete(item.id);
+                deleted++;
+            }
+            setDeleteProgress(`Deleting ${entityName}... ${deleted}/${total}`);
+            if (i + batchSize < items.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    };
+
     const handleDeleteAll = async () => {
         if (!window.confirm('⚠️ DELETE ALL DATA — FRESH START\n\nThis will permanently delete:\n• All Teams\n• All Matches\n• All Match Results\n\nThis cannot be undone. Are you sure?')) return;
         if (!window.confirm('SECOND CONFIRMATION: Are you absolutely sure you want to delete everything?')) return;
@@ -52,27 +69,28 @@ export default function ImportAFAData() {
         setDeleting(true);
         setDeleteResult(null);
         setDeleteError(null);
+        setDeleteProgress('Fetching records...');
 
         try {
-            // Fetch all records first to get counts
             const [results, matches, teams] = await Promise.all([
-                base44.entities.MatchResultFinal.list(undefined, 500),
-                base44.entities.Match.list(undefined, 500),
-                base44.entities.Team.list(undefined, 500),
+                base44.entities.MatchResultFinal.list(undefined, 2000),
+                base44.entities.Match.list(undefined, 2000),
+                base44.entities.Team.list(undefined, 2000),
             ]);
 
-            // Delete in order: results → matches → teams
-            await Promise.all(results.map(r => base44.entities.MatchResultFinal.delete(r.id)));
-            await Promise.all(matches.map(m => base44.entities.Match.delete(m.id)));
-            await Promise.all(teams.map(t => base44.entities.Team.delete(t.id)));
+            await deleteInBatches(results, 'MatchResultFinal');
+            await deleteInBatches(matches, 'Match');
+            await deleteInBatches(teams, 'Team');
 
             setDeleteResult({
                 resultsDeleted: results.length,
                 matchesDeleted: matches.length,
                 teamsDeleted: teams.length,
             });
+            setDeleteProgress('');
         } catch (err) {
             setDeleteError(err.message || 'Unknown error');
+            setDeleteProgress('');
         } finally {
             setDeleting(false);
         }
@@ -192,7 +210,7 @@ export default function ImportAFAData() {
                         style={{ background: deleting ? '#9ca3af' : '#dc2626', cursor: deleting ? 'not-allowed' : 'pointer', boxShadow: deleting ? 'none' : '0 0 0 3px #fecaca' }}
                     >
                         {deleting ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Deleting everything...</>
+                            <><Loader2 className="w-4 h-4 animate-spin" /> {deleteProgress || 'Starting...'}</>
                         ) : (
                             <><Trash2 className="w-4 h-4" /> DELETE ALL DATA — Fresh Start</>
                         )}
