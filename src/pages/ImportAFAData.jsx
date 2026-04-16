@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Download, BarChart2, CheckCircle2, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { Download, BarChart2, CheckCircle2, AlertCircle, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 
 const CU = {
     orange: '#FFB81C',
@@ -21,6 +21,10 @@ export default function ImportAFAData() {
     const [statusResult, setStatusResult] = useState(null);
     const [checkError, setCheckError] = useState(null);
 
+    const [deleting, setDeleting] = useState(false);
+    const [deleteResult, setDeleteResult] = useState(null);
+    const [deleteError, setDeleteError] = useState(null);
+
     const handleImport = async () => {
         if (!window.confirm('This will delete existing Match, Team, and Result data and re-import from API-Football.\n\nUser predictions, squads, and points are preserved.\n\nContinue?')) return;
 
@@ -38,6 +42,39 @@ export default function ImportAFAData() {
             setImportError(err.message || 'Unknown error');
         } finally {
             setImporting(false);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!window.confirm('⚠️ DELETE ALL DATA — FRESH START\n\nThis will permanently delete:\n• All Teams\n• All Matches\n• All Match Results\n\nThis cannot be undone. Are you sure?')) return;
+        if (!window.confirm('SECOND CONFIRMATION: Are you absolutely sure you want to delete everything?')) return;
+
+        setDeleting(true);
+        setDeleteResult(null);
+        setDeleteError(null);
+
+        try {
+            // Fetch all records first to get counts
+            const [results, matches, teams] = await Promise.all([
+                base44.entities.MatchResultFinal.list(undefined, 500),
+                base44.entities.Match.list(undefined, 500),
+                base44.entities.Team.list(undefined, 500),
+            ]);
+
+            // Delete in order: results → matches → teams
+            await Promise.all(results.map(r => base44.entities.MatchResultFinal.delete(r.id)));
+            await Promise.all(matches.map(m => base44.entities.Match.delete(m.id)));
+            await Promise.all(teams.map(t => base44.entities.Team.delete(t.id)));
+
+            setDeleteResult({
+                resultsDeleted: results.length,
+                matchesDeleted: matches.length,
+                teamsDeleted: teams.length,
+            });
+        } catch (err) {
+            setDeleteError(err.message || 'Unknown error');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -136,7 +173,67 @@ export default function ImportAFAData() {
                 </CardContent>
             </Card>
 
-            {/* Button 2: Check Status */}
+            {/* Button 2: Delete All */}
+            <Card className="mb-6" style={{ borderColor: '#fecaca', borderWidth: '2px' }}>
+                <CardHeader style={{ background: '#fff5f5', borderRadius: '0.5rem 0.5rem 0 0' }}>
+                    <CardTitle className="flex items-center gap-2" style={{ fontFamily: "'DM Serif Display', serif", color: '#b91c1c' }}>
+                        <Trash2 className="w-5 h-5" /> DELETE ALL DATA — Fresh Start
+                    </CardTitle>
+                    <CardDescription style={{ color: '#dc2626' }}>
+                        <span className="font-semibold">⚠ DANGER ZONE:</span> Permanently deletes all Teams, Matches, and Results. Cannot be undone.
+                        User predictions, squads, and points are <span className="font-semibold">NOT</span> affected.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                    <Button
+                        onClick={handleDeleteAll}
+                        disabled={deleting}
+                        className="gap-2 text-white font-bold"
+                        style={{ background: deleting ? '#9ca3af' : '#dc2626', cursor: deleting ? 'not-allowed' : 'pointer', boxShadow: deleting ? 'none' : '0 0 0 3px #fecaca' }}
+                    >
+                        {deleting ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> Deleting everything...</>
+                        ) : (
+                            <><Trash2 className="w-4 h-4" /> DELETE ALL DATA — Fresh Start</>
+                        )}
+                    </Button>
+
+                    {deleteError && (
+                        <div className="flex items-start gap-3 p-3 rounded-lg border" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+                            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                            <div>
+                                <div className="font-semibold">Error</div>
+                                <div className="text-sm">{deleteError}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {deleteResult && (
+                        <div className="p-4 rounded-lg border space-y-3" style={{ background: '#fff7ed', borderColor: '#fed7aa' }}>
+                            <div className="flex items-center gap-2 font-semibold" style={{ color: '#c2410c' }}>
+                                <CheckCircle2 className="w-5 h-5" /> All data deleted successfully.
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                {[
+                                    { label: 'Results Deleted', value: deleteResult.resultsDeleted },
+                                    { label: 'Matches Deleted', value: deleteResult.matchesDeleted },
+                                    { label: 'Teams Deleted', value: deleteResult.teamsDeleted },
+                                ].map(stat => (
+                                    <div key={stat.label} className="rounded-lg p-3 text-center border" style={{ background: 'white', borderColor: '#fed7aa' }}>
+                                        <div className="text-2xl font-bold" style={{ fontFamily: "'DM Serif Display', serif", color: '#b91c1c' }}>{stat.value}</div>
+                                        <div className="text-xs mt-0.5" style={{ color: '#c2410c' }}>{stat.label}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2 p-3 rounded-lg font-semibold text-sm" style={{ background: '#eff6ff', borderColor: '#bfdbfe', border: '1px solid', color: '#1d4ed8' }}>
+                                ↑ Now click <strong>"Import Teams from API-Football"</strong> above to rebuild.
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Button 3: Check Status */}
             <Card>
                 <CardHeader>
                     <CardTitle style={{ fontFamily: "'DM Serif Display', serif", color: CU.charcoal }}>Check Data Status</CardTitle>
