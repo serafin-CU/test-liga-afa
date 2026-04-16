@@ -9,6 +9,7 @@ import AlbaChat from './pages/AlbaChat';
 import ProdePredictions from './pages/ProdePredictions';
 import Leaderboard from './pages/Leaderboard';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
+import AdminDataSync from './pages/AdminDataSync';
 import SquadBuilder from './pages/SquadBuilder';
 import Onboarding from './pages/Onboarding';
 import Profile from './pages/Profile';
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
       <Route path="/ProdePredictions" element={<LayoutWrapper currentPageName="ProdePredictions"><ProdePredictions /></LayoutWrapper>} />
       <Route path="/Leaderboard" element={<LayoutWrapper currentPageName="Leaderboard"><Leaderboard /></LayoutWrapper>} />
       <Route path="/AdminBadgesViewer" element={<LayoutWrapper currentPageName="AdminBadgesViewer"><AdminBadgesViewer /></LayoutWrapper>} />
+      <Route path="/AdminDataSync" element={<LayoutWrapper currentPageName="AdminDataSync"><AdminDataSync /></LayoutWrapper>} />
       <Route path="/SquadBuilder" element={<LayoutWrapper currentPageName="SquadBuilder"><SquadBuilder /></LayoutWrapper>} />
       <Route path="/Profile" element={<LayoutWrapper currentPageName="Profile"><Profile /></LayoutWrapper>} />
       <Route path="/OnboardingTest" element={<Onboarding />} />
