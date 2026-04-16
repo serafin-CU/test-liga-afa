@@ -225,10 +225,10 @@ export default function ProdePredictions() {
 
     const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: () => base44.auth.me() });
    const { data: allMatches = [], isLoading: matchesLoading } = useQuery({ 
-    queryKey: ['matches'], 
-    queryFn: () => base44.entities.Match.list('kickoff_at')  // ← ADD THIS PARAMETER
-});
-    const { data: teams = [] } = useQuery({ queryKey: ['teams'], queryFn: () => base44.entities.Team.list() });
+       queryKey: ['matches'], 
+       queryFn: () => base44.entities.Match.list('kickoff_at', 500)
+   });
+   const { data: teams = [] } = useQuery({ queryKey: ['teams'], queryFn: () => base44.entities.Team.list(undefined, 200) });
     const { data: predictions = [] } = useQuery({
         queryKey: ['prodePredictions', currentUser?.id],
         queryFn: async () => {
@@ -249,6 +249,17 @@ export default function ProdePredictions() {
     const teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
     const predictionsMap = Object.fromEntries(predictions.map(p => [p.match_id, p]));
     const resultsMap = Object.fromEntries(matchResults.map(r => [r.match_id, r]));
+
+    // Debug logging
+    if (teams.length > 0 && allMatches.length > 0) {
+        console.log('[Prode Debug] Teams loaded:', teams.length, '| First team:', teams[0]);
+        console.log('[Prode Debug] Matches loaded:', allMatches.length, '| Matches with api_fixture_id:', allMatches.filter(m => m.api_fixture_id).length);
+        const firstMatch = allMatches.find(m => m.api_fixture_id);
+        if (firstMatch) {
+            console.log('[Prode Debug] First match:', firstMatch.id, '| home_team_id:', firstMatch.home_team_id, '| away_team_id:', firstMatch.away_team_id);
+            console.log('[Prode Debug] home team in map?', !!teamsMap[firstMatch.home_team_id], '| away team in map?', !!teamsMap[firstMatch.away_team_id]);
+        }
+    }
 
     // Deduplicate matches by api_fixture_id before grouping
     const seenIds = new Set();
