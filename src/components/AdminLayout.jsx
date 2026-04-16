@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Database, LogOut, Home, Award, RefreshCw } from 'lucide-react';
+import { FileText, Database, LogOut, Home, Award, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function AdminLayout({ children, currentPageName }) {
@@ -16,7 +16,8 @@ export default function AdminLayout({ children, currentPageName }) {
         { name: 'AdminFantasyStatsViewer', label: 'Stats Viewer', icon: FileText },
         { name: 'AdminFantasyLedgerViewer', label: 'Ledger Viewer', icon: Database },
         { name: 'AdminBadgesViewer', label: 'Badges', icon: Award },
-        { name: 'AdminDataSync', label: 'Data Sync', icon: RefreshCw }
+        { name: 'AdminDataSync', label: 'Data Sync', icon: RefreshCw },
+        { name: 'ImportAFAData', label: 'Import AFA', icon: Download }
     ];
 
     const handleLogout = () => {
