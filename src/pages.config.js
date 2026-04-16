@@ -1,6 +1,7 @@
 import AdminFantasyLedgerViewer from './pages/AdminFantasyLedgerViewer';
 import AdminFantasyStatsViewer from './pages/AdminFantasyStatsViewer';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
+import AdminDataSync from './pages/AdminDataSync';
 import SquadManagement from './pages/SquadManagement';
 import Dashboard from './pages/Dashboard';
 import ProdePredictions from './pages/ProdePredictions';
@@ -15,6 +16,7 @@ export const PAGES = {
     "AdminFantasyLedgerViewer": AdminFantasyLedgerViewer,
     "AdminFantasyStatsViewer": AdminFantasyStatsViewer,
     "AdminBadgesViewer": AdminBadgesViewer,
+    "AdminDataSync": AdminDataSync,
     "SquadManagement": SquadManagement,
     "Dashboard": Dashboard,
     "ProdePredictions": ProdePredictions,
