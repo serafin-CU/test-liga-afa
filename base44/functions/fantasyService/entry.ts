@@ -319,6 +319,18 @@ async function finalizeSquad(base44, user, body) {
 
     // Validate squad before finalizing
     const squadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id });
+
+    // Sync captain_player_id from is_captain flag if missing
+    if (!squad.captain_player_id) {
+        const captainPlayer = squadPlayers.find(sp => sp.is_captain === true);
+        if (captainPlayer) {
+            await base44.asServiceRole.entities.FantasySquad.update(squad_id, {
+                captain_player_id: captainPlayer.player_id
+            });
+            squad.captain_player_id = captainPlayer.player_id;
+        }
+    }
+
     const validation = validateSquad(squadPlayers, squad);
 
     if (!validation.valid) {
@@ -419,14 +431,11 @@ function validateSquad(squadPlayers, squad) {
         warnings.push('Formation should have 1-3 FWD (current: ' + positionCounts.FWD + ')');
     }
 
-    // Check captain
-    if (!squad.captain_player_id) {
+    // Check captain — check both squad.captain_player_id and is_captain flag on players
+    const captainById = squad.captain_player_id && squadPlayers.some(sp => sp.player_id === squad.captain_player_id);
+    const captainByFlag = squadPlayers.some(sp => sp.is_captain === true);
+    if (!captainById && !captainByFlag) {
         errors.push('Squad must have a captain');
-    } else {
-        const captainInSquad = squadPlayers.some(sp => sp.player_id === squad.captain_player_id);
-        if (!captainInSquad) {
-            errors.push('Captain must be a player in the squad');
-        }
     }
 
     return { 

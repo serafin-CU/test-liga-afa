@@ -124,6 +124,11 @@ async function setCaptain(base44, user, squad_id, player_id) {
         is_captain: true
     });
 
+    // Also update captain_player_id on the squad itself (required for finalize validation)
+    await base44.asServiceRole.entities.FantasySquad.update(squad_id, {
+        captain_player_id: player_id
+    });
+
     // Get player details for audit log
     const allPlayers = await base44.asServiceRole.entities.Player.list();
     const playerData = allPlayers.find(p => p.id === player_id);
