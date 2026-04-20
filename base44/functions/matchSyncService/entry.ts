@@ -117,7 +117,7 @@ async function syncMatches(base44, user) {
                 await base44.asServiceRole.entities.Match.update(match.id, updates);
             }
 
-            // If newly FINAL, upsert MatchResultFinal
+            // If newly FINAL, upsert MatchResultFinal and score predictions
             if (newStatus === 'FINAL' && homeGoals !== null && awayGoals !== null) {
                 const existing = await base44.asServiceRole.entities.MatchResultFinal.filter({ match_id: match.id });
                 if (existing.length === 0) {
@@ -128,6 +128,16 @@ async function syncMatches(base44, user) {
                         finalized_at: new Date().toISOString()
                     });
                     summary.score_updates++;
+
+                    // Score prode predictions for this match
+                    try {
+                        await scoreProde(base44, match.id, homeGoals, awayGoals);
+                        summary.scored = (summary.scored || 0) + 1;
+                        console.log(`[matchSyncService] Prode scored for match ${match.id}`);
+                    } catch (err) {
+                        console.error(`[matchSyncService] Prode scoring error for match ${match.id}:`, err.message);
+                        summary.errors.push({ fixture_id: match.api_fixture_id, error: `Prode scoring: ${err.message}` });
+                    }
                 }
             }
 
@@ -162,4 +172,63 @@ async function syncMatches(base44, user) {
     }
 
     return { ok: true, run_id: run.id, summary };
+}
+
+async function scoreProde(base44, match_id, home_goals, away_goals) {
+    const dedupe_key = `PRODE:MATCH:${match_id}:v1`;
+
+    // Idempotency check
+    const existingJobs = await base44.asServiceRole.entities.ScoringJob.filter({ dedupe_key });
+    if (existingJobs.length > 0 && existingJobs[0].status === 'DONE') {
+        console.log(`[scoreProde] Already scored for match ${match_id}, skipping`);
+        return;
+    }
+
+    // Upsert scoring job
+    let job;
+    if (existingJobs.length > 0) {
+        job = await base44.asServiceRole.entities.ScoringJob.update(existingJobs[0].id, { status: 'RUNNING' });
+        job = { ...existingJobs[0], status: 'RUNNING' };
+    } else {
+        job = await base44.asServiceRole.entities.ScoringJob.create({
+            mode: 'PRODE', source_type: 'MATCH', source_id: `MATCH:${match_id}`,
+            version: 1, dedupe_key, status: 'RUNNING'
+        });
+    }
+
+    try {
+        const predictions = await base44.asServiceRole.entities.ProdePrediction.filter({ match_id });
+        let scored_count = 0;
+
+        for (const pred of predictions) {
+            let points = 0;
+            const breakdown = {};
+
+            if (pred.pred_home_goals === home_goals && pred.pred_away_goals === away_goals) {
+                points += 5; breakdown.exact_score = 5;
+            } else {
+                const predWinner = pred.pred_home_goals > pred.pred_away_goals ? 'home' : pred.pred_home_goals < pred.pred_away_goals ? 'away' : 'draw';
+                const actualWinner = home_goals > away_goals ? 'home' : home_goals < away_goals ? 'away' : 'draw';
+                if (predWinner === actualWinner) { points += 3; breakdown.correct_winner = 3; }
+            }
+
+            if (points > 0) {
+                const source_id = `MATCH:${match_id}:v1`;
+                const existingEntries = await base44.asServiceRole.entities.PointsLedger.filter({ user_id: pred.user_id, source_id });
+                if (existingEntries.length === 0) {
+                    await base44.asServiceRole.entities.PointsLedger.create({
+                        user_id: pred.user_id, mode: 'PRODE', source_type: 'MATCH', source_id, points,
+                        breakdown_json: JSON.stringify(breakdown)
+                    });
+                    scored_count++;
+                }
+            }
+        }
+
+        await base44.asServiceRole.entities.ScoringJob.update(job.id, { status: 'DONE' });
+        console.log(`[scoreProde] ${scored_count}/${predictions.length} predictions scored for match ${match_id}`);
+    } catch (err) {
+        await base44.asServiceRole.entities.ScoringJob.update(job.id, { status: 'FAILED', error_message: err.message });
+        throw err;
+    }
 }
