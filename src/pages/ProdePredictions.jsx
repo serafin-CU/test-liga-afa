@@ -145,16 +145,10 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, result, onUp
                             Sin guardar
                         </span>
                     )}
-                    {isFinal && result && (
+                    {isFinal && !hasSaved && result && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                             style={{ background: '#1f29371a', color: CU.charcoal, fontFamily: "'DM Serif Display', serif", letterSpacing: '0.02em' }}>
                             {result.home_goals} – {result.away_goals}
-                        </span>
-                    )}
-                    {isFinal && pts !== null && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                            style={{ background: ptsColor + '20', color: ptsColor, fontFamily: "'Raleway', sans-serif" }}>
-                            {pts === 5 ? '⭐ +5' : pts === 3 ? '+3' : '+0'}
                         </span>
                     )}
                     {!isFinal && isLocked && (
@@ -181,17 +175,40 @@ function MatchRow({ match, teams, localPrediction, savedPrediction, result, onUp
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {isFinal ? (
-                        // Show prediction as static display when final
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold"
-                                style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
-                                {hasSaved ? savedPrediction.pred_home_goals : '–'}
+                        // Show prediction vs real result when final
+                        <div className="flex flex-col items-center gap-1">
+                            {/* Prediction row */}
+                            <div className="flex items-center gap-1">
+                                <div className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold"
+                                    style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
+                                    {hasSaved ? savedPrediction.pred_home_goals : '–'}
+                                </div>
+                                <span style={{ color: '#d1d5db', fontSize: '1rem' }}>-</span>
+                                <div className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold"
+                                    style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
+                                    {hasSaved ? savedPrediction.pred_away_goals : '–'}
+                                </div>
                             </div>
-                            <span style={{ color: '#d1d5db', fontSize: '1.2rem' }}>×</span>
-                            <div className="w-10 h-10 flex items-center justify-center rounded-lg text-xl font-bold"
-                                style={{ fontFamily: "'DM Serif Display', serif", background: '#f3f4f6', color: hasSaved ? CU.charcoal : '#d1d5db' }}>
-                                {hasSaved ? savedPrediction.pred_away_goals : '–'}
-                            </div>
+                            <div className="text-xs" style={{ color: '#9ca3af', fontFamily: "'Raleway', sans-serif" }}>pronóst.</div>
+                            {/* Real result row */}
+                            {result && (
+                                <>
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold"
+                                            style={{ fontFamily: "'DM Serif Display', serif", background: pts === 5 ? CU.green + '20' : pts === 3 ? CU.orange + '20' : '#fee2e2', color: pts === 5 ? CU.green : pts === 3 ? '#b45309' : '#dc2626' }}>
+                                            {result.home_goals}
+                                        </div>
+                                        <span style={{ color: '#d1d5db', fontSize: '1rem' }}>-</span>
+                                        <div className="w-9 h-9 flex items-center justify-center rounded-lg text-lg font-bold"
+                                            style={{ fontFamily: "'DM Serif Display', serif", background: pts === 5 ? CU.green + '20' : pts === 3 ? CU.orange + '20' : '#fee2e2', color: pts === 5 ? CU.green : pts === 3 ? '#b45309' : '#dc2626' }}>
+                                            {result.away_goals}
+                                        </div>
+                                    </div>
+                                    <div className="text-xs font-bold" style={{ color: ptsColor, fontFamily: "'Raleway', sans-serif" }}>
+                                        {pts === null ? 'resultado' : pts === 5 ? '⭐ +5 pts' : pts === 3 ? '+3 pts' : '+0 pts'}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>
