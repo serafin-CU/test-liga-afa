@@ -65,9 +65,11 @@ const API_TEAM_ID_TO_FIFA_CODE = {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    let user = null;
+    try { user = await base44.auth.me(); } catch {}
 
-    if (user?.role !== 'admin') {
+    // Allow system/scheduled calls (no user) or admin users only
+    if (user && user.role !== 'admin') {
       return Response.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -337,8 +339,8 @@ async function ingestFixture(base44, fixture_id, user, overrideMatchId = null) {
 
   // Audit log
   await base44.asServiceRole.entities.AdminAuditLog.create({
-    admin_user_id: user.id,
-    actor_type: 'ADMIN',
+    admin_user_id: user?.id || null,
+    actor_type: user ? 'ADMIN' : 'SYSTEM',
     action: 'INGEST_FIXTURE',
     entity_type: 'IngestionEvent',
     entity_id: ingestionEvent.id,

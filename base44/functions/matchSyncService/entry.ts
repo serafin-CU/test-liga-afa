@@ -117,10 +117,11 @@ async function syncMatches(base44, user) {
                 await base44.asServiceRole.entities.Match.update(match.id, updates);
             }
 
-            // If newly FINAL, upsert MatchResultFinal and score predictions
+            // If newly FINAL, run full pipeline: result → stats → prode → fantasy
             if (newStatus === 'FINAL' && homeGoals !== null && awayGoals !== null) {
                 const existing = await base44.asServiceRole.entities.MatchResultFinal.filter({ match_id: match.id });
                 if (existing.length === 0) {
+                    // 1. Upsert MatchResultFinal
                     await base44.asServiceRole.entities.MatchResultFinal.create({
                         match_id: match.id,
                         home_goals: homeGoals,
@@ -129,7 +130,32 @@ async function syncMatches(base44, user) {
                     });
                     summary.score_updates++;
 
-                    // Score prode predictions for this match
+                    // 2. Ingest full fixture data (events + lineups) so fantasy stats can be built
+                    try {
+                        await base44.asServiceRole.functions.invoke('apiFutbol', {
+                            action: 'ingest_fixture',
+                            fixture_id: match.api_fixture_id,
+                            match_id: match.id
+                        });
+                        console.log(`[matchSyncService] Fixture ingested for match ${match.id}`);
+                    } catch (err) {
+                        console.error(`[matchSyncService] Ingest error for match ${match.id}:`, err.message);
+                        summary.errors.push({ fixture_id: match.api_fixture_id, error: `Ingest: ${err.message}` });
+                    }
+
+                    // 3. Build FantasyMatchPlayerStats from ingested data
+                    try {
+                        await base44.asServiceRole.functions.invoke('fantasyStatsService', {
+                            action: 'build_fantasy_stats',
+                            match_id: match.id
+                        });
+                        console.log(`[matchSyncService] Fantasy stats built for match ${match.id}`);
+                    } catch (err) {
+                        console.error(`[matchSyncService] Fantasy stats error for match ${match.id}:`, err.message);
+                        summary.errors.push({ fixture_id: match.api_fixture_id, error: `FantasyStats: ${err.message}` });
+                    }
+
+                    // 4. Score Prode predictions
                     try {
                         await scoreProde(base44, match.id, homeGoals, awayGoals);
                         summary.scored = (summary.scored || 0) + 1;
@@ -137,6 +163,18 @@ async function syncMatches(base44, user) {
                     } catch (err) {
                         console.error(`[matchSyncService] Prode scoring error for match ${match.id}:`, err.message);
                         summary.errors.push({ fixture_id: match.api_fixture_id, error: `Prode scoring: ${err.message}` });
+                    }
+
+                    // 5. Score Fantasy points
+                    try {
+                        await base44.asServiceRole.functions.invoke('fantasyScoringService', {
+                            action: 'score_fantasy_match',
+                            match_id: match.id
+                        });
+                        console.log(`[matchSyncService] Fantasy scored for match ${match.id}`);
+                    } catch (err) {
+                        console.error(`[matchSyncService] Fantasy scoring error for match ${match.id}:`, err.message);
+                        summary.errors.push({ fixture_id: match.api_fixture_id, error: `Fantasy scoring: ${err.message}` });
                     }
                 }
             }
