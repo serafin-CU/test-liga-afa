@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Users, LogOut, Shield, Trophy, Target, LayoutDashboard, User } from 'lucide-react';
+import { Users, LogOut, Shield, Trophy, Target, LayoutDashboard, User, Star } from 'lucide-react';
 import AlbaChatWidget from '@/components/AlbaChatWidget';
 
 const CU = {
@@ -15,6 +15,7 @@ const navItems = [
     { name: 'Dashboard', label: 'Inicio', icon: LayoutDashboard },
     { name: 'ProdePredictions', label: 'Prode', icon: Target },
     { name: 'SquadManagement', label: 'Mi Equipo', icon: Users },
+    { name: 'MiFantasy', label: 'Mi Fantasy', icon: Star },
     { name: 'Leaderboard', label: 'Tabla', icon: Trophy },
     { name: 'Profile', label: 'Perfil', icon: User }
 ];

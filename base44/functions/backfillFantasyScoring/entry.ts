@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json().catch(() => ({}));
-        const { dry_run = false, force_rescore = false, match_id_filter = null, venue_filter = null, batch_size = 5, offset = 0 } = body;
+        const { dry_run = false, force_rescore = false, match_id_filter = null, match_id_list = null, venue_filter = null, date_from = null, date_to = null, batch_size = 5, offset = 0 } = body;
 
         // Pre-load all data to avoid per-iteration rate limits
         const [allResults, allMatches, allExistingStats, allPlayers, allTeams, dataSources] = await Promise.all([
@@ -43,15 +43,33 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Build a set of match_ids for the venue filter
+        // Build filter sets
+        // match_id_list: explicit array of match IDs (most precise, use this to fix specific matches)
+        const matchIdSet = match_id_list ? new Set(match_id_list) : null;
+
+        // venue_filter: filter by venue label (e.g. "Fecha 15")
         const venueMatchIds = venue_filter
             ? new Set(allMatches.filter(m => m.venue === venue_filter).map(m => m.id))
+            : null;
+
+        // date_from / date_to: filter by kickoff date range (ISO strings, e.g. "2026-04-17" to "2026-04-22")
+        const dateFromMs = date_from ? new Date(date_from).getTime() : null;
+        const dateToMs = date_to ? new Date(date_to + (date_to.length === 10 ? 'T23:59:59Z' : '')).getTime() : null;
+        const dateMatchIds = (dateFromMs || dateToMs)
+            ? new Set(allMatches.filter(m => {
+                const t = new Date(m.kickoff_at).getTime();
+                if (dateFromMs && t < dateFromMs) return false;
+                if (dateToMs && t > dateToMs) return false;
+                return true;
+              }).map(m => m.id))
             : null;
 
         const allFiltered = match_id_filter
             ? allResults.filter(r => r.match_id === match_id_filter)
             : allResults.filter(r => {
+                if (matchIdSet && !matchIdSet.has(r.match_id)) return false;
                 if (venueMatchIds && !venueMatchIds.has(r.match_id)) return false;
+                if (dateMatchIds && !dateMatchIds.has(r.match_id)) return false;
                 return !statsMatchIds.has(r.match_id) || force_rescore;
               });
 
