@@ -297,9 +297,41 @@ Deno.serve(async (req) => {
                     continue;
                 }
 
+                // Void prior entries if force_rescoring
+                if (force_rescore && priorLedger.length > 0) {
+                    for (const entry of priorLedger) {
+                        await base44.asServiceRole.entities.PointsLedger.delete(entry.id);
+                    }
+                    console.log(`[backfillFantasy] Match ${mid}: voided ${priorLedger.length} prior ledger entries`);
+                }
+
+                // Load config for scoring rules
+                const configs = await base44.asServiceRole.entities.AppConfig.list();
+                const cfg = configs[0] || {};
+                const PTS_60_PLUS    = cfg.points_play_60_plus  ?? 2;
+                const PTS_1_TO_59    = cfg.points_play_1_to_59  ?? 1;
+                const PTS_GOAL_FWD   = cfg.points_goal_fwd      ?? 5;
+                const PTS_GOAL_MID   = cfg.points_goal_mid      ?? 6;
+                const PTS_GOAL_DEF   = cfg.points_goal_def      ?? 7;
+                const PTS_GOAL_GK    = cfg.points_goal_gk       ?? 7;
+                const PTS_YC         = cfg.points_yellow_card   ?? -1;
+                const PTS_RC         = cfg.points_red_card      ?? -3;
+                const PTS_CS         = cfg.clean_sheet_def_gk   ?? 4;
+                const CS_MIN_MINS    = cfg.clean_sheet_min_minutes ?? 60;
+
                 const matchStats = await base44.asServiceRole.entities.FantasyMatchPlayerStats.filter({ match_id: mid });
                 const statsMap = Object.fromEntries(matchStats.map(s => [s.player_id, s]));
                 const playersMap = Object.fromEntries(allPlayers.map(p => [p.id, p]));
+
+                // Determine which teams kept a clean sheet in this match
+                // A team has a clean sheet if the opposing team scored 0 goals
+                // We need to know the match result for this
+                const matchResult = allResults.find(r => r.match_id === mid);
+                const cleanSheetTeams = new Set();
+                if (matchResult) {
+                    if ((matchResult.home_goals ?? -1) === 0) cleanSheetTeams.add(match.away_team_id); // away team kept clean sheet
+                    if ((matchResult.away_goals ?? -1) === 0) cleanSheetTeams.add(match.home_team_id); // home team kept clean sheet
+                }
 
                 for (const squad of allSquads) {
                     const squadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id: squad.id });
@@ -308,26 +340,53 @@ Deno.serve(async (req) => {
 
                     let totalPts = 0;
                     const perPlayer = [];
+                    let playersScored = 0;
                     for (const sp of starters) {
                         const player = playersMap[sp.player_id];
                         const stat = statsMap[sp.player_id];
-                        if (!player || !stat) continue;
+                        if (!player) continue;
                         const pos = player.position;
-                        const mins = stat.minutes_played || 0;
-                        const goals = stat.goals || 0;
-                        const yc = stat.yellow_cards || 0;
-                        const rc = stat.red_cards || 0;
+                        const mins = stat ? (stat.minutes_played || 0) : 0;
+                        const goals = stat ? (stat.goals || 0) : 0;
+                        const assists = stat ? (stat.assists || 0) : 0;
+                        const yc = stat ? (stat.yellow_cards || 0) : 0;
+                        const rc = stat ? (stat.red_cards || 0) : 0;
+
                         let pts = 0;
-                        if (mins >= 60) pts += 1;
-                        if (pos === 'FWD') pts += goals * 4;
-                        else if (pos === 'MID') pts += goals * 5;
-                        else pts += goals * 6;
-                        pts += yc * -1;
-                        pts += rc * -3;
+                        // Minutes played
+                        if (mins >= 60) pts += PTS_60_PLUS;
+                        else if (mins >= 1) pts += PTS_1_TO_59;
+
+                        // Goals by position
+                        if (pos === 'FWD') pts += goals * PTS_GOAL_FWD;
+                        else if (pos === 'MID') pts += goals * PTS_GOAL_MID;
+                        else if (pos === 'DEF') pts += goals * PTS_GOAL_DEF;
+                        else if (pos === 'GK') pts += goals * PTS_GOAL_GK;
+
+                        // Assists (1 pt each regardless of position per standard fantasy rules)
+                        pts += assists * 1;
+
+                        // Cards
+                        pts += yc * PTS_YC;
+                        pts += rc * PTS_RC;
+
+                        // Clean sheet bonus (GK/DEF only, must have played CS_MIN_MINS in a clean sheet team)
+                        const playerTeamId = player.team_id;
+                        if ((pos === 'GK' || pos === 'DEF') && mins >= CS_MIN_MINS && cleanSheetTeams.has(playerTeamId)) {
+                            pts += PTS_CS;
+                        }
+
                         const isCaptain = captain && sp.player_id === captain.player_id;
                         const finalPts = isCaptain ? pts * 2 : pts;
                         totalPts += finalPts;
-                        perPlayer.push({ player_id: sp.player_id, player_name: player.full_name, pos, mins, goals, yc, rc, base_points: pts, multiplier: isCaptain ? 2 : 1, points: finalPts, is_captain: isCaptain });
+                        if (mins > 0 || goals > 0) playersScored++;
+                        perPlayer.push({
+                            player_id: sp.player_id, player_name: player.full_name,
+                            pos, mins, goals, assists, yc, rc,
+                            clean_sheet: cleanSheetTeams.has(playerTeamId),
+                            base_points: pts, multiplier: isCaptain ? 2 : 1,
+                            points: finalPts, is_captain: isCaptain
+                        });
                     }
 
                     await base44.asServiceRole.entities.PointsLedger.create({
@@ -338,6 +397,7 @@ Deno.serve(async (req) => {
                         points: totalPts,
                         breakdown_json: JSON.stringify({ type: 'AWARD', match_id: mid, phase, squad_id: squad.id, per_player: perPlayer, timestamp: new Date().toISOString() })
                     });
+                    console.log(`[backfillFantasy] Match ${mid}: squad ${squad.id} → ${totalPts} pts (${playersScored} active players)`);
                 }
 
                 summary.scored_ok++;
