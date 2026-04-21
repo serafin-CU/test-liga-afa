@@ -1,0 +1,121 @@
+{
+  "name": "FantasyMatchPlayerStats",
+  "type": "object",
+  "description": "Player statistics per match for fantasy scoring (immutable once written)",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id",
+      "index": true
+    },
+    "player_id": {
+      "type": "string",
+      "description": "FK reference to players.id",
+      "index": true
+    },
+    "team_id": {
+      "type": "string",
+      "description": "FK reference to teams.id",
+      "index": true
+    },
+    "started": {
+      "type": "boolean",
+      "description": "Whether player started the match"
+    },
+    "substituted_in": {
+      "type": "boolean",
+      "description": "Whether player was substituted in"
+    },
+    "substituted_out": {
+      "type": "boolean",
+      "description": "Whether player was substituted out"
+    },
+    "minute_in": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 120,
+      "description": "Minute player entered (null if started)"
+    },
+    "minute_out": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 120,
+      "description": "Minute player exited (null if played full time)"
+    },
+    "minutes_played": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 120,
+      "description": "Derived total minutes played (never user-entered)"
+    },
+    "goals": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Goals scored by player"
+    },
+    "assists": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Assists by player"
+    },
+    "yellow_cards": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Yellow cards received"
+    },
+    "red_cards": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "description": "Red cards received (max 1)"
+    },
+    "rating": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "API-Football player rating for the match (0-10)"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "PROMIEDOS",
+        "WIKIPEDIA",
+        "MANUAL",
+        "API_FUTBOL"
+      ],
+      "description": "Data source for these stats"
+    }
+  },
+  "required": [
+    "match_id",
+    "player_id",
+    "team_id",
+    "started",
+    "substituted_in",
+    "substituted_out",
+    "minutes_played",
+    "source"
+  ],
+  "indexes": [
+    [
+      "match_id"
+    ],
+    [
+      "player_id"
+    ],
+    [
+      "match_id",
+      "team_id"
+    ]
+  ],
+  "unique": [
+    [
+      "match_id",
+      "player_id"
+    ]
+  ]
+}

@@ -516,11 +516,11 @@ async function hashString(str) {
  */
 function mapPosition(apiPos) {
   if (!apiPos) return 'MID';
-  const p = apiPos.toLowerCase();
-  if (p === 'goalkeeper') return 'GK';
-  if (p === 'defender') return 'DEF';
-  if (p === 'midfielder') return 'MID';
-  if (p === 'attacker') return 'FWD';
+  const p = apiPos.toLowerCase().trim();
+  if (p === 'g' || p === 'goalkeeper') return 'GK';
+  if (p === 'd' || p === 'defender') return 'DEF';
+  if (p === 'm' || p === 'midfielder') return 'MID';
+  if (p === 'f' || p === 'attacker' || p === 'forward') return 'FWD';
   return 'MID';
 }
 

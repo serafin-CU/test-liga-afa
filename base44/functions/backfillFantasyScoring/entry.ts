@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
         }
 
         const body = await req.json().catch(() => ({}));
-        const { dry_run = false, force_rescore = false, match_id_filter = null, batch_size = 5, offset = 0 } = body;
+        const { dry_run = false, force_rescore = false, match_id_filter = null, venue_filter = null, batch_size = 5, offset = 0 } = body;
 
         // Pre-load all data to avoid per-iteration rate limits
         const [allResults, allMatches, allExistingStats, allPlayers, allTeams, dataSources] = await Promise.all([
@@ -43,9 +43,17 @@ Deno.serve(async (req) => {
             });
         }
 
+        // Build a set of match_ids for the venue filter
+        const venueMatchIds = venue_filter
+            ? new Set(allMatches.filter(m => m.venue === venue_filter).map(m => m.id))
+            : null;
+
         const allFiltered = match_id_filter
             ? allResults.filter(r => r.match_id === match_id_filter)
-            : allResults.filter(r => !statsMatchIds.has(r.match_id) || force_rescore);
+            : allResults.filter(r => {
+                if (venueMatchIds && !venueMatchIds.has(r.match_id)) return false;
+                return !statsMatchIds.has(r.match_id) || force_rescore;
+              });
 
         const filtered = allFiltered.slice(offset, offset + batch_size);
 
@@ -132,7 +140,7 @@ Deno.serve(async (req) => {
                 console.error(`[backfillFantasy] Match ${mid}: ingest failed - ${err.message}`);
             }
 
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, 800));
 
             // ── Step 2: Build FantasyMatchPlayerStats ─────────────────────────
             let statsOk = false;
@@ -152,15 +160,15 @@ Deno.serve(async (req) => {
                         const team_id = resolveTeamId(match, ps.team_name, allTeams);
                         if (!team_id) continue;
                         let player = resolvePlayer(allPlayers, team_id, ps.player_name);
-                        // Auto-create player if not found (uses API-Football full name)
+                        // Auto-create player if not found (uses API-Football full name + correct position)
                         if (!player && ps.player_name && ps.minutes_played > 0) {
-                            const pos = mapApiPosition(ps.position) || 'MID';
+                            const pos = mapApiPosition(ps.position);
                             player = await base44.asServiceRole.entities.Player.create({
                                 full_name: ps.player_name, team_id, position: pos,
                                 price: 5, is_active: true
                             });
-                            allPlayers.push(player); // keep local cache updated
-                            console.log(`[backfillFantasy] Auto-created player: ${ps.player_name} (${pos})`);
+                            allPlayers.push(player);
+                            console.log(`[backfillFantasy] Auto-created player: ${ps.player_name} (${pos}) api_pos="${ps.position}"`);
                         }
                         if (!player) continue;
                         statsMap[player.id] = {
@@ -170,8 +178,10 @@ Deno.serve(async (req) => {
                             minute_in: ps.started ? 0 : null, minute_out: null,
                             minutes_played: ps.minutes_played || 0,
                             goals: ps.goals || 0,
+                            assists: ps.assists || 0,
                             yellow_cards: ps.yellow_cards || 0,
                             red_cards: ps.red_cards || 0,
+                            rating: ps.rating ?? null,
                             source: 'API_FUTBOL',
                             _direct: true
                         };
@@ -238,7 +248,7 @@ Deno.serve(async (req) => {
                 let created = 0, updated = 0;
                 for (const pid in statsMap) {
                     const s = statsMap[pid];
-                    const data = { match_id: mid, player_id: pid, team_id: s.team_id, started: s.started, substituted_in: s.substituted_in, substituted_out: s.substituted_out, minute_in: s.minute_in, minute_out: s.minute_out, minutes_played: s.minutes_played, goals: s.goals, yellow_cards: s.yellow_cards, red_cards: s.red_cards, source: 'API_FUTBOL' };
+                    const data = { match_id: mid, player_id: pid, team_id: s.team_id, started: s.started, substituted_in: s.substituted_in, substituted_out: s.substituted_out, minute_in: s.minute_in, minute_out: s.minute_out, minutes_played: s.minutes_played, goals: s.goals || 0, assists: s.assists || 0, yellow_cards: s.yellow_cards || 0, red_cards: s.red_cards || 0, rating: s.rating ?? null, source: 'API_FUTBOL' };
                     if (existingStatsMap[pid]) {
                         await base44.asServiceRole.entities.FantasyMatchPlayerStats.update(existingStatsMap[pid].id, data);
                         updated++;
@@ -328,7 +338,7 @@ Deno.serve(async (req) => {
                 console.error(`[backfillFantasy] Match ${mid}: scoring failed - ${err.message}`);
             }
 
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 600));
         }
 
         return Response.json({
@@ -389,12 +399,17 @@ function normalizePlayerStats(rawPlayerStats) {
         const teamName = teamData.team?.name ?? null;
         for (const pd of (teamData.players || [])) {
             const s = pd.statistics?.[0] ?? {};
+            const ratingRaw = s.games?.rating;
             result.push({
-                player_name: pd.player?.name ?? null, team_name: teamName,
+                player_name: pd.player?.name ?? null,
+                team_name: teamName,
+                position: s.games?.position ?? null,        // e.g. "Goalkeeper", "Defender"
                 minutes_played: s.games?.minutes ?? 0,
                 goals: s.goals?.total ?? 0,
+                assists: s.goals?.assists ?? 0,
                 yellow_cards: s.cards?.yellow ?? 0,
                 red_cards: s.cards?.red ?? 0,
+                rating: ratingRaw ? parseFloat(ratingRaw) : null,
                 started: s.games?.lineupPosition != null
             });
         }
@@ -446,11 +461,12 @@ function resolvePlayer(allPlayers, team_id, rawName) {
 
 function mapApiPosition(apiPos) {
     if (!apiPos) return 'MID';
-    const p = apiPos.toLowerCase();
-    if (p === 'goalkeeper') return 'GK';
-    if (p === 'defender') return 'DEF';
-    if (p === 'midfielder') return 'MID';
-    if (p === 'attacker') return 'FWD';
+    const p = apiPos.toLowerCase().trim();
+    // Short codes: G, D, M, F
+    if (p === 'g' || p === 'goalkeeper') return 'GK';
+    if (p === 'd' || p === 'defender') return 'DEF';
+    if (p === 'm' || p === 'midfielder') return 'MID';
+    if (p === 'f' || p === 'attacker' || p === 'forward') return 'FWD';
     return 'MID';
 }
 
