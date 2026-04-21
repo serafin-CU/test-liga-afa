@@ -155,19 +155,29 @@ Deno.serve(async (req) => {
                 const statsMap = {};
 
                 // Use player_stats directly (API-Football format - most reliable)
+                // Build an api_player_id → player map for fast lookup
+                const playersByApiId = Object.fromEntries(allPlayers.filter(p => p.api_player_id).map(p => [p.api_player_id, p]));
+
                 if (parsed.player_stats && parsed.player_stats.length > 0) {
                     for (const ps of parsed.player_stats) {
                         const team_id = resolveTeamId(match, ps.team_name, allTeams);
                         if (!team_id) continue;
-                        let player = resolvePlayer(allPlayers, team_id, ps.player_name);
-                        // Auto-create player if not found (uses API-Football full name + correct position)
+
+                        // 1. Try resolve by api_player_id first (most reliable, avoids abbrev name mismatches)
+                        let player = ps.api_player_id ? playersByApiId[String(ps.api_player_id)] : null;
+                        // 2. Fall back to name fuzzy match
+                        if (!player) player = resolvePlayer(allPlayers, team_id, ps.player_name);
+
+                        // Auto-create player if still not found
                         if (!player && ps.player_name && ps.minutes_played > 0) {
                             const pos = mapApiPosition(ps.position);
                             player = await base44.asServiceRole.entities.Player.create({
                                 full_name: ps.player_name, team_id, position: pos,
-                                price: 5, is_active: true
+                                price: 5, is_active: true,
+                                api_player_id: ps.api_player_id ? String(ps.api_player_id) : undefined
                             });
                             allPlayers.push(player);
+                            if (ps.api_player_id) playersByApiId[String(ps.api_player_id)] = player;
                             console.log(`[backfillFantasy] Auto-created player: ${ps.player_name} (${pos}) api_pos="${ps.position}"`);
                         }
                         if (!player) continue;
@@ -402,6 +412,7 @@ function normalizePlayerStats(rawPlayerStats) {
             const ratingRaw = s.games?.rating;
             result.push({
                 player_name: pd.player?.name ?? null,
+                api_player_id: pd.player?.id ? String(pd.player.id) : null,
                 team_name: teamName,
                 position: s.games?.position ?? null,        // e.g. "Goalkeeper", "Defender"
                 minutes_played: s.games?.minutes ?? 0,
@@ -443,11 +454,31 @@ function resolvePlayer(allPlayers, team_id, rawName) {
     if (!rawName) return null;
     const norm = normalizeStr(rawName);
     const teamPlayers = allPlayers.filter(p => p.team_id === team_id);
+
+    // 1. Exact match
     let p = teamPlayers.find(p => normalizeStr(p.full_name) === norm);
     if (p) return p;
+
+    // 2. Substring match
     p = teamPlayers.find(p => normalizeStr(p.full_name).includes(norm) || norm.includes(normalizeStr(p.full_name)));
     if (p) return p;
-    const tokens = norm.split(/\s+/).filter(t => t.length > 2);
+
+    // 3. Abbreviated name match: "G. Montiel" ↔ "Gonzalo Montiel"
+    //    Match if every token in the shorter name matches the start of a token in the longer name
+    const normTokens = norm.split(/\s+/);
+    p = teamPlayers.find(candidate => {
+        const candTokens = normalizeStr(candidate.full_name).split(/\s+/);
+        // Try matching normTokens against candTokens (short → long)
+        const matchAbbrev = (shortTokens, longTokens) =>
+            shortTokens.length > 0 && shortTokens.every(st =>
+                longTokens.some(lt => lt === st || (st.length <= 2 && lt.startsWith(st)) || lt.startsWith(st))
+            );
+        return matchAbbrev(normTokens, candTokens) || matchAbbrev(candTokens, normTokens);
+    });
+    if (p) return p;
+
+    // 4. Token overlap (surname-based)
+    const tokens = normTokens.filter(t => t.length > 2);
     if (tokens.length > 0) {
         const best = teamPlayers.map(p => {
             const pt = normalizeStr(p.full_name).split(/\s+/).filter(t => t.length > 2);
