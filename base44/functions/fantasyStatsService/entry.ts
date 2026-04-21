@@ -16,7 +16,8 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Admin access required' }, { status: 403 });
         }
 
-        const { action, match_id, options } = await req.json();
+        const body = await req.json();
+        const { action, match_id, options } = body;
 
         if (action === 'build_fantasy_stats') {
             const result = await buildFantasyStatsForMatch(base44, match_id, options || {});
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
 
 async function buildFantasyStatsForMatch(base44, match_id, options = {}) {
     const {
-        source_preference_order = ["PROMIEDOS", "WIKIPEDIA"],
+        source_preference_order = ["API_FUTBOL", "PROMIEDOS", "WIKIPEDIA"],
         allow_manual_fallback = true,
         dry_run = false
     } = options;
@@ -92,6 +93,46 @@ async function buildFantasyStatsForMatch(base44, match_id, options = {}) {
     const statsMap = {}; // player_id -> stats object
     const unresolvedNames = [];
     const match_length = determineMatchLength(parsed);
+
+    // If source is API_FUTBOL, use the rich player_stats array directly (most reliable)
+    if (chosenSourceName === 'API_FUTBOL' && parsed.player_stats && parsed.player_stats.length > 0) {
+        const match = await base44.asServiceRole.entities.Match.get(match_id);
+        for (const ps of parsed.player_stats) {
+            const team_id = resolveTeamId(match, ps.team_name, teams);
+            if (!team_id) continue;
+            const player = resolvePlayer(allPlayers, match_id, team_id, ps.player_name);
+            if (!player) {
+                unresolvedNames.push({ team: ps.team_name, name: ps.player_name, context: 'player_stats' });
+                continue;
+            }
+            if (!statsMap[player.id]) {
+                statsMap[player.id] = initPlayerStats(player.id, match_id, team_id);
+            }
+            // Use direct API-Football per-player stats
+            statsMap[player.id].minutes_played = ps.minutes_played || 0;
+            statsMap[player.id].started = ps.started || false;
+            statsMap[player.id].goals = ps.goals || 0;
+            statsMap[player.id].yellow_cards = ps.yellow_cards || 0;
+            statsMap[player.id].red_cards = ps.red_cards || 0;
+            statsMap[player.id]._minutes_set_directly = true;
+        }
+
+        // Still process events for goals/cards that might be missed (OWN_GOAL etc.)
+        for (const event of (parsed.events || [])) {
+            const match = await base44.asServiceRole.entities.Match.get(match_id);
+            const team_id = resolveTeamId(match, event.team, teams);
+            if (!team_id) continue;
+            if (event.type === 'GOAL') {
+                const player = resolvePlayer(allPlayers, match_id, team_id, event.player);
+                if (player && statsMap[player.id]) {
+                    // Already counted from player_stats, skip duplicate
+                }
+            }
+        }
+
+        // Skip the lineups/events block below since we have player_stats
+        // but we still need to handle the persist section
+    } else
 
     // Process lineups if present
     if (parsed.lineups) {
@@ -199,9 +240,10 @@ async function buildFantasyStatsForMatch(base44, match_id, options = {}) {
         }
     }
 
-    // Derive minutes played for all players
+    // Derive minutes played for all players (skip if already set directly from player_stats)
     for (const playerId in statsMap) {
         const stat = statsMap[playerId];
+        if (stat._minutes_set_directly) continue;
         
         // Set defaults
         if (stat.started && stat.minute_in === null) {
