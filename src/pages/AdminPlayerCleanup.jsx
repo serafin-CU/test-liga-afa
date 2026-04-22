@@ -248,7 +248,7 @@ export default function AdminPlayerCleanup() {
 
     // ── Op 5: Recalculate prices (skill-based) ──────────────────────────────
     const handleRecalculatePrices = async (limit = null) => {
-        const BATCH_SIZE = 300;
+        const BATCH_SIZE = 150;
 
         if (!limit) {
             const ok = await askConfirm(
