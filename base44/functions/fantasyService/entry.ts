@@ -40,6 +40,10 @@ Deno.serve(async (req) => {
                 return await getUserSquads(base44, user, body);
             case 'validate_squad':
                 return await validateSquadFull(base44, user, body);
+            case 'admin_reset_squad':
+                return await adminResetSquad(base44, user, body);
+            case 'admin_list_squads':
+                return await adminListSquads(base44, user, body);
             default:
                 return Response.json({ error: 'Invalid action' }, { status: 400 });
         }
@@ -443,4 +447,61 @@ function validateSquad(squadPlayers, squad) {
         errors, 
         warnings 
     };
+}
+
+/**
+ * ADMIN: Reset a squad back to DRAFT (clears all players too)
+ */
+async function adminResetSquad(base44, user, body) {
+    if (user.role !== 'admin') {
+        return Response.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const { squad_id } = body;
+    if (!squad_id) {
+        return Response.json({ error: 'squad_id is required' }, { status: 400 });
+    }
+
+    const squads = await base44.asServiceRole.entities.FantasySquad.filter({ id: squad_id });
+    if (squads.length === 0) {
+        return Response.json({ error: 'Squad not found' }, { status: 404 });
+    }
+
+    const squadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id });
+    await Promise.all(squadPlayers.map(sp => base44.asServiceRole.entities.FantasySquadPlayer.delete(sp.id)));
+
+    await base44.asServiceRole.entities.FantasySquad.update(squad_id, {
+        status: 'DRAFT',
+        total_cost: 0,
+        captain_player_id: null,
+        finalized_at: null,
+        last_autosaved_at: new Date().toISOString()
+    });
+
+    console.log(`[adminResetSquad] Admin ${user.email} reset squad ${squad_id} (deleted ${squadPlayers.length} players)`);
+
+    return Response.json({ success: true, deleted_players: squadPlayers.length });
+}
+
+/**
+ * ADMIN: List all squads (optionally filter by phase)
+ */
+async function adminListSquads(base44, user, body) {
+    if (user.role !== 'admin') {
+        return Response.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const { phase } = body;
+    const filter = phase ? { phase } : {};
+    const squads = await base44.asServiceRole.entities.FantasySquad.filter(filter, '-created_date', 200);
+    const users = await base44.asServiceRole.entities.User.list();
+    const usersMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    const enriched = squads.map(s => ({
+        ...s,
+        user_email: usersMap[s.user_id]?.email || s.user_id,
+        user_name: usersMap[s.user_id]?.full_name || ''
+    }));
+
+    return Response.json({ success: true, squads: enriched, total: enriched.length });
 }

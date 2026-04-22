@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RefreshCw, Database, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { RefreshCw, Database, CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2, RotateCcw } from 'lucide-react';
+import AdminSquadReset from '@/components/AdminSquadReset';
 
 export default function AdminDataSync() {
     const [running, setRunning] = useState(false);
@@ -217,6 +218,9 @@ export default function AdminDataSync() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Squad Reset Tool */}
+            <AdminSquadReset />
 
             {result && (
                 <Card className="border-green-200 bg-green-50">
