@@ -81,9 +81,10 @@ export default function AdminPlayerCleanup() {
             for (const p of batch) {
                 await base44.entities.Player.delete(p.id);
                 deleted++;
+                await sleep(150);
             }
             addLog(setOp1, `Deleted ${deleted}/${targets.length}...`);
-            if (i + BATCH < targets.length) await sleep(500);
+            await sleep(300);
         }
 
         addLog(setOp1, `✓ Done. Deleted ${deleted} players.`);
@@ -140,8 +141,8 @@ export default function AdminPlayerCleanup() {
         for (const p of targets) {
             await base44.entities.Player.delete(p.id);
             deleted++;
+            await sleep(150);
             if (deleted % 20 === 0) addLog(setOp2, `Deleted ${deleted}/${targets.length}...`);
-            if (deleted % 50 === 0) await sleep(300);
         }
 
         addLog(setOp2, `✓ Done. Deleted ${deleted} duplicates.`);
@@ -182,7 +183,8 @@ export default function AdminPlayerCleanup() {
         for (const p of orphans) {
             await base44.entities.Player.delete(p.id);
             deleted++;
-            if (deleted % 50 === 0) { addLog(setOp3, `Deleted ${deleted}/${orphans.length}...`); await sleep(300); }
+            await sleep(150);
+            if (deleted % 20 === 0) addLog(setOp3, `Deleted ${deleted}/${orphans.length}...`);
         }
         addLog(setOp3, `✓ Done. Deleted ${deleted} orphans.`);
         setOp3(prev => ({ ...prev, running: false, orphans: [] }));
