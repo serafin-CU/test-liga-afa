@@ -536,6 +536,68 @@ function defaultPrice(position) {
 }
 
 /**
+ * Calculate skill score (1-100) from API-Football player statistics.
+ * Used to determine fantasy price tier.
+ */
+function calculateSkillScore(player, stats) {
+  let score = 50; // Base score for an average player
+  
+  // Age factor (peak performance 25-29)
+  const age = player?.age ?? 27;
+  if (age >= 25 && age <= 29) score += 10;
+  else if (age >= 22 && age <= 31) score += 5;
+  else if (age < 20 || age > 33) score -= 10;
+  
+  // Performance rating (most important signal)
+  const rating = parseFloat(stats?.games?.rating) || 6.5;
+  if (rating >= 7.5) score += 20;
+  else if (rating >= 7.0) score += 15;
+  else if (rating >= 6.8) score += 10;
+  else if (rating >= 6.5) score += 5;
+  else if (rating < 6.0) score -= 15;
+  
+  // Goals + assists (attacking contribution)
+  const goals = stats?.goals?.total || 0;
+  const assists = stats?.goals?.assists || 0;
+  const contributions = goals + assists;
+  if (contributions >= 15) score += 15;
+  else if (contributions >= 8) score += 10;
+  else if (contributions >= 4) score += 5;
+  
+  // Appearances (regular starter vs bench)
+  const apps = stats?.games?.appearences || 0;
+  if (apps >= 20) score += 10;
+  else if (apps >= 10) score += 5;
+  else if (apps < 3) score -= 10;
+  
+  // Clamp 1-100
+  return Math.max(1, Math.min(100, score));
+}
+
+/**
+ * Map skill score (1-100) to fantasy price ($4M-$12M).
+ * Position adjustments: attackers get +1M premium at high tiers, GKs capped at $10M.
+ */
+function skillToPrice(score, position) {
+  let price = 4;
+  if (score >= 90) price = 12;
+  else if (score >= 85) price = 11;
+  else if (score >= 80) price = 10;
+  else if (score >= 75) price = 9;
+  else if (score >= 70) price = 8;
+  else if (score >= 65) price = 7;
+  else if (score >= 60) price = 6;
+  else if (score >= 55) price = 5;
+  else price = 4;
+  
+  // Position adjustments
+  if (position === 'FWD' && score >= 75) price += 1;
+  if (position === 'GK') price = Math.min(10, price);
+  
+  return Math.min(12, Math.max(4, price));
+}
+
+/**
  * Fetch squads for all teams in DB in small batches, upsert Player records via bulkCreate.
  * Accepts optional `offset` to resume from a team index (for pagination across calls).
  */
