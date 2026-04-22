@@ -10,6 +10,7 @@ import ProdePredictions from './pages/ProdePredictions';
 import Leaderboard from './pages/Leaderboard';
 import AdminBadgesViewer from './pages/AdminBadgesViewer';
 import AdminMatchSync from './pages/AdminMatchSync';
+import AdminPlayerDataCheck from './pages/AdminPlayerDataCheck';
 import MiFantasy from './pages/MiFantasy';
 import AdminDataSync from './pages/AdminDataSync';
 import ImportAFAData from './pages/ImportAFAData';
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
       <Route path="/SquadBuilder" element={<LayoutWrapper currentPageName="SquadBuilder"><SquadBuilder /></LayoutWrapper>} />
       <Route path="/Profile" element={<LayoutWrapper currentPageName="Profile"><Profile /></LayoutWrapper>} />
       <Route path="/AdminMatchSync" element={<LayoutWrapper currentPageName="AdminMatchSync"><AdminMatchSync /></LayoutWrapper>} />
+      <Route path="/AdminPlayerDataCheck" element={<LayoutWrapper currentPageName="AdminPlayerDataCheck"><AdminPlayerDataCheck /></LayoutWrapper>} />
       <Route path="/MiFantasy" element={<LayoutWrapper currentPageName="MiFantasy"><MiFantasy /></LayoutWrapper>} />
       <Route path="/OnboardingTest" element={<Onboarding />} />
       <Route path="*" element={<PageNotFound />} />
