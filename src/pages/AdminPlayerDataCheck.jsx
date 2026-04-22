@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Users, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, Users, TrendingUp, ChevronUp, ChevronDown, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
@@ -32,7 +33,10 @@ export default function AdminPlayerDataCheck() {
     const [sortField, setSortField] = useState('price');
     const [sortDir, setSortDir] = useState('desc');
     const [page, setPage] = useState(0);
+    const [deduping, setDeduping] = useState(false);
+    const [dedupeResult, setDedupeResult] = useState(null);
     const PAGE_SIZE = 20;
+    const queryClient = useQueryClient();
 
     const { data: players = [], isLoading } = useQuery({
         queryKey: ['adminAllPlayers'],
@@ -130,6 +134,56 @@ export default function AdminPlayerDataCheck() {
         if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         else { setSortField(field); setSortDir('asc'); }
         setPage(0);
+    };
+
+    const handleDeduplicatePlayers = async () => {
+        if (!window.confirm(
+            `This will find all players with duplicate names and delete the ones WITHOUT an api_player_id (keeping the API-sourced version).\n\nIf ALL duplicates lack an api_player_id, the one with the most recent created_date is kept.\n\nContinue?`
+        )) return;
+
+        setDeduping(true);
+        setDedupeResult(null);
+
+        try {
+            // Group by full_name
+            const nameGroups = {};
+            for (const p of players) {
+                if (!nameGroups[p.full_name]) nameGroups[p.full_name] = [];
+                nameGroups[p.full_name].push(p);
+            }
+
+            const toDelete = [];
+            for (const [name, group] of Object.entries(nameGroups)) {
+                if (group.length <= 1) continue;
+
+                // Sort: API players first (have api_player_id), then by newest created_date
+                const sorted = [...group].sort((a, b) => {
+                    const aHasApi = !!a.api_player_id;
+                    const bHasApi = !!b.api_player_id;
+                    if (aHasApi && !bHasApi) return -1;
+                    if (!aHasApi && bHasApi) return 1;
+                    return new Date(b.created_date) - new Date(a.created_date);
+                });
+
+                // Keep the first (best), delete the rest
+                const [_keep, ...rest] = sorted;
+                toDelete.push(...rest);
+            }
+
+            // Delete in batches
+            let deleted = 0;
+            for (const p of toDelete) {
+                await base44.entities.Player.delete(p.id);
+                deleted++;
+            }
+
+            setDedupeResult({ deleted, total: toDelete.length });
+            queryClient.invalidateQueries({ queryKey: ['adminAllPlayers'] });
+        } catch (err) {
+            setDedupeResult({ error: err.message });
+        } finally {
+            setDeduping(false);
+        }
     };
 
     const Th = ({ field, label }) => (
@@ -236,13 +290,38 @@ export default function AdminPlayerDataCheck() {
                         )}
                         {warnings.duplicates.length > 0 && (
                             <div>
-                                <div className="text-sm font-semibold text-amber-700 mb-1">⚠ Duplicate names: {warnings.duplicates.length} players</div>
+                                <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+                                    <div className="text-sm font-semibold text-amber-700">⚠ Duplicate names: {warnings.duplicates.length} players ({[...new Set(warnings.duplicates.map(p => p.full_name))].length} unique names)</div>
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        disabled={deduping}
+                                        onClick={handleDeduplicatePlayers}
+                                        className="gap-1 h-7 text-xs"
+                                    >
+                                        {deduping ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                        Delete Non-API Duplicates
+                                    </Button>
+                                </div>
+                                {dedupeResult && !dedupeResult.error && (
+                                    <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-2">
+                                        <CheckCircle2 className="w-3 h-3" /> Deleted {dedupeResult.deleted} duplicate players. Refresh to update stats.
+                                    </div>
+                                )}
+                                {dedupeResult?.error && (
+                                    <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
+                                        Error: {dedupeResult.error}
+                                    </div>
+                                )}
                                 <div className="flex flex-wrap gap-1">
                                     {[...new Set(warnings.duplicates.map(p => p.full_name))].slice(0, 20).map(name => (
                                         <Badge key={name} variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
                                             {name}
                                         </Badge>
                                     ))}
+                                    {[...new Set(warnings.duplicates.map(p => p.full_name))].length > 20 && (
+                                        <Badge variant="outline" className="text-xs">+{[...new Set(warnings.duplicates.map(p => p.full_name))].length - 20} more</Badge>
+                                    )}
                                 </div>
                             </div>
                         )}
