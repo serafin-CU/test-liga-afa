@@ -144,9 +144,10 @@ Deno.serve(async (req) => {
       }
 
       case 'recalculate_prices': {
-        const limit = body.limit || null;
+        const limit = body.limit || body.batch_size || null;
+        const offset = body.offset || 0;
         const season = body.season || 2026;
-        const result = await recalculatePlayerPrices(base44, { limit, season });
+        const result = await recalculatePlayerPrices(base44, { limit, offset, season });
         return Response.json(result);
       }
 
@@ -676,7 +677,7 @@ async function seedPlayersFromApi(base44) {
  * Runtime: ~6-8 minutes for 900 players at 400ms/player.
  */
 async function recalculatePlayerPrices(base44, options = {}) {
-  const { limit = null, season = 2026 } = options;
+  const { limit = null, offset = 0, season = 2026 } = options;
   
   // Fetch all players with api_player_id (only these can be updated)
   const allPlayers = await base44.asServiceRole.entities.Player.filter(
@@ -686,10 +687,16 @@ async function recalculatePlayerPrices(base44, options = {}) {
   );
   
   const playersWithApiId = allPlayers.filter(p => p.api_player_id);
-  const playersToProcess = limit ? playersWithApiId.slice(0, limit) : playersWithApiId;
+  const sliced = playersWithApiId.slice(offset);
+  const playersToProcess = limit ? sliced.slice(0, limit) : sliced;
+  const nextOffset = offset + playersToProcess.length;
+  const hasMore = nextOffset < playersWithApiId.length;
   
   const results = {
     total_players: playersWithApiId.length,
+    offset,
+    next_offset: nextOffset,
+    has_more: hasMore,
     processed: 0,
     updated: 0,
     skipped: 0,

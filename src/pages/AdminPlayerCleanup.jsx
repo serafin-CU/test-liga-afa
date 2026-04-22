@@ -248,32 +248,82 @@ export default function AdminPlayerCleanup() {
 
     // ── Op 5: Recalculate prices (skill-based) ──────────────────────────────
     const handleRecalculatePrices = async (limit = null) => {
+        const BATCH_SIZE = 300;
+
         if (!limit) {
             const ok = await askConfirm(
-                `This will fetch statistics from API-Football for ALL players with an api_player_id and recalculate their fantasy prices.\n\n~1 API call per player. Takes 6-8 minutes for a full squad.\n\nProceed?`
+                `This will fetch statistics from API-Football for ALL players with an api_player_id and recalculate their fantasy prices.\n\nProcesses in batches of ${BATCH_SIZE}. Takes ~6-8 min total.\n\nProceed?`
             );
             if (!ok) return;
         }
 
         setOp5({ running: true, logs: [], done: false, results: null });
-        addLog(setOp5, limit ? `Running test with first ${limit} players...` : `Running on all players...`);
+
+        // Accumulated totals across batches
+        const combined = {
+            total_players: 0,
+            processed: 0,
+            updated: 0,
+            skipped: 0,
+            errors: [],
+            price_distribution: {},
+            sample_updates: [],
+        };
 
         try {
-            const payload = { action: 'recalculate_prices' };
-            if (limit) payload.limit = limit;
-
-            addLog(setOp5, `Calling apiFutbol... (this may take a while)`);
-            const res = await base44.functions.invoke('apiFutbol', payload);
-            const data = res.data;
-
-            if (data?.ok) {
+            if (limit) {
+                // Test mode: single call
+                addLog(setOp5, `Testing with first ${limit} players...`);
+                const res = await base44.functions.invoke('apiFutbol', { action: 'recalculate_prices', limit });
+                const data = res.data;
                 addLog(setOp5, `✓ Done! Processed: ${data.processed}, Updated: ${data.updated}, Skipped: ${data.skipped}`);
                 if (data.errors?.length) addLog(setOp5, `  Errors: ${data.errors.length} — ${data.errors[0]}`);
-            } else {
-                addLog(setOp5, `Response: ${JSON.stringify(data).slice(0, 200)}`);
+                setOp5(prev => ({ ...prev, running: false, done: true, results: data }));
+                queryClient.invalidateQueries({ queryKey: ['cleanupPlayers'] });
+                queryClient.invalidateQueries({ queryKey: ['adminAllPlayers'] });
+                return;
             }
 
-            setOp5(prev => ({ ...prev, running: false, done: true, results: data }));
+            // Full run: batch loop
+            let offset = 0;
+            let batchNum = 0;
+
+            while (true) {
+                batchNum++;
+                addLog(setOp5, `Batch ${batchNum}: fetching players ${offset}–${offset + BATCH_SIZE - 1}...`);
+
+                const res = await base44.functions.invoke('apiFutbol', {
+                    action: 'recalculate_prices',
+                    offset,
+                    batch_size: BATCH_SIZE,
+                });
+                const data = res.data;
+
+                // Merge into combined totals
+                combined.total_players = data.total_players;
+                combined.processed += data.processed || 0;
+                combined.updated += data.updated || 0;
+                combined.skipped += data.skipped || 0;
+                combined.errors.push(...(data.errors || []));
+                if (data.sample_updates?.length && combined.sample_updates.length < 10) {
+                    combined.sample_updates.push(...data.sample_updates.slice(0, 10 - combined.sample_updates.length));
+                }
+                for (const [price, count] of Object.entries(data.price_distribution || {})) {
+                    combined.price_distribution[price] = (combined.price_distribution[price] || 0) + count;
+                }
+
+                addLog(setOp5, `  ✓ Batch ${batchNum}: processed ${data.processed}, updated ${data.updated}, skipped ${data.skipped} | Total: ${data.next_offset}/${data.total_players}`);
+
+                if (!data.has_more) {
+                    addLog(setOp5, `✓ All done! ${combined.processed} processed, ${combined.updated} updated, ${combined.skipped} skipped.`);
+                    if (combined.errors.length) addLog(setOp5, `  ${combined.errors.length} errors total.`);
+                    break;
+                }
+
+                offset = data.next_offset;
+            }
+
+            setOp5(prev => ({ ...prev, running: false, done: true, results: { ok: true, ...combined } }));
             queryClient.invalidateQueries({ queryKey: ['cleanupPlayers'] });
             queryClient.invalidateQueries({ queryKey: ['adminAllPlayers'] });
         } catch (err) {
