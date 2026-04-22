@@ -208,14 +208,17 @@ export default function AdminPlayerCleanup() {
         try {
             // Step 1: Delete all players in batches
             addLog(setOp4, `Step 1: Deleting all ${players.length} players...`);
-            const BATCH = 50;
+            const BATCH = 10;
             let deleted = 0;
             for (let i = 0; i < players.length; i += BATCH) {
                 const batch = players.slice(i, i + BATCH);
-                for (const p of batch) await base44.entities.Player.delete(p.id);
+                for (const p of batch) {
+                    await base44.entities.Player.delete(p.id);
+                    await sleep(200);
+                }
                 deleted += batch.length;
                 addLog(setOp4, `Deleted ${deleted}/${players.length} players...`);
-                await sleep(500);
+                await sleep(1000);
             }
             addLog(setOp4, `✓ All players deleted. Starting API import...`);
 
