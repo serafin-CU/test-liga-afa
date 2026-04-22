@@ -153,12 +153,20 @@ async function addPlayerToSquad(base44, user, body) {
 
     const player = players[0];
 
-    // Check budget
-    const newTotalCost = squad.total_cost + player.price;
+    // Recalculate actual cost from existing squad players (don't trust cached total_cost)
+    const currentSquadPlayers = await base44.asServiceRole.entities.FantasySquadPlayer.filter({ squad_id });
+    const currentPlayerIds = currentSquadPlayers.map(sp => sp.player_id);
+    const allCurrentPlayers = currentPlayerIds.length > 0
+        ? await Promise.all(currentPlayerIds.map(pid => base44.asServiceRole.entities.Player.filter({ id: pid }).then(r => r[0])))
+        : [];
+    const actualCurrentCost = allCurrentPlayers.reduce((sum, p) => sum + (p?.price || 0), 0);
+
+    // Check budget against actual cost
+    const newTotalCost = actualCurrentCost + player.price;
     if (newTotalCost > squad.budget_cap) {
         return Response.json({ 
             error: 'Adding this player would exceed budget',
-            current_cost: squad.total_cost,
+            current_cost: actualCurrentCost,
             player_price: player.price,
             new_total: newTotalCost,
             budget_cap: squad.budget_cap
@@ -344,9 +352,15 @@ async function finalizeSquad(base44, user, body) {
         }, { status: 400 });
     }
 
+    // Recalculate actual total_cost from DB to fix any stale cached value
+    const playerIds = squadPlayers.map(sp => sp.player_id);
+    const playerRecords = await Promise.all(playerIds.map(pid => base44.asServiceRole.entities.Player.filter({ id: pid }).then(r => r[0])));
+    const actualTotalCost = playerRecords.reduce((sum, p) => sum + (p?.price || 0), 0);
+
     // Finalize
     await base44.asServiceRole.entities.FantasySquad.update(squad_id, {
         status: 'FINAL',
+        total_cost: actualTotalCost,
         finalized_at: new Date().toISOString()
     });
 
