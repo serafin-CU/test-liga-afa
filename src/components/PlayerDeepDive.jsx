@@ -72,6 +72,32 @@ function skillToPrice(score, position) {
     return { price: finalPrice, posAdj };
 }
 
+// ── Per-90 and participation helpers ─────────────────────────────────────────
+
+function per90(value, minutes) {
+    if (!minutes || minutes < 1) return null;
+    return ((value / minutes) * 90).toFixed(2);
+}
+
+function ratingLabel(rating) {
+    const r = parseFloat(rating);
+    if (!r) return null;
+    if (r >= 7.5) return { label: 'Elite', color: 'text-green-700' };
+    if (r >= 7.0) return { label: 'Good', color: 'text-blue-600' };
+    if (r >= 6.5) return { label: 'Average', color: 'text-gray-600' };
+    if (r >= 6.0) return { label: 'Below avg', color: 'text-amber-600' };
+    return { label: 'Poor', color: 'text-red-600' };
+}
+
+function ageCurveLabel(age) {
+    if (!age) return null;
+    if (age >= 25 && age <= 29) return { label: 'Peak (25–29)', color: 'text-green-700' };
+    if (age >= 22 && age <= 31) return { label: 'Prime (22–31)', color: 'text-blue-600' };
+    if (age < 20) return { label: 'Prospect (<20)', color: 'text-amber-600' };
+    if (age > 33) return { label: 'Decline (>33)', color: 'text-red-600' };
+    return { label: 'Fringe', color: 'text-gray-500' };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function StatRow({ label, value }) {
@@ -208,25 +234,62 @@ export default function PlayerDeepDive({ players, teamsMap }) {
                                         <StatRow label="Height" value={result.playerInfo.height} />
                                         <StatRow label="Weight" value={result.playerInfo.weight} />
 
-                                        {result.stats && (
-                                            <>
-                                                <div className="text-xs font-semibold text-gray-600 mt-3 mb-2">Statistics (season 2026)</div>
-                                                <StatRow label="Appearances" value={result.stats.games?.appearences} />
-                                                <StatRow label="Minutes" value={result.stats.games?.minutes} />
-                                                <StatRow label="Rating" value={result.stats.games?.rating} />
-                                                <StatRow label="Goals" value={result.stats.goals?.total} />
-                                                <StatRow label="Assists" value={result.stats.goals?.assists} />
-                                                <StatRow label="Goals conceded" value={result.stats.goals?.conceded} />
-                                                <StatRow label="Shots total" value={result.stats.shots?.total} />
-                                                <StatRow label="Shots on target" value={result.stats.shots?.on} />
-                                                <StatRow label="Passes total" value={result.stats.passes?.total} />
-                                                <StatRow label="Passes accuracy" value={result.stats.passes?.accuracy} />
-                                                <StatRow label="Key passes" value={result.stats.passes?.key} />
-                                                <StatRow label="Tackles" value={result.stats.tackles?.total} />
-                                                <StatRow label="Yellow cards" value={result.stats.cards?.yellow} />
-                                                <StatRow label="Red cards" value={result.stats.cards?.red} />
-                                            </>
-                                        )}
+                                        {result.stats && (() => {
+                                            const s = result.stats;
+                                            const apps = s.games?.appearences || 0;
+                                            const mins = s.games?.minutes || 0;
+                                            const goals = s.goals?.total || 0;
+                                            const assists = s.goals?.assists || 0;
+                                            const rating = parseFloat(s.games?.rating) || null;
+                                            // Estimate total possible games: assume ~30 league games
+                                            const leagueGames = 30;
+                                            const participationPct = leagueGames > 0 ? Math.round((apps / leagueGames) * 100) : null;
+                                            const minsPerGame = apps > 0 ? Math.round(mins / apps) : null;
+                                            const g90 = per90(goals, mins);
+                                            const a90 = per90(assists, mins);
+                                            const rl = ratingLabel(rating);
+                                            const al = ageCurveLabel(result.playerInfo.age);
+                                            return (
+                                                <>
+                                                    <div className="text-xs font-semibold text-gray-600 mt-3 mb-2">Statistics — Season 2026</div>
+
+                                                    <div className="text-xs text-gray-400 font-semibold uppercase tracking-wide mt-2 mb-1">Participation</div>
+                                                    <StatRow label="Appearances (raw)" value={apps || '—'} />
+                                                    <StatRow label="% of possible games" value={participationPct != null ? `${participationPct}% (${apps}/30)` : '—'} />
+                                                    <StatRow label="Total minutes" value={mins || '—'} />
+                                                    <StatRow label="Avg min/game" value={minsPerGame != null ? `${minsPerGame} min` : '—'} />
+
+                                                    <div className="text-xs text-gray-400 font-semibold uppercase tracking-wide mt-3 mb-1">Per-90 Metrics</div>
+                                                    <StatRow label="Goals/90" value={g90 ?? '—'} />
+                                                    <StatRow label="Assists/90" value={a90 ?? '—'} />
+                                                    <StatRow label="G+A/90" value={(g90 != null && a90 != null) ? (parseFloat(g90) + parseFloat(a90)).toFixed(2) : '—'} />
+
+                                                    <div className="text-xs text-gray-400 font-semibold uppercase tracking-wide mt-3 mb-1">Quality</div>
+                                                    <div className="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                                        <span className="text-gray-500">Rating</span>
+                                                        <span className="flex items-center gap-2">
+                                                            <span className="font-mono font-semibold text-gray-800">{rating ?? '—'}</span>
+                                                            {rl && <span className={`text-xs font-bold ${rl.color}`}>{rl.label}</span>}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between py-1 border-b border-gray-100 text-sm">
+                                                        <span className="text-gray-500">Age curve</span>
+                                                        <span className="flex items-center gap-2">
+                                                            <span className="font-mono font-semibold text-gray-800">{result.playerInfo.age ?? '—'}</span>
+                                                            {al && <span className={`text-xs font-bold ${al.color}`}>{al.label}</span>}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="text-xs text-gray-400 font-semibold uppercase tracking-wide mt-3 mb-1">Other (raw totals)</div>
+                                                    <StatRow label="Goals conceded" value={s.goals?.conceded} />
+                                                    <StatRow label="Shots total / on target" value={`${s.shots?.total ?? '—'} / ${s.shots?.on ?? '—'}`} />
+                                                    <StatRow label="Passes total / accuracy" value={`${s.passes?.total ?? '—'} / ${s.passes?.accuracy ?? '—'}%`} />
+                                                    <StatRow label="Key passes" value={s.passes?.key} />
+                                                    <StatRow label="Tackles" value={s.tackles?.total} />
+                                                    <StatRow label="Yellow / Red cards" value={`${s.cards?.yellow ?? 0} / ${s.cards?.red ?? 0}`} />
+                                                </>
+                                            );
+                                        })()}
                                     </>
                                 )}
                             </div>
