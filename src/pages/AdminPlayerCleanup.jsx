@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Users, AlertCircle } from 'lucide-react';
+import { Loader2, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Users, AlertCircle, TrendingUp } from 'lucide-react';
 
 function LogBox({ logs }) {
     const ref = useRef(null);
@@ -49,6 +49,7 @@ export default function AdminPlayerCleanup() {
     const [op2, setOp2] = useState({ running: false, logs: [], done: false });
     const [op3, setOp3] = useState({ running: false, logs: [], done: false, orphans: [] });
     const [op4, setOp4] = useState({ running: false, logs: [], done: false });
+    const [op5, setOp5] = useState({ running: false, logs: [], done: false, results: null });
 
     const addLog = (setter, msg) => setter(prev => ({ ...prev, logs: [...prev.logs, `[${new Date().toLocaleTimeString()}] ${msg}`] }));
 
@@ -245,6 +246,42 @@ export default function AdminPlayerCleanup() {
         }
     };
 
+    // ── Op 5: Recalculate prices (skill-based) ──────────────────────────────
+    const handleRecalculatePrices = async (limit = null) => {
+        if (!limit) {
+            const ok = await askConfirm(
+                `This will fetch statistics from API-Football for ALL players with an api_player_id and recalculate their fantasy prices.\n\n~1 API call per player. Takes 6-8 minutes for a full squad.\n\nProceed?`
+            );
+            if (!ok) return;
+        }
+
+        setOp5({ running: true, logs: [], done: false, results: null });
+        addLog(setOp5, limit ? `Running test with first ${limit} players...` : `Running on all players...`);
+
+        try {
+            const payload = { action: 'recalculate_prices' };
+            if (limit) payload.limit = limit;
+
+            addLog(setOp5, `Calling apiFutbol... (this may take a while)`);
+            const res = await base44.functions.invoke('apiFutbol', payload);
+            const data = res.data;
+
+            if (data?.ok) {
+                addLog(setOp5, `✓ Done! Processed: ${data.processed}, Updated: ${data.updated}, Skipped: ${data.skipped}`);
+                if (data.errors?.length) addLog(setOp5, `  Errors: ${data.errors.length} — ${data.errors[0]}`);
+            } else {
+                addLog(setOp5, `Response: ${JSON.stringify(data).slice(0, 200)}`);
+            }
+
+            setOp5(prev => ({ ...prev, running: false, done: true, results: data }));
+            queryClient.invalidateQueries({ queryKey: ['cleanupPlayers'] });
+            queryClient.invalidateQueries({ queryKey: ['adminAllPlayers'] });
+        } catch (err) {
+            addLog(setOp5, `✗ Error: ${err.message}`);
+            setOp5(prev => ({ ...prev, running: false }));
+        }
+    };
+
     const noApiIdCount = players.filter(p => !p.api_player_id).length;
     const teamIds = new Set(teams.map(t => t.id));
     const orphanCount = players.filter(p => !teamIds.has(p.team_id)).length;
@@ -413,6 +450,130 @@ export default function AdminPlayerCleanup() {
                     </Button>
                     {op4.done && <div className="flex items-center gap-2 mt-2 text-sm text-green-600"><CheckCircle2 className="w-4 h-4" /> Complete</div>}
                     <LogBox logs={op4.logs} />
+                </CardContent>
+            </Card>
+
+            {/* Op 5 */}
+            <Card className="border-blue-200">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base text-blue-700">
+                        <TrendingUp className="w-4 h-4" /> Recalculate Prices (Skill-Based)
+                    </CardTitle>
+                    <CardDescription>
+                        Fetches player statistics from API-Football and recalculates fantasy prices based on real performance. Uses ~1 API call per player.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex gap-2 flex-wrap">
+                        <Button
+                            variant="outline"
+                            disabled={op5.running}
+                            onClick={() => handleRecalculatePrices(10)}
+                            className="gap-2"
+                        >
+                            {op5.running ? <><Loader2 className="w-4 h-4 animate-spin" /> Running...</> : 'Test with 10 Players'}
+                        </Button>
+                        <Button
+                            disabled={op5.running}
+                            onClick={() => handleRecalculatePrices(null)}
+                            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            {op5.running ? <><Loader2 className="w-4 h-4 animate-spin" /> Running (6-8 min)...</> : <><TrendingUp className="w-4 h-4" /> Run on All Players</>}
+                        </Button>
+                    </div>
+
+                    {op5.done && !op5.running && (
+                        <div className="flex items-center gap-2 text-sm text-green-600"><CheckCircle2 className="w-4 h-4" /> Complete</div>
+                    )}
+
+                    <LogBox logs={op5.logs} />
+
+                    {op5.results && (
+                        <div className="space-y-4 mt-2">
+                            {/* Summary stats */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {[
+                                    { label: 'Total Players', value: op5.results.total_players },
+                                    { label: 'Processed', value: op5.results.processed },
+                                    { label: 'Updated', value: op5.results.updated },
+                                    { label: 'Skipped', value: op5.results.skipped },
+                                ].map(s => (
+                                    <div key={s.label} className="bg-gray-50 rounded-lg p-3 border text-center">
+                                        <div className="text-xs text-gray-500">{s.label}</div>
+                                        <div className="text-xl font-bold text-gray-800">{s.value ?? '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Price distribution */}
+                            {op5.results.price_distribution && (
+                                <div>
+                                    <div className="text-sm font-semibold text-gray-700 mb-1">Price Distribution</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.entries(op5.results.price_distribution)
+                                            .sort(([a], [b]) => Number(a) - Number(b))
+                                            .map(([price, count]) => (
+                                                <div key={price} className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-1 text-center min-w-[56px]">
+                                                    <div className="text-xs text-blue-500 font-semibold">${price}M</div>
+                                                    <div className="text-sm font-bold text-blue-800">{count}</div>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Sample updates table */}
+                            {op5.results.sample_updates?.length > 0 && (
+                                <div>
+                                    <div className="text-sm font-semibold text-gray-700 mb-1">Sample Updates (first {op5.results.sample_updates.length})</div>
+                                    <div className="overflow-x-auto rounded-lg border">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-gray-100">
+                                                <tr>
+                                                    <th className="text-left px-3 py-2">Name</th>
+                                                    <th className="px-3 py-2">Pos</th>
+                                                    <th className="px-3 py-2">Price</th>
+                                                    <th className="px-3 py-2">Score</th>
+                                                    <th className="px-3 py-2">Rating</th>
+                                                    <th className="px-3 py-2">G</th>
+                                                    <th className="px-3 py-2">A</th>
+                                                    <th className="px-3 py-2">Apps</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {op5.results.sample_updates.map((u, i) => (
+                                                    <tr key={i} className="hover:bg-gray-50">
+                                                        <td className="px-3 py-2 font-medium">{u.name}</td>
+                                                        <td className="px-3 py-2 text-center text-gray-500">{u.position}</td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <span className="text-gray-400">${u.old_price}M</span>
+                                                            <span className="mx-1 text-gray-300">→</span>
+                                                            <span className={u.new_price > u.old_price ? 'text-green-600 font-bold' : u.new_price < u.old_price ? 'text-red-600 font-bold' : 'text-gray-700'}>${u.new_price}M</span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center text-blue-600 font-mono">{u.skill_score}</td>
+                                                        <td className="px-3 py-2 text-center">{u.rating ?? '—'}</td>
+                                                        <td className="px-3 py-2 text-center">{u.goals}</td>
+                                                        <td className="px-3 py-2 text-center">{u.assists}</td>
+                                                        <td className="px-3 py-2 text-center">{u.apps}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Errors */}
+                            {op5.results.errors?.length > 0 && (
+                                <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 max-h-24 overflow-y-auto">
+                                    <div className="font-semibold mb-1">{op5.results.errors.length} errors:</div>
+                                    {op5.results.errors.slice(0, 10).map((e, i) => <div key={i}>{e}</div>)}
+                                    {op5.results.errors.length > 10 && <div className="text-gray-400">...and {op5.results.errors.length - 10} more</div>}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
