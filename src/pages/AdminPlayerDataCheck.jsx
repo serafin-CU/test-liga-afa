@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Users, TrendingUp, ChevronUp, ChevronDown, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import PlayerDeepDive from '@/components/PlayerDeepDive';
 
 const POSITIONS = ['GK', 'DEF', 'MID', 'FWD'];
 const POS_COLORS = { GK: '#475CC7', DEF: '#218848', MID: '#9a6e00', FWD: '#AA0061' };
@@ -354,6 +355,9 @@ export default function AdminPlayerDataCheck() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* ── Deep Dive ── */}
+            <PlayerDeepDive players={players} teamsMap={teamsMap} />
 
             {/* ── Player Table ── */}
             <Card>

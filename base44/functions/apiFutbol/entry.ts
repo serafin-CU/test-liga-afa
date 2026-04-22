@@ -122,6 +122,14 @@ Deno.serve(async (req) => {
         return Response.json(data);
       }
 
+      case 'get_player_info': {
+        const playerId = body.player_id;
+        if (!playerId) return Response.json({ error: 'player_id is required' }, { status: 400 });
+        const playerSeason = body.season || seasonId;
+        const data = await apiFetch(`/players?id=${playerId}&season=${playerSeason}`);
+        return Response.json(data);
+      }
+
       case 'ingest_fixture': {
         if (!fixture_id) return Response.json({ error: 'fixture_id is required' }, { status: 400 });
         // match_id override: skip auto-matching, use the provided match_id directly
