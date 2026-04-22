@@ -143,10 +143,17 @@ Deno.serve(async (req) => {
         return Response.json(result);
       }
 
+      case 'recalculate_prices': {
+        const limit = body.limit || null;
+        const season = body.season || 2026;
+        const result = await recalculatePlayerPrices(base44, { limit, season });
+        return Response.json(result);
+      }
+
       default:
         return Response.json({
           error: 'Invalid action',
-          available_actions: ['status', 'get_rounds', 'get_fixtures', 'get_fixture', 'get_events', 'get_lineups', 'get_player_stats', 'ingest_fixture', 'get_squad', 'seed_players']
+          available_actions: ['status', 'get_rounds', 'get_fixtures', 'get_fixture', 'get_events', 'get_lineups', 'get_player_stats', 'ingest_fixture', 'get_squad', 'seed_players', 'recalculate_prices']
         }, { status: 400 });
     }
 
@@ -657,5 +664,97 @@ async function seedPlayersFromApi(base44) {
   }
   results.players_created = toCreate.length;
 
+  return { ok: true, ...results };
+}
+
+/**
+ * Recalculate fantasy prices for all players with api_player_id.
+ * Fetches each player's season statistics from API-Football and computes
+ * a skill-based price ($4M-$12M). Sequential to respect rate limits.
+ * 
+ * API cost: ~1 call per player (so ~900 calls for full Liga AFA squad).
+ * Runtime: ~6-8 minutes for 900 players at 400ms/player.
+ */
+async function recalculatePlayerPrices(base44, options = {}) {
+  const { limit = null, season = 2026 } = options;
+  
+  // Fetch all players with api_player_id (only these can be updated)
+  const allPlayers = await base44.asServiceRole.entities.Player.filter(
+    { is_active: true },
+    'created_date',
+    5000
+  );
+  
+  const playersWithApiId = allPlayers.filter(p => p.api_player_id);
+  const playersToProcess = limit ? playersWithApiId.slice(0, limit) : playersWithApiId;
+  
+  const results = {
+    total_players: playersWithApiId.length,
+    processed: 0,
+    updated: 0,
+    skipped: 0,
+    errors: [],
+    price_distribution: { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+    sample_updates: [], // first 10 updates for verification
+  };
+  
+  for (const player of playersToProcess) {
+    try {
+      // Fetch player details + season stats
+      const data = await apiFetch(`/players?id=${player.api_player_id}&season=${season}`);
+      const playerData = data?.response?.[0];
+      
+      if (!playerData) {
+        results.skipped++;
+        results.errors.push(`No API data for ${player.full_name} (api_id: ${player.api_player_id})`);
+        await new Promise(r => setTimeout(r, 400));
+        continue;
+      }
+      
+      const stats = playerData.statistics?.[0] || {};
+      const playerInfo = playerData.player || {};
+      
+      // Calculate new price
+      const skillScore = calculateSkillScore(playerInfo, stats);
+      const newPrice = skillToPrice(skillScore, player.position);
+      const oldPrice = player.price;
+      
+      // Update player
+      await base44.asServiceRole.entities.Player.update(player.id, {
+        price: newPrice,
+        skill_score: skillScore,
+        age: playerInfo.age ?? null,
+        nationality: playerInfo.nationality ?? null,
+        photo_url: playerInfo.photo ?? player.photo_url,
+        last_stats_sync: new Date().toISOString(),
+      });
+      
+      results.processed++;
+      results.updated++;
+      results.price_distribution[newPrice] = (results.price_distribution[newPrice] || 0) + 1;
+      
+      if (results.sample_updates.length < 10) {
+        results.sample_updates.push({
+          name: player.full_name,
+          position: player.position,
+          old_price: oldPrice,
+          new_price: newPrice,
+          skill_score: skillScore,
+          rating: parseFloat(stats?.games?.rating) || null,
+          goals: stats?.goals?.total || 0,
+          assists: stats?.goals?.assists || 0,
+          apps: stats?.games?.appearences || 0,
+        });
+      }
+      
+      // Rate limit protection: 400ms between API calls = ~2.5 calls/sec
+      await new Promise(r => setTimeout(r, 400));
+      
+    } catch (err) {
+      results.errors.push(`${player.full_name}: ${err.message}`);
+      await new Promise(r => setTimeout(r, 400));
+    }
+  }
+  
   return { ok: true, ...results };
 }
