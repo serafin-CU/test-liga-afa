@@ -464,7 +464,15 @@ export default function SquadBuilder({ onSquadSaved } = {}) {
             queryClient.invalidateQueries(['userSquads']);
             if (onSquadSaved) onSquadSaved();
         } catch (error) {
-            toast.error(error.message || 'Error al guardar');
+            // Surface backend validation errors if available
+            const validationErrors = error?.response?.data?.validation_errors;
+            if (validationErrors?.length) {
+                toast.error(validationErrors.join(' · '));
+            } else {
+                const msg = error?.response?.data?.error || error.message || 'Error al guardar';
+                toast.error(msg);
+            }
+            console.error('[SquadBuilder] Save error detail:', error?.response?.data ?? error.message);
         } finally {
             setSaving(false);
         }
