@@ -352,15 +352,9 @@ async function finalizeSquad(base44, user, body) {
         }, { status: 400 });
     }
 
-    // Recalculate actual total_cost from DB to fix any stale cached value
-    const playerIds = squadPlayers.map(sp => sp.player_id);
-    const playerRecords = await Promise.all(playerIds.map(pid => base44.asServiceRole.entities.Player.filter({ id: pid }).then(r => r[0])));
-    const actualTotalCost = playerRecords.reduce((sum, p) => sum + (p?.price || 0), 0);
-
-    // Finalize
+    // Finalize — use the total_cost already stored on the squad (set by frontend before calling finalize)
     await base44.asServiceRole.entities.FantasySquad.update(squad_id, {
         status: 'FINAL',
-        total_cost: actualTotalCost,
         finalized_at: new Date().toISOString()
     });
 
