@@ -271,7 +271,14 @@ async function ingestFixture(base44, fixture_id, user, overrideMatchId = null) {
       return { ok: false, error: `Match not found for override match_id: ${overrideMatchId}`, fixture_id };
     }
   } else {
-    matchedMatch = findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiTeamId, awayApiTeamId);
+    matchedMatch = findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiTeamId, awayApiTeamId, kickoffDate);
+  }
+
+  // If auto-matched and the stored api_fixture_id differs, correct it
+  if (!overrideMatchId && matchedMatch.api_fixture_id !== String(fixture_id)) {
+    console.log(`[ingestFixture] Correcting api_fixture_id on match ${matchedMatch.id}: ${matchedMatch.api_fixture_id} → ${fixture_id}`);
+    await base44.asServiceRole.entities.Match.update(matchedMatch.id, { api_fixture_id: String(fixture_id) });
+    matchedMatch = { ...matchedMatch, api_fixture_id: String(fixture_id) };
   }
 
   // Get or create the API_FUTBOL data source record
@@ -464,7 +471,19 @@ function normalizePlayerStats(rawPlayerStats) {
   return result;
 }
 
-function findMatchByApiTeamIds(allMatches, allTeams, homeApiId, awayApiId) {
+/**
+ * Returns true if two ISO date strings are on the same calendar date (UTC),
+ * or within 1 day of each other (handles timezone edge cases).
+ */
+function datesMatch(isoA, isoB) {
+  if (!isoA || !isoB) return false;
+  const a = new Date(isoA);
+  const b = new Date(isoB);
+  const diffMs = Math.abs(a.getTime() - b.getTime());
+  return diffMs < 36 * 60 * 60 * 1000; // within 36 hours
+}
+
+function findMatchByApiTeamIds(allMatches, allTeams, homeApiId, awayApiId, kickoffDate) {
   const homeFifaCode = API_TEAM_ID_TO_FIFA_CODE[homeApiId];
   const awayFifaCode = API_TEAM_ID_TO_FIFA_CODE[awayApiId];
   if (!homeFifaCode || !awayFifaCode) return null;
@@ -473,19 +492,27 @@ function findMatchByApiTeamIds(allMatches, allTeams, homeApiId, awayApiId) {
   const awayTeam = allTeams.find(t => t.fifa_code === awayFifaCode);
   if (!homeTeam || !awayTeam) return null;
 
-  return allMatches.find(m =>
+  // Match by teams AND date
+  const candidates = allMatches.filter(m =>
     m.home_team_id === homeTeam.id && m.away_team_id === awayTeam.id
-  ) ?? null;
+  );
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Multiple matches between same teams — use date to disambiguate
+  const byDate = candidates.find(m => datesMatch(m.kickoff_at, kickoffDate));
+  return byDate ?? candidates[0];
 }
 
-function findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiId, awayApiId) {
-  // 1. Try by API team ID mapping first (most reliable)
+function findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiId, awayApiId, kickoffDate) {
+  // 1. Try by API team ID mapping + date (most reliable)
   if (homeApiId && awayApiId) {
-    const match = findMatchByApiTeamIds(allMatches, allTeams, homeApiId, awayApiId);
+    const match = findMatchByApiTeamIds(allMatches, allTeams, homeApiId, awayApiId, kickoffDate);
     if (match) return match;
   }
 
-  // 2. Fuzzy name fallback
+  // 2. Fuzzy name fallback + date filter
   const normalize = str => (str || '').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w\s]/g, '').trim();
@@ -499,12 +526,12 @@ function findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiId, 
     if (t.fifa_code) teamByNorm[normalize(t.fifa_code)] = t;
   }
 
-  let homeTeam = teamByNorm[homeNorm] ||
+  const homeTeam = teamByNorm[homeNorm] ||
     allTeams.find(t => {
       const n = normalize(t.name);
       return n.includes(homeNorm) || homeNorm.includes(n);
     });
-  let awayTeam = teamByNorm[awayNorm] ||
+  const awayTeam = teamByNorm[awayNorm] ||
     allTeams.find(t => {
       const n = normalize(t.name);
       return n.includes(awayNorm) || awayNorm.includes(n);
@@ -512,9 +539,16 @@ function findMatch(allMatches, allTeams, homeTeamName, awayTeamName, homeApiId, 
 
   if (!homeTeam || !awayTeam) return null;
 
-  return allMatches.find(m =>
+  const candidates = allMatches.filter(m =>
     m.home_team_id === homeTeam.id && m.away_team_id === awayTeam.id
-  ) ?? null;
+  );
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Disambiguate by date
+  const byDate = candidates.find(m => datesMatch(m.kickoff_at, kickoffDate));
+  return byDate ?? candidates[0];
 }
 
 async function hashString(str) {
