@@ -203,17 +203,22 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
     const allPlayers = await base44.asServiceRole.entities.Player.list();
     const playersMap = Object.fromEntries(allPlayers.map(p => [p.id, p]));
 
-    // Simplified scoring rules for validation
+    // Load scoring rules from AppConfig (source of truth)
+    const appConfigs = await base44.asServiceRole.entities.AppConfig.list();
+    const cfg = appConfigs[0] || {};
     const rules = {
-        points_goal_fwd: 4,
-        points_goal_mid: 5,
-        points_goal_def: 6,
-        points_goal_gk: 6,
-        points_yellow_card: -1,
-        points_red_card: -3,
-        points_play_60_plus: 1,
-        fantasy_scoring_version: 'v1'
+        points_goal_fwd: cfg.points_goal_fwd ?? 5,
+        points_goal_mid: cfg.points_goal_mid ?? 6,
+        points_goal_def: cfg.points_goal_def ?? 7,
+        points_goal_gk: cfg.points_goal_gk ?? 7,
+        points_yellow_card: cfg.points_yellow_card ?? -1,
+        points_red_card: cfg.points_red_card ?? -3,
+        points_play_60_plus: cfg.points_play_60_plus ?? 2,
+        points_play_1_to_59: cfg.points_play_1_to_59 ?? 1,
+        points_play_0: cfg.points_play_0 ?? 0,
+        fantasy_scoring_version: cfg.fantasy_scoring_version ?? 'v1'
     };
+    console.log('Scoring rules loaded from AppConfig:', JSON.stringify(rules));
     
     // Diagnostics
     const goalScorerPlayerIds = allStats.filter(s => s.goals > 0).map(s => s.player_id);
@@ -490,26 +495,30 @@ async function scoreFantasyMatch(base44, match_id, force = false) {
             
             console.log(`Scoring ${player.full_name} (${pos}): minutes=${minutes}, goals=${goals}, yc=${yc}, rc=${rc}`);
 
-            // Calculate points - explicit logic
+            // Calculate points using AppConfig rules
             let playerPoints = 0;
 
             // Base minutes points
             if (minutes >= 60) {
-                playerPoints += 1;
+                playerPoints += rules.points_play_60_plus;
+            } else if (minutes >= 1) {
+                playerPoints += rules.points_play_1_to_59;
             }
 
             // Goals by position
             if (pos === 'FWD') {
-                playerPoints += goals * 4;
+                playerPoints += goals * rules.points_goal_fwd;
             } else if (pos === 'MID') {
-                playerPoints += goals * 5;
-            } else if (pos === 'DEF' || pos === 'GK') {
-                playerPoints += goals * 6;
+                playerPoints += goals * rules.points_goal_mid;
+            } else if (pos === 'DEF') {
+                playerPoints += goals * rules.points_goal_def;
+            } else if (pos === 'GK') {
+                playerPoints += goals * rules.points_goal_gk;
             }
 
             // Cards
-            playerPoints += yc * -1;
-            playerPoints += rc * -3;
+            playerPoints += yc * rules.points_yellow_card;
+            playerPoints += rc * rules.points_red_card;
             
             console.log(`  → Points: ${playerPoints}`);
 
