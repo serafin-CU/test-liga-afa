@@ -217,7 +217,7 @@ function MatchCard({ match, result, ledgerEntry, teamsMap, isExpanded, onToggle 
             <div className="px-4 -mt-2 pb-2 text-xs" style={{ color: CU.gray, fontFamily: "'Raleway', sans-serif" }}>
                 {kickoffLabel}
                 {perPlayer.length > 0 && (
-                    <span className="ml-2">{perPlayer.filter(p => p.mins > 0).length} jugadores activos</span>
+                <span className="ml-2">{perPlayer.filter(p => (p.minutes ?? p.mins ?? 0) > 0).length} jugadores activos</span>
                 )}
             </div>
 
@@ -235,14 +235,24 @@ function MatchCard({ match, result, ledgerEntry, teamsMap, isExpanded, onToggle 
                             </div>
                             {[...perPlayer]
                                 .sort((a, b) => b.points - a.points)
-                                .map(p => (
-                                    <PlayerCard
-                                        key={p.player_id}
-                                        p={p}
-                                        isExpanded={expandedPlayer === p.player_id}
-                                        onToggle={() => setExpandedPlayer(expandedPlayer === p.player_id ? null : p.player_id)}
-                                    />
-                                ))
+                                .map(p => {
+                                    const normalized = {
+                                        ...p,
+                                        mins: p.mins ?? p.minutes ?? 0,
+                                        yc: p.yc ?? p.yellow_cards ?? 0,
+                                        rc: p.rc ?? p.red_cards ?? 0,
+                                        goals: p.goals ?? 0,
+                                        assists: p.assists ?? 0,
+                                    };
+                                    return (
+                                        <PlayerCard
+                                            key={p.player_id}
+                                            p={normalized}
+                                            isExpanded={expandedPlayer === p.player_id}
+                                            onToggle={() => setExpandedPlayer(expandedPlayer === p.player_id ? null : p.player_id)}
+                                        />
+                                    );
+                                })
                             }
                         </>
                     )}
