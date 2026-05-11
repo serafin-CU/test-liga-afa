@@ -89,6 +89,7 @@ function PlayerCard({ p, isExpanded, onToggle }) {
             {isExpanded && (
                 <div className="px-4 pb-3 pt-1 border-t" style={{ borderColor: '#f3f4f6' }}>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs" style={{ fontFamily: "'Raleway', sans-serif" }}>
+                        {/* Minutes */}
                         <div className="flex justify-between">
                             <span style={{ color: CU.gray }}>Minutos jugados</span>
                             <span className="font-semibold" style={{ color: CU.charcoal }}>{p.mins}'</span>
@@ -105,42 +106,62 @@ function PlayerCard({ p, isExpanded, onToggle }) {
                                 <span className="font-semibold text-green-600">+1</span>
                             </div>
                         )}
-                        {p.goals > 0 && (
-                            <div className="flex justify-between">
-                                <span style={{ color: CU.gray }}>Goles ({p.goals}×)</span>
-                                <span className="font-semibold text-green-600">+{p.goals * (p.pos === 'FWD' ? 5 : p.pos === 'MID' ? 6 : 7)}</span>
-                            </div>
-                        )}
+                        {/* Goals — use position-based rate from scoring rules */}
+                        {p.goals > 0 && (() => {
+                            const rate = p.pos === 'FWD' ? 5 : p.pos === 'MID' ? 6 : 7;
+                            const goalPts = p.goals * rate;
+                            return (
+                                <div className="flex justify-between">
+                                    <span style={{ color: CU.gray }}>Gol{p.goals > 1 ? `es (${p.goals}×${rate}pts)` : ` (${rate} pts)`}</span>
+                                    <span className="font-semibold text-green-600">+{goalPts}</span>
+                                </div>
+                            );
+                        })()}
+                        {/* Assists */}
                         {p.assists > 0 && (
                             <div className="flex justify-between">
                                 <span style={{ color: CU.gray }}>Asistencias ({p.assists}×)</span>
                                 <span className="font-semibold text-green-600">+{p.assists}</span>
                             </div>
                         )}
+                        {/* Clean sheet */}
                         {p.clean_sheet && (p.pos === 'GK' || p.pos === 'DEF') && (
                             <div className="flex justify-between">
                                 <span style={{ color: CU.gray }}>Arco en cero</span>
                                 <span className="font-semibold text-green-600">+4</span>
                             </div>
                         )}
+                        {/* Yellow cards */}
                         {p.yc > 0 && (
                             <div className="flex justify-between">
-                                <span style={{ color: CU.gray }}>Amarilla ({p.yc}×)</span>
+                                <span style={{ color: CU.gray }}>Amarilla{p.yc > 1 ? ` (${p.yc}×)` : ''}</span>
                                 <span className="font-semibold text-red-600">{p.yc * -1}</span>
                             </div>
                         )}
+                        {/* Red card */}
                         {p.rc > 0 && (
                             <div className="flex justify-between">
                                 <span style={{ color: CU.gray }}>Roja</span>
                                 <span className="font-semibold text-red-600">-3</span>
                             </div>
                         )}
-                        {p.is_captain && p.base_points > 0 && (
-                            <div className="flex justify-between col-span-2 pt-1 mt-1 border-t" style={{ borderColor: CU.orange + '40' }}>
-                                <span style={{ color: CU.orange, fontWeight: 600 }}>Capitán (×2)</span>
-                                <span className="font-bold" style={{ color: CU.orange }}>+{p.base_points} extra</span>
+                        {/* Base subtotal before captain */}
+                        {p.is_captain && (
+                            <div className="flex justify-between col-span-2 pt-1 mt-1 border-t" style={{ borderColor: '#e5e7eb' }}>
+                                <span style={{ color: CU.gray }}>Subtotal</span>
+                                <span className="font-semibold" style={{ color: CU.charcoal }}>{p.base_points > 0 ? `+${p.base_points}` : p.base_points}</span>
                             </div>
                         )}
+                        {/* Captain multiplier */}
+                        {p.is_captain && (
+                            <div className="flex justify-between col-span-2 pt-0.5" style={{ borderColor: CU.orange + '40' }}>
+                                <span style={{ color: CU.orange, fontWeight: 600 }}>Capitán (×2)</span>
+                                <span className="font-bold" style={{ color: p.base_points > 0 ? CU.orange : CU.gray }}>
+                                    {p.base_points > 0 ? `+${p.base_points} extra` : '—'}
+                                </span>
+                            </div>
+                        )}
+                        {/* Total */}
                         <div className="flex justify-between col-span-2 pt-1 mt-1 border-t font-bold" style={{ borderColor: '#e5e7eb' }}>
                             <span style={{ color: CU.charcoal }}>Total</span>
                             <span style={{ color: ptsColor }}>{pts > 0 ? `+${pts}` : pts} pts</span>
