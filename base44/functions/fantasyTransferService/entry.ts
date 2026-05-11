@@ -229,7 +229,7 @@ async function checkPhaseLock(base44, phase) {
 
     const firstMatch = sortedMatches[0];
     const firstMatchTime = new Date(firstMatch.kickoff_at);
-    const lockTime = new Date(firstMatchTime.getTime() - (48 * 60 * 60 * 1000));
+    const lockTime = new Date(firstMatchTime.getTime() - (0 * 60 * 60 * 1000));
     const now = new Date();
 
     const isLocked = now >= lockTime;
