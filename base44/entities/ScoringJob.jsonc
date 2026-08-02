@@ -1,0 +1,63 @@
+{
+  "name": "ScoringJob",
+  "type": "object",
+  "description": "Idempotent job queue for scoring operations",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "PRODE",
+        "FANTASY",
+        "QUIZ",
+        "PENALTY",
+        "BONUS"
+      ],
+      "description": "Scoring mode"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "MATCH",
+        "STAGE",
+        "QUIZ_ATTEMPT"
+      ],
+      "description": "Source type being scored"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Source identifier (e.g., 'MATCH:123')"
+    },
+    "version": {
+      "type": "integer",
+      "default": 1,
+      "description": "Scoring rule version"
+    },
+    "dedupe_key": {
+      "type": "string",
+      "description": "Unique deduplication key (e.g., 'PRODE:MATCH:123:v1')"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "DONE",
+        "FAILED"
+      ],
+      "default": "PENDING",
+      "description": "Job status"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if job failed"
+    }
+  },
+  "required": [
+    "mode",
+    "source_type",
+    "source_id",
+    "version",
+    "dedupe_key",
+    "status"
+  ]
+}

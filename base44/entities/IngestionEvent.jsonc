@@ -1,0 +1,58 @@
+{
+  "name": "IngestionEvent",
+  "type": "object",
+  "description": "Individual fetch/parse events during ingestion",
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "FK reference to ingestion_runs.id"
+    },
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "FK reference to data_sources.id"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When data was fetched"
+    },
+    "http_status": {
+      "type": "integer",
+      "description": "HTTP response status code"
+    },
+    "parse_status": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "FAIL"
+      ],
+      "description": "Whether parsing succeeded"
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "Hash of fetched content for change detection"
+    },
+    "parsed_json": {
+      "type": "string",
+      "description": "JSON string with parsed data (large, exclude from list views)"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if fetch/parse failed"
+    }
+  },
+  "required": [
+    "run_id",
+    "match_id",
+    "source_id",
+    "fetched_at",
+    "http_status",
+    "parse_status",
+    "content_hash",
+    "parsed_json"
+  ]
+}

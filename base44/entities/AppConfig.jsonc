@@ -1,0 +1,117 @@
+{
+  "name": "AppConfig",
+  "type": "object",
+  "description": "Global application configuration (single row with id=1)",
+  "properties": {
+    "tournament_start_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Tournament start date/time"
+    },
+    "tournament_phase": {
+      "type": "string",
+      "enum": [
+        "PRE_TOURNAMENT",
+        "GROUP_MD1",
+        "GROUP_MD2",
+        "GROUP_MD3",
+        "ROUND_OF_32",
+        "ROUND_OF_16",
+        "QUARTERFINALS",
+        "SEMIFINALS",
+        "FINAL",
+        "TOURNAMENT_DONE"
+      ],
+      "default": "PRE_TOURNAMENT",
+      "description": "Current tournament phase"
+    },
+    "transfer_window_state": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "CLOSED"
+      ],
+      "default": "OPEN",
+      "description": "Whether fantasy transfers are allowed"
+    },
+    "squad_lock_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When fantasy squads lock for the tournament"
+    },
+    "last_operator_run_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time the operator/scraper ran"
+    },
+    "rules_last_updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When scoring rules were last changed"
+    },
+    "fantasy_scoring_version": {
+      "type": "string",
+      "default": "v1",
+      "description": "Fantasy scoring rules version"
+    },
+    "points_goal_fwd": {
+      "type": "integer",
+      "default": 5,
+      "description": "Points for FWD goal"
+    },
+    "points_goal_mid": {
+      "type": "integer",
+      "default": 6,
+      "description": "Points for MID goal"
+    },
+    "points_goal_def": {
+      "type": "integer",
+      "default": 7,
+      "description": "Points for DEF goal"
+    },
+    "points_goal_gk": {
+      "type": "integer",
+      "default": 7,
+      "description": "Points for GK goal"
+    },
+    "points_yellow_card": {
+      "type": "integer",
+      "default": -1,
+      "description": "Points for yellow card"
+    },
+    "points_red_card": {
+      "type": "integer",
+      "default": -3,
+      "description": "Points for red card"
+    },
+    "points_play_60_plus": {
+      "type": "integer",
+      "default": 2,
+      "description": "Points for playing 60+ minutes"
+    },
+    "points_play_1_to_59": {
+      "type": "integer",
+      "default": 1,
+      "description": "Points for playing 1-59 minutes"
+    },
+    "points_play_0": {
+      "type": "integer",
+      "default": 0,
+      "description": "Points for playing 0 minutes"
+    },
+    "clean_sheet_def_gk": {
+      "type": "integer",
+      "default": 4,
+      "description": "Points for DEF/GK clean sheet"
+    },
+    "clean_sheet_min_minutes": {
+      "type": "integer",
+      "default": 60,
+      "description": "Minimum minutes for clean sheet bonus"
+    }
+  },
+  "required": [
+    "tournament_start_at",
+    "squad_lock_at"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "DataSource",
+  "type": "object",
+  "description": "Approved external data sources for match results",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Data source name (FIFA, WIKIPEDIA, OPENFOOTBALL, etc.)"
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Base URL for this source"
+    },
+    "allowed_paths_regex": {
+      "type": "string",
+      "description": "Regex pattern for allowed URL paths"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this source is currently enabled"
+    },
+    "rate_limit_seconds": {
+      "type": "integer",
+      "default": 30,
+      "description": "Minimum seconds between requests"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about this source"
+    }
+  },
+  "required": [
+    "name",
+    "base_url",
+    "allowed_paths_regex"
+  ]
+}

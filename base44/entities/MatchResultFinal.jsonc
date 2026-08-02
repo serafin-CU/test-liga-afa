@@ -1,0 +1,38 @@
+{
+  "name": "MatchResultFinal",
+  "type": "object",
+  "description": "Finalized match results (one per match)",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id (unique, acts as PK)"
+    },
+    "home_goals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Final home team goals"
+    },
+    "away_goals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Final away team goals"
+    },
+    "mvp_player_id": {
+      "type": "string",
+      "description": "FK reference to players.id - match MVP"
+    },
+    "finalized_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When result was finalized"
+    }
+  },
+  "required": [
+    "match_id",
+    "home_goals",
+    "away_goals",
+    "finalized_at"
+  ]
+}

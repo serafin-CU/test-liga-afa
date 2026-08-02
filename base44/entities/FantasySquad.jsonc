@@ -1,0 +1,64 @@
+{
+  "name": "FantasySquad",
+  "type": "object",
+  "description": "User fantasy squads per tournament phase",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "FK reference to users.id"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "PRE_TOURNAMENT",
+        "GROUP_MD1",
+        "GROUP_MD2",
+        "GROUP_MD3",
+        "ROUND_OF_32",
+        "ROUND_OF_16",
+        "QUARTERFINALS",
+        "SEMIFINALS",
+        "FINAL",
+        "TOURNAMENT_DONE"
+      ],
+      "description": "Tournament phase this squad is for"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "FINAL"
+      ],
+      "default": "DRAFT",
+      "description": "Squad status"
+    },
+    "budget_cap": {
+      "type": "integer",
+      "default": 150,
+      "description": "Total budget available"
+    },
+    "total_cost": {
+      "type": "integer",
+      "default": 0,
+      "description": "Sum of selected players' prices"
+    },
+    "captain_player_id": {
+      "type": "string",
+      "description": "FK reference to players.id - squad captain (double points)"
+    },
+    "last_autosaved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last autosave timestamp"
+    },
+    "finalized_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When squad was finalized"
+    }
+  },
+  "required": [
+    "user_id",
+    "phase"
+  ]
+}

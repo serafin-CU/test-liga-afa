@@ -1,0 +1,48 @@
+{
+  "name": "User",
+  "type": "object",
+  "description": "Extended user attributes for CookUnity World Cup Hub 2026",
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "description": "User's display name (shown on leaderboard)"
+    },
+    "department": {
+      "type": "string",
+      "enum": [
+        "Engineering",
+        "Product",
+        "CX",
+        "Operations",
+        "Marketing",
+        "Design",
+        "People",
+        "Finance",
+        "Culinary",
+        "Leadership",
+        "Data & Analytics",
+        "Sales"
+      ],
+      "description": "User's department within organization"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "URL to user avatar image"
+    },
+    "preferred_team_id": {
+      "type": "string",
+      "description": "FK reference to teams.id - user's favorite team"
+    },
+    "onboarding_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether user has completed onboarding flow"
+    }
+  },
+  "required": [
+    "display_name",
+    "department",
+    "avatar_url",
+    "preferred_team_id"
+  ]
+}

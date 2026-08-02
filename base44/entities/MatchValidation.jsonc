@@ -1,0 +1,58 @@
+{
+  "name": "MatchValidation",
+  "type": "object",
+  "description": "Validation state for match results before finalization",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id (unique, acts as PK)"
+    },
+    "status_candidate": {
+      "type": "string",
+      "enum": [
+        "SCHEDULED",
+        "LIVE",
+        "FINAL"
+      ],
+      "description": "Proposed status for match"
+    },
+    "score_candidate_home": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Proposed home team score"
+    },
+    "score_candidate_away": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Proposed away team score"
+    },
+    "confidence_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in this data (0-100)"
+    },
+    "reasons_json": {
+      "type": "string",
+      "description": "JSON string with validation reasons/sources"
+    },
+    "locked_final": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this validation has been approved and locked"
+    },
+    "finalized_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When validation was finalized"
+    }
+  },
+  "required": [
+    "match_id",
+    "status_candidate",
+    "confidence_score",
+    "reasons_json"
+  ]
+}

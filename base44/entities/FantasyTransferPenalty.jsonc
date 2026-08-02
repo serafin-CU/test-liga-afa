@@ -1,0 +1,48 @@
+{
+  "name": "FantasyTransferPenalty",
+  "type": "object",
+  "description": "Transfer penalties during knockout phases",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "FK reference to users.id"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "ROUND_OF_16",
+        "QUARTERFINALS",
+        "SEMIFINALS",
+        "FINAL"
+      ],
+      "description": "Knockout phase where transfers occurred"
+    },
+    "transfers_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of transfers made"
+    },
+    "penalty_points": {
+      "type": "integer",
+      "maximum": 0,
+      "description": "Penalty points (negative value)"
+    },
+    "computed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When penalty was computed"
+    },
+    "details_json": {
+      "type": "string",
+      "description": "JSON string with transfer details"
+    }
+  },
+  "required": [
+    "user_id",
+    "phase",
+    "transfers_count",
+    "penalty_points",
+    "computed_at",
+    "details_json"
+  ]
+}

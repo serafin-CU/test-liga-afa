@@ -1,0 +1,49 @@
+{
+  "name": "BadgeAward",
+  "type": "object",
+  "description": "Cosmetic-only badges awarded to users. No points impact.",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "FK reference to users.id"
+    },
+    "badge_type": {
+      "type": "string",
+      "enum": [
+        "UNBREAKABLE_XI",
+        "THE_ORIGINALS",
+        "PERFECT_MATCHDAY"
+      ],
+      "description": "UNBREAKABLE_XI: kept 8+ starters between knockout rounds. THE_ORIGINALS: 9 of R32 starters made it to the Final. PERFECT_MATCHDAY: predicted correct outcome for every match in a matchday."
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "PRE_TOURNAMENT",
+        "GROUP_MD1",
+        "GROUP_MD2",
+        "GROUP_MD3",
+        "ROUND_OF_32",
+        "ROUND_OF_16",
+        "QUARTERFINALS",
+        "SEMIFINALS",
+        "FINAL",
+        "TOURNAMENT_DONE"
+      ],
+      "description": "Phase when badge was earned."
+    },
+    "awarded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the badge was awarded"
+    },
+    "metadata_json": {
+      "type": "string",
+      "description": "Optional JSON with extra context"
+    }
+  },
+  "required": [
+    "user_id",
+    "badge_type"
+  ]
+}

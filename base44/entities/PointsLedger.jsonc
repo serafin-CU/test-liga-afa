@@ -1,0 +1,51 @@
+{
+  "name": "PointsLedger",
+  "type": "object",
+  "description": "Append-only points ledger. Never mutate entries silently.",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "FK reference to users.id"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "PRODE",
+        "FANTASY",
+        "QUIZ",
+        "PENALTY",
+        "BONUS"
+      ],
+      "description": "Scoring mode that awarded these points"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "MATCH",
+        "STAGE",
+        "QUIZ_ATTEMPT"
+      ],
+      "description": "Type of event that triggered scoring"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Unique identifier for source event (e.g., 'MATCH:123:v1')"
+    },
+    "points": {
+      "type": "integer",
+      "description": "Points awarded (can be negative for penalties)"
+    },
+    "breakdown_json": {
+      "type": "string",
+      "description": "JSON string with detailed scoring breakdown"
+    }
+  },
+  "required": [
+    "user_id",
+    "mode",
+    "source_type",
+    "source_id",
+    "points",
+    "breakdown_json"
+  ]
+}

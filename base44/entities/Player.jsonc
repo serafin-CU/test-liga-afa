@@ -1,0 +1,50 @@
+{
+  "name": "Player",
+  "type": "object",
+  "description": "Individual players in AFA Liga squads",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "description": "Player's full name"
+    },
+    "team_id": {
+      "type": "string",
+      "description": "FK reference to teams.id"
+    },
+    "position": {
+      "type": "string",
+      "enum": [
+        "GK",
+        "DEF",
+        "MID",
+        "FWD"
+      ],
+      "description": "Player position"
+    },
+    "price": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 18,
+      "description": "Fantasy draft price (1-18)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether player is available for fantasy selection"
+    },
+    "inactive_reason": {
+      "type": "string",
+      "description": "Reason if player is inactive (injury, suspension, etc.)"
+    },
+    "api_player_id": {
+      "type": "string",
+      "description": "API-Football player ID for data sync and deduplication"
+    }
+  },
+  "required": [
+    "full_name",
+    "team_id",
+    "position",
+    "price"
+  ]
+}

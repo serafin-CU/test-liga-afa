@@ -1,0 +1,37 @@
+{
+  "name": "MatchSourceLink",
+  "type": "object",
+  "description": "Links matches to their data sources",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "FK reference to data_sources.id"
+    },
+    "url": {
+      "type": "string",
+      "description": "Full URL to fetch match data (null for placeholder links)"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "PRIMARY",
+        "FALLBACK"
+      ],
+      "default": "FALLBACK",
+      "description": "Source role: PRIMARY (main data) or FALLBACK (backup data)"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "default": false,
+      "description": "DEPRECATED: Use role field instead"
+    }
+  },
+  "required": [
+    "match_id",
+    "source_id"
+  ]
+}

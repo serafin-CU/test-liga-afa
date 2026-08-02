@@ -1,0 +1,47 @@
+{
+  "name": "AdminAuditLog",
+  "type": "object",
+  "description": "Audit trail for admin and system actions",
+  "properties": {
+    "admin_user_id": {
+      "type": "string",
+      "description": "FK reference to users.id (required if actor_type=ADMIN, null if actor_type=SYSTEM)"
+    },
+    "actor_type": {
+      "type": "string",
+      "enum": [
+        "ADMIN",
+        "SYSTEM"
+      ],
+      "default": "ADMIN",
+      "description": "Whether action was performed by admin user or system"
+    },
+    "action": {
+      "type": "string",
+      "description": "Action performed (e.g., 'FINALIZE_MATCH', 'VOID_PREDICTION')"
+    },
+    "entity_type": {
+      "type": "string",
+      "description": "Entity type affected (e.g., 'Match', 'MatchResultFinal')"
+    },
+    "entity_id": {
+      "type": "string",
+      "description": "ID of affected entity"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for the action"
+    },
+    "details_json": {
+      "type": "string",
+      "description": "JSON string with additional details"
+    }
+  },
+  "required": [
+    "action",
+    "entity_type",
+    "entity_id",
+    "reason",
+    "details_json"
+  ]
+}

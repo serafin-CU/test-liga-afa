@@ -1,0 +1,35 @@
+{
+  "name": "IngestionRun",
+  "type": "object",
+  "description": "Tracks data ingestion/scraping runs",
+  "properties": {
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the run started"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the run finished"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "PARTIAL",
+        "FAIL"
+      ],
+      "description": "Overall run status"
+    },
+    "summary_json": {
+      "type": "string",
+      "description": "JSON string with run summary statistics"
+    }
+  },
+  "required": [
+    "started_at",
+    "status",
+    "summary_json"
+  ]
+}

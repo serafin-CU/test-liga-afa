@@ -1,0 +1,48 @@
+{
+  "name": "FantasySquadPlayer",
+  "type": "object",
+  "description": "Players in a fantasy squad",
+  "properties": {
+    "squad_id": {
+      "type": "string",
+      "description": "FK reference to fantasy_squads.id"
+    },
+    "player_id": {
+      "type": "string",
+      "description": "FK reference to players.id"
+    },
+    "slot_type": {
+      "type": "string",
+      "enum": [
+        "STARTER",
+        "BENCH"
+      ],
+      "description": "Whether player is starting or on bench"
+    },
+    "starter_position": {
+      "type": "string",
+      "enum": [
+        "GK",
+        "DEF",
+        "MID",
+        "FWD"
+      ],
+      "description": "Position in starting lineup (required if STARTER)"
+    },
+    "bench_order": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Priority order for auto-substitution (required if BENCH)"
+    },
+    "is_captain": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this player is the squad captain (2x points)"
+    }
+  },
+  "required": [
+    "squad_id",
+    "player_id",
+    "slot_type"
+  ]
+}

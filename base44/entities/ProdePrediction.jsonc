@@ -1,0 +1,43 @@
+{
+  "name": "ProdePrediction",
+  "type": "object",
+  "description": "User predictions for match outcomes (Prode mode)",
+  "properties": {
+    "match_id": {
+      "type": "string",
+      "description": "FK reference to matches.id"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "FK reference to users.id"
+    },
+    "pred_home_goals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Predicted goals for home team"
+    },
+    "pred_away_goals": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Predicted goals for away team"
+    },
+    "pred_mvp_player_id": {
+      "type": "string",
+      "description": "FK reference to players.id - predicted MVP"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When prediction was submitted"
+    }
+  },
+  "required": [
+    "match_id",
+    "user_id",
+    "pred_home_goals",
+    "pred_away_goals",
+    "submitted_at"
+  ]
+}
